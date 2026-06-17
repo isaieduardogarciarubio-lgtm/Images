@@ -4,10 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Gestión de Accesos</title>
-<script>
-/* Anti-flash: aplica el tema guardado antes del primer paint */
-(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
-</script>
 <style>
 /* ===== Design System Meli / Atlas ===== */
 :root{
@@ -627,16 +623,15 @@ var solicitudes = [
     .catch(function(){});
 })();
 
-/* ===== Dark mode (localStorage + prefers-color-scheme) ===== */
-function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
-function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+/* ===== Dark mode (prefers-color-scheme only, no persistence) ===== */
 function currentTheme(){
+  // Lee el atributo data-theme si se cambió manualmente en esta sesión, sino respeta SO
   var t=document.documentElement.getAttribute('data-theme');
   if(t) return t;
   return (window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)?'dark':'light';
 }
 function updateThemeIcon(theme){
-  // Muestra el ícono del tema al que se cambiará (affordance): en claro → luna; en oscuro → sol
+  // Muestra el ícono del tema al que se cambiará: en claro → luna; en oscuro → sol
   var html=(theme==='dark')?ic.sun:ic.moon;
   ['themeToggleMobile','themeToggleDesktop'].forEach(function(id){
     var b=document.getElementById(id); if(b) b.innerHTML=html;
@@ -644,7 +639,6 @@ function updateThemeIcon(theme){
 }
 function setTheme(theme){
   document.documentElement.setAttribute('data-theme',theme);
-  lsSet('theme',theme);
   updateThemeIcon(theme);
 }
 function toggleTheme(){
@@ -653,9 +647,8 @@ function toggleTheme(){
   showToast(next==='dark'?'Modo oscuro activado':'Modo claro activado','info');
 }
 function initTheme(){
-  var saved=lsGet('theme');
-  // Si no hay preferencia guardada, respeta el SO sin fijar el atributo (deja actuar a la media query)
-  setTheme(saved || currentTheme());
+  // Solo aplica iconografía inicial; tema viene del SO via prefers-color-scheme
+  updateThemeIcon(currentTheme());
 }
 initTheme();
 
