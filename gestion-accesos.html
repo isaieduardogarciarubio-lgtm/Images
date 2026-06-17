@@ -5,227 +5,359 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Gestión de Accesos</title>
 <style>
-  /* ====== Design System Meli / Atlas (Biblia Sección 6) ====== */
-  :root{
-    --primary:#3D33FF; --primary-light:#A8B9FF; --primary-bg:#EEF0FF; --primary-dark:#2A1FCC;
-    --text:#1A1A1A; --text-2:#737373; --text-muted:#9E9E9E;
-    --surface:#F5F5F5; --border:#E8E8E8; --border-strong:#E0E0E0;
-    --success:#00A650; --success-bg:#E6F7EE; --success-bd:#B3E6C8;
-    --error:#F23D4F; --error-bg:#FFEBEE; --error-bd:#FFB3BB;
-    --warning:#F7A800; --warning-bg:#FFF8E6; --warning-bd:#FFE0B2;
-    --yellow:#FFD100; --page:#EBEBEB;
-    --r-sm:4px; --r-md:8px; --r-lg:12px; --r-xl:20px; --r-full:999px;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0; padding:0;}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"Proxima Nova","Segoe UI",Roboto,sans-serif;
-    background:var(--page); color:var(--text);
-    font-size:14px; line-height:1.4;
-  }
-  button{font-family:inherit; cursor:pointer; border:none; background:none;}
-  input,select,textarea{font-family:inherit; font-size:14px;}
+/* ===== Design System Meli / Atlas ===== */
+:root{
+  --primary:#3D33FF;--primary-light:#A8B9FF;--primary-bg:#EEF0FF;--primary-dark:#2A1FCC;
+  --text:#1A1A1A;--text-2:#737373;--text-muted:#9E9E9E;
+  --surface:#F5F5F5;--border:#E8E8E8;--border-strong:#E0E0E0;
+  --success:#00A650;--success-bg:#E6F7EE;--success-bd:#B3E6C8;
+  --error:#F23D4F;--error-bg:#FFEBEE;--error-bd:#FFB3BB;
+  --warning:#F7A800;--warning-bg:#FFF8E6;--warning-bd:#FFE0B2;
+  --yellow:#FFD100;--page:#EBEBEB;
+  --r-sm:4px;--r-md:8px;--r-lg:12px;--r-xl:20px;--r-full:999px;
+  --icon-size:20px;--icon-stroke:2px;
+  --sidebar-w:240px;
+}
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Proxima Nova","Segoe UI",Roboto,sans-serif;
+  background:var(--page);color:var(--text);font-size:14px;line-height:1.4;
+  min-height:100vh;display:flex;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;}
+input,select,textarea{font-family:inherit;font-size:14px;}
 
-  /* ====== App shell (mobile-first, máx 480px centrado) ====== */
-  #app{
-    max-width:480px; margin:0 auto; min-height:100vh; min-height:100dvh;
-    background:var(--page); position:relative; display:flex; flex-direction:column;
-    box-shadow:0 0 24px rgba(0,0,0,.06);
-  }
+/* ===== Lucide icon system ===== */
+.icon{
+  width:var(--icon-size);height:var(--icon-size);
+  stroke:currentColor;stroke-width:var(--icon-stroke);
+  stroke-linecap:round;stroke-linejoin:round;
+  fill:none;flex-shrink:0;display:inline-block;vertical-align:middle;
+}
+.icon-sm{width:16px;height:16px;}
+.icon-lg{width:24px;height:24px;}
+.icon-xl{width:32px;height:32px;}
 
-  /* ====== Header ====== */
-  header{
-    position:sticky; top:0; z-index:40; background:#fff;
-    border-top:3px solid var(--yellow);
-    border-bottom:1px solid var(--border);
-    padding:12px 16px; display:flex; align-items:center; gap:12px;
-  }
-  header .brand-bar{width:4px; height:34px; background:var(--yellow); border-radius:var(--r-full);}
-  header .titles{flex:1; min-width:0;}
-  header .titles h1{font-size:18px; font-weight:800; margin:0; color:var(--text); letter-spacing:-.2px;}
-  header .titles p{font-size:13px; color:var(--text-2); margin:2px 0 0;}
-  .avatar{
-    width:38px; height:38px; border-radius:var(--r-full); flex:none;
-    background:var(--primary-bg); color:var(--primary);
-    display:flex; align-items:center; justify-content:center;
-    font-size:13px; font-weight:700; border:1px solid var(--primary-light);
-  }
+/* ===== Sidebar (desktop only) ===== */
+.sidebar{display:none;}
 
-  /* ====== Sub-header (búsqueda + contador) ====== */
-  .subhead{padding:14px 16px 6px; background:var(--page); position:sticky; top:62px; z-index:30;}
-  .search{
-    display:flex; align-items:center; gap:8px; background:#fff;
-    border:1px solid var(--border); border-radius:var(--r-md); padding:10px 12px;
-  }
-  .search svg{flex:none;}
-  .search input{border:none; outline:none; flex:1; background:transparent; color:var(--text);}
-  .search input::placeholder{color:var(--text-muted);}
-  .eyebrow{font-size:11px; font-weight:600; color:var(--text-muted); letter-spacing:.6px; text-transform:uppercase; margin:14px 2px 8px;}
+/* ===== Main area ===== */
+#mainArea{
+  flex:1;display:flex;flex-direction:column;
+  min-height:100vh;max-width:480px;margin:0 auto;
+  background:var(--page);position:relative;
+}
 
-  /* ====== Lista / contenido ====== */
-  main{flex:1; overflow-y:auto; padding:0 16px 90px;}
-  .list{display:flex; flex-direction:column; gap:12px;}
+/* ===== Mobile header ===== */
+.mobile-header{
+  position:sticky;top:0;z-index:40;background:#fff;
+  border-top:3px solid var(--yellow);border-bottom:1px solid var(--border);
+  padding:12px 16px;display:flex;align-items:center;gap:12px;
+}
+.brand-bar{width:4px;height:34px;background:var(--yellow);border-radius:var(--r-full);flex:none;}
+.header-titles{flex:1;min-width:0;}
+.header-titles h1{font-size:18px;font-weight:800;color:var(--text);letter-spacing:-.2px;}
+.header-titles p{font-size:13px;color:var(--text-2);margin-top:2px;}
+.avatar{
+  width:38px;height:38px;border-radius:var(--r-full);flex:none;
+  background:var(--primary-bg);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;border:1px solid var(--primary-light);
+}
 
-  /* ====== Card ====== */
-  .card{
-    background:#fff; border:1px solid var(--border); border-radius:var(--r-lg);
-    padding:16px; cursor:pointer; transition:transform .08s ease, box-shadow .15s ease;
-    box-shadow:0 1px 2px rgba(0,0,0,.04);
-  }
-  .card:active{transform:scale(.99);}
-  .card-top{display:flex; gap:12px; align-items:flex-start;}
-  .photo{
-    width:48px; height:48px; border-radius:var(--r-md); flex:none;
-    background:var(--surface); display:flex; align-items:center; justify-content:center;
-    font-weight:700; color:var(--text-2); font-size:15px; overflow:hidden;
-  }
-  .photo.lg{width:96px; height:96px; font-size:28px; border-radius:var(--r-lg);}
-  .card-id{flex:1; min-width:0;}
-  .card-id .name{font-size:14px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .card-id .company{font-size:13px; color:var(--text-2); margin-top:1px;}
-  .card-id .role{font-size:13px; color:var(--text-muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .card-divider{height:1px; background:var(--border); margin:12px 0;}
-  .meta{display:flex; flex-wrap:wrap; gap:12px;}
-  .meta .chip{display:flex; align-items:center; gap:4px; font-size:12px; color:var(--text-2);}
-  .card-extra{font-size:13px; margin-top:10px;}
-  .card-extra.reject{color:var(--error); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .card-extra.expire{color:var(--text-2);}
+/* ===== Subhead ===== */
+.subhead{padding:14px 16px 6px;background:var(--page);position:sticky;top:62px;z-index:30;}
+.search-wrap{
+  display:flex;align-items:center;gap:8px;background:#fff;
+  border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;
+}
+.search-wrap input{border:none;outline:none;flex:1;background:transparent;color:var(--text);}
+.search-wrap input::placeholder{color:var(--text-muted);}
+.eyebrow{font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.6px;text-transform:uppercase;margin:14px 2px 8px;}
 
-  /* ====== Badges ====== */
-  .badge{
-    display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:var(--r-sm);
-    font-size:12px; font-weight:500; border:1px solid; white-space:nowrap;
-  }
-  .badge.pendiente{background:var(--warning-bg); border-color:var(--warning-bd); color:var(--warning);}
-  .badge.aceptado{background:var(--success-bg); border-color:var(--success-bd); color:var(--success);}
-  .badge.rechazado{background:var(--error-bg); border-color:var(--error-bd); color:var(--error);}
-  .badge.vigente{background:var(--success-bg); border-color:var(--success-bd); color:var(--success);}
-  .badge.porvencer{background:var(--warning-bg); border-color:var(--warning-bd); color:var(--warning);}
-  .badge.vencido{background:var(--error-bg); border-color:var(--error-bd); color:var(--error);}
-  .badge.gray{background:var(--surface); border-color:var(--border-strong); color:var(--text-2);}
+/* ===== List ===== */
+main{flex:1;overflow-y:auto;padding:0 16px 90px;}
+.list{display:flex;flex-direction:column;gap:12px;}
 
-  /* ====== Empty state ====== */
-  .empty{text-align:center; padding:64px 24px; color:var(--text-muted);}
-  .empty .ico{font-size:44px; margin-bottom:12px;}
-  .empty h3{font-size:16px; font-weight:600; color:var(--text-2); margin:0 0 4px;}
-  .empty p{font-size:13px; margin:0;}
+/* ===== Card ===== */
+.card{
+  background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:16px;cursor:pointer;transition:transform .1s,box-shadow .15s;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+.card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.09);}
+.card:active{transform:scale(.99);}
+.card-top{display:flex;gap:12px;align-items:flex-start;}
+.photo{
+  width:48px;height:48px;border-radius:var(--r-md);flex:none;
+  background:var(--surface);display:flex;align-items:center;justify-content:center;
+  font-weight:700;color:var(--text-2);font-size:15px;
+}
+.photo.lg{width:96px;height:96px;font-size:28px;border-radius:var(--r-lg);}
+.card-info{flex:1;min-width:0;}
+.card-info .name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-info .company{font-size:13px;color:var(--text-2);margin-top:1px;}
+.card-info .role{font-size:13px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-divider{height:1px;background:var(--border);margin:12px 0;}
+.meta{display:flex;flex-wrap:wrap;gap:12px;}
+.chip{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);}
+.card-extra{font-size:13px;margin-top:10px;display:flex;align-items:center;gap:6px;}
+.card-extra.reject{color:var(--error);}
+.card-extra.expire{color:var(--text-2);}
 
-  /* ====== Tab bar ====== */
-  nav.tabbar{
-    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
-    width:100%; max-width:480px; background:#fff; border-top:1px solid var(--border);
-    display:flex; z-index:40; padding-bottom:env(safe-area-inset-bottom);
-  }
-  nav.tabbar button{
-    flex:1; padding:9px 0 10px; display:flex; flex-direction:column; align-items:center; gap:3px;
-    color:var(--text-muted); position:relative;
-  }
-  nav.tabbar button .lbl{font-size:11px; font-weight:600;}
-  nav.tabbar button.active{color:var(--primary);}
-  .tab-badge{
-    position:absolute; top:2px; left:calc(50% + 8px); min-width:17px; height:17px; padding:0 4px;
-    border-radius:var(--r-full); color:#fff; font-size:10px; font-weight:700;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .tab-badge.warn{background:var(--warning);}
-  .tab-badge.gray{background:var(--text-2);}
+/* ===== Badges ===== */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;padding:3px 8px;
+  border-radius:var(--r-sm);font-size:12px;font-weight:500;border:1px solid;white-space:nowrap;
+}
+.badge.pendiente{background:var(--warning-bg);border-color:var(--warning-bd);color:var(--warning);}
+.badge.aceptado{background:var(--success-bg);border-color:var(--success-bd);color:var(--success);}
+.badge.rechazado{background:var(--error-bg);border-color:var(--error-bd);color:var(--error);}
+.badge.vigente{background:var(--success-bg);border-color:var(--success-bd);color:var(--success);}
+.badge.porvencer{background:var(--warning-bg);border-color:var(--warning-bd);color:var(--warning);}
+.badge.vencido{background:var(--error-bg);border-color:var(--error-bd);color:var(--error);}
 
-  /* ====== Detalle (full-screen overlay) ====== */
+/* ===== Empty state ===== */
+.empty{text-align:center;padding:64px 24px;color:var(--text-muted);}
+.empty .empty-icon{display:flex;justify-content:center;margin-bottom:16px;color:var(--border-strong);}
+.empty h3{font-size:16px;font-weight:600;color:var(--text-2);margin-bottom:4px;}
+.empty p{font-size:13px;}
+
+/* ===== Tab bar (mobile) ===== */
+nav.tabbar{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;background:#fff;border-top:1px solid var(--border);
+  display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom);
+}
+nav.tabbar button{
+  flex:1;padding:9px 0 10px;display:flex;flex-direction:column;align-items:center;gap:3px;
+  color:var(--text-muted);position:relative;
+}
+nav.tabbar button .lbl{font-size:11px;font-weight:600;}
+nav.tabbar button.active{color:var(--primary);}
+.tab-badge{
+  position:absolute;top:2px;left:calc(50% + 8px);min-width:17px;height:17px;padding:0 4px;
+  border-radius:var(--r-full);color:#fff;font-size:10px;font-weight:700;
+  display:none;align-items:center;justify-content:center;
+}
+.tab-badge.warn{background:var(--warning);}
+.tab-badge.gray{background:var(--text-2);}
+
+/* ===== Screen backdrop ===== */
+.screen-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:59;
+  opacity:0;visibility:hidden;transition:opacity .2s;
+}
+.screen-backdrop.open{opacity:1;visibility:visible;}
+
+/* ===== Detail screen ===== */
+.screen{
+  position:fixed;inset:0;background:var(--page);z-index:60;
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .22s ease;visibility:hidden;
+}
+.screen.open{transform:translateX(0);visibility:visible;}
+.screen-head{
+  background:#fff;border-bottom:1px solid var(--border);
+  padding:12px 16px;display:flex;align-items:center;gap:10px;
+  position:sticky;top:0;z-index:10;
+}
+.screen-head h2{flex:1;font-size:17px;font-weight:700;}
+.icon-btn{
+  width:36px;height:36px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;
+  color:var(--text);flex:none;
+}
+.icon-btn:active{background:var(--surface);}
+.detail-body{flex:1;overflow-y:auto;padding:24px 16px 120px;}
+.detail-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;margin-bottom:8px;}
+.detail-hero .d-name{font-size:18px;font-weight:800;}
+.detail-hero .d-co{font-size:14px;color:var(--text-2);}
+.detail-hero .d-id{font-size:12px;color:var(--text-muted);}
+.d-section{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:8px 16px;margin-top:16px;}
+.row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:11px 0;border-bottom:1px solid var(--border);}
+.row:last-child{border-bottom:none;}
+.row .k{font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:6px;flex:none;}
+.row .v{font-size:14px;text-align:right;word-break:break-word;}
+.docs{display:flex;gap:10px;padding:12px 0;}
+.doc-thumb{
+  flex:1;aspect-ratio:1/1;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-md);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;color:var(--text-2);font-size:12px;cursor:pointer;padding:8px;text-align:center;
+}
+.doc-thumb:hover{background:#eaeaea;}
+.doc-thumb.missing{opacity:.4;cursor:default;}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 0;}
+.qr-box{width:140px;height:140px;border:1px solid var(--border);border-radius:var(--r-md);padding:8px;background:#fff;}
+.qr-id{font-size:13px;color:var(--text-2);font-weight:600;}
+
+/* ===== Action bar ===== */
+.action-bar{
+  position:absolute;bottom:0;left:0;right:0;background:#fff;
+  border-top:1px solid var(--border);
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  display:flex;gap:12px;
+}
+.btn{
+  flex:1;padding:13px;border-radius:var(--r-md);font-size:15px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-danger-outline{background:#fff;color:var(--error);border:1.5px solid var(--error-bd);}
+.btn-danger-outline:hover{background:var(--error-bg);}
+.btn-ghost{background:var(--surface);color:var(--text-2);border:1px solid var(--border-strong);}
+.btn-secondary{background:var(--primary-bg);color:var(--primary);border:1px solid var(--primary-light);}
+
+/* ===== Modals ===== */
+.overlay{
+  position:fixed;inset:0;background:rgba(26,26,26,.5);z-index:80;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;visibility:hidden;transition:opacity .15s;
+}
+.overlay.open{opacity:1;visibility:visible;}
+.modal{
+  background:#fff;border-radius:var(--r-lg);width:100%;max-width:380px;
+  padding:20px;transform:translateY(12px);transition:transform .18s;max-height:90vh;overflow-y:auto;
+}
+.overlay.open .modal{transform:translateY(0);}
+.modal h3{font-size:18px;font-weight:700;}
+.modal .sub{font-size:13px;color:var(--text-2);margin-top:2px;}
+.modal-div{height:1px;background:var(--border);margin:16px 0;}
+.field-lbl{font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;display:block;}
+.field-lbl .req{color:var(--error);}
+.finput,.fsel,.ftextarea{
+  width:100%;padding:11px 12px;border:1px solid var(--border-strong);border-radius:var(--r-md);
+  color:var(--text);background:#fff;outline:none;
+}
+.finput:focus,.fsel:focus,.ftextarea:focus{border-color:var(--primary);}
+.ftextarea{resize:vertical;min-height:70px;}
+.quick-chips{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.quick-chips button{
+  padding:6px 12px;border-radius:var(--r-full);
+  background:var(--primary-bg);color:var(--primary);font-size:13px;font-weight:600;
+  border:1px solid var(--primary-light);
+}
+.alert-inline{
+  display:flex;gap:10px;padding:12px 14px;border-radius:var(--r-md);margin-top:16px;
+  background:var(--primary-bg);border:1px solid var(--primary-light);font-size:13px;align-items:flex-start;
+}
+.modal-actions{display:flex;gap:10px;margin-top:20px;}
+.field-err{color:var(--error);font-size:12px;margin-top:6px;display:none;}
+.field-err.show{display:block;}
+.doc-preview{
+  width:100%;aspect-ratio:3/4;background:var(--surface);border-radius:var(--r-md);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text-muted);
+  margin-top:4px;font-size:13px;
+}
+
+/* ===== Toast ===== */
+#toastArea{position:fixed;top:16px;right:16px;z-index:100;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast{
+  background:#1A1A1A;color:#fff;border-radius:var(--r-md);padding:12px 16px;
+  display:flex;align-items:center;gap:10px;font-size:14px;min-width:200px;max-width:300px;
+  box-shadow:0 4px 16px rgba(0,0,0,.2);pointer-events:auto;
+  animation:toastIn .2s ease;
+}
+@keyframes toastIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+.toast.success{background:var(--success);}
+.toast.error_{background:var(--error);}
+.toast.warning{background:var(--warning);color:var(--text);}
+
+/* ===== Desktop (768px+) ===== */
+@media(min-width:768px){
+  .sidebar{
+    display:flex;flex-direction:column;
+    width:var(--sidebar-w);min-height:100vh;flex:none;
+    background:#fff;border-right:1px solid var(--border);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+  }
+  .sb-brand{
+    padding:20px 20px 16px;border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:10px;
+  }
+  .sb-logo{
+    width:36px;height:36px;border-radius:var(--r-md);background:var(--primary-bg);
+    display:flex;align-items:center;justify-content:center;color:var(--primary);flex:none;
+  }
+  .sb-titles h2{font-size:15px;font-weight:800;line-height:1.2;}
+  .sb-titles p{font-size:11px;color:var(--text-muted);margin-top:1px;}
+  .sb-nav{padding:12px;flex:1;}
+  .sb-nav button{
+    width:100%;padding:10px 12px;border-radius:var(--r-md);
+    display:flex;align-items:center;gap:10px;
+    color:var(--text-2);font-size:14px;font-weight:500;margin-bottom:2px;text-align:left;
+  }
+  .sb-nav button:hover{background:var(--surface);}
+  .sb-nav button.active{background:var(--primary-bg);color:var(--primary);font-weight:600;}
+  .sb-nav .lbl{flex:1;}
+  .sb-count{
+    min-width:20px;height:20px;padding:0 5px;border-radius:var(--r-full);
+    font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center;
+  }
+  .sb-count.warn{background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning-bd);}
+  .sb-count.gray{background:var(--surface);color:var(--text-muted);}
+  .sb-footer{
+    padding:16px 20px;border-top:1px solid var(--border);
+    display:flex;align-items:center;gap:10px;
+  }
+  .sb-uname{font-size:13px;font-weight:600;}
+  .sb-udept{font-size:12px;color:var(--text-muted);}
+
+  #mainArea{max-width:none;flex:1;}
+  .mobile-header{display:none;}
+  nav.tabbar{display:none;}
+  .subhead{top:0;}
+  main{padding:0 24px 40px;}
+  .list{max-width:680px;}
+
+  /* Detail: right panel */
   .screen{
-    position:fixed; inset:0; max-width:480px; margin:0 auto; background:var(--page);
-    z-index:60; display:flex; flex-direction:column; transform:translateX(100%);
-    transition:transform .22s ease; visibility:hidden;
+    left:auto;right:0;width:480px;max-width:480px;
+    border-left:1px solid var(--border);
+    box-shadow:-4px 0 24px rgba(0,0,0,.08);
   }
-  .screen.open{transform:translateX(0); visibility:visible;}
-  .screen header{justify-content:flex-start;}
-  .icon-btn{width:36px; height:36px; border-radius:var(--r-md); display:flex; align-items:center; justify-content:center; color:var(--text);}
-  .icon-btn:active{background:var(--surface);}
-  .detail-body{flex:1; overflow-y:auto; padding:24px 16px 110px;}
-  .detail-hero{display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; margin-bottom:8px;}
-  .detail-hero .name{font-size:18px; font-weight:800;}
-  .detail-hero .company{font-size:14px; color:var(--text-2);}
-  .detail-section{background:#fff; border:1px solid var(--border); border-radius:var(--r-lg); padding:8px 16px; margin-top:16px;}
-  .row{display:flex; justify-content:space-between; align-items:center; gap:16px; padding:11px 0; border-bottom:1px solid var(--border);}
-  .row:last-child{border-bottom:none;}
-  .row .k{font-size:13px; color:var(--text-2); flex:none;}
-  .row .v{font-size:14px; color:var(--text); text-align:right; word-break:break-word;}
-  .docs{display:flex; gap:10px; padding:12px 0;}
-  .doc-thumb{
-    flex:1; aspect-ratio:1/1; background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--r-md); display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:6px; color:var(--text-2); font-size:12px; cursor:pointer;
-  }
-  .doc-thumb:active{background:#ededed;}
-  .doc-thumb.empty-doc{opacity:.5;}
-
-  /* QR */
-  .qr-wrap{display:flex; flex-direction:column; align-items:center; gap:10px; padding:16px 0;}
-  .qr-box{width:140px; height:140px; border:1px solid var(--border); border-radius:var(--r-md); padding:8px; background:#fff;}
-  .qr-id{font-size:13px; color:var(--text-2); font-weight:600;}
-
-  /* Action bar */
-  .action-bar{
-    position:absolute; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--border);
-    padding:12px 16px calc(12px + env(safe-area-inset-bottom)); display:flex; gap:12px;
-  }
-  .btn{flex:1; padding:13px; border-radius:var(--r-md); font-size:15px; font-weight:600; text-align:center;}
-  .btn-primary{background:var(--primary); color:#fff;}
-  .btn-primary:active{background:var(--primary-dark);}
-  .btn-danger-outline{background:#fff; color:var(--error); border:1px solid var(--error-bd);}
-  .btn-danger-outline:active{background:var(--error-bg);}
-  .btn-ghost{background:var(--surface); color:var(--text-2); border:1px solid var(--border-strong);}
-  .btn-secondary{background:var(--primary-bg); color:var(--primary); border:1px solid var(--primary-light);}
-
-  /* ====== Modales ====== */
-  .overlay{
-    position:fixed; inset:0; background:rgba(26,26,26,.5); z-index:80;
-    display:flex; align-items:center; justify-content:center; padding:20px;
-    opacity:0; visibility:hidden; transition:opacity .15s ease;
-  }
-  .overlay.open{opacity:1; visibility:visible;}
-  .modal{
-    background:#fff; border-radius:var(--r-lg); width:100%; max-width:380px;
-    padding:20px; transform:translateY(12px); transition:transform .18s ease; max-height:90vh; overflow-y:auto;
-  }
-  .overlay.open .modal{transform:translateY(0);}
-  .modal h3{font-size:18px; font-weight:700; margin:0;}
-  .modal .sub{font-size:13px; color:var(--text-2); margin:2px 0 0;}
-  .modal-divider{height:1px; background:var(--border); margin:16px 0;}
-  .field-label{font-size:13px; font-weight:600; color:var(--text); margin-bottom:6px; display:block;}
-  .field-label .req{color:var(--error);}
-  .input, .select, .textarea{
-    width:100%; padding:11px 12px; border:1px solid var(--border-strong); border-radius:var(--r-md);
-    color:var(--text); background:#fff; outline:none;
-  }
-  .input:focus, .select:focus, .textarea:focus{border-color:var(--primary);}
-  .textarea{resize:vertical; min-height:70px;}
-  .quick-chips{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
-  .quick-chips button{
-    padding:6px 12px; border-radius:var(--r-full); background:var(--primary-bg);
-    color:var(--primary); font-size:13px; font-weight:600; border:1px solid var(--primary-light);
-  }
-  .quick-chips button:active{background:#e0e4ff;}
-  .alert-inline{
-    display:flex; gap:10px; padding:12px 14px; border-radius:var(--r-md); margin-top:16px;
-    background:var(--primary-bg); border:1px solid var(--primary-light); font-size:13px; color:var(--text);
-  }
-  .modal-actions{display:flex; gap:10px; margin-top:20px;}
-  .field-error{color:var(--error); font-size:12px; margin-top:6px; display:none;}
-  .field-error.show{display:block;}
-
-  /* Visor de documento */
-  .doc-viewer .modal{max-width:420px; text-align:center;}
-  .doc-viewer .doc-image{
-    width:100%; aspect-ratio:3/4; background:var(--surface); border-radius:var(--r-md);
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--text-muted);
-  }
+}
+@media(min-width:1024px){.list{max-width:720px;}}
 </style>
 </head>
 <body>
-<div id="app">
-  <header>
+
+<!-- ===== Sidebar (desktop) ===== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">
+      <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div class="sb-titles"><h2>Gestión de Accesos</h2><p>MercadoLibre Grid</p></div>
+  </div>
+  <nav class="sb-nav">
+    <button data-tab="pendiente" class="active" onclick="setTab('pendiente')">
+      <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span class="lbl">Pendientes</span>
+      <span class="sb-count warn" id="sc-pendiente"></span>
+    </button>
+    <button data-tab="aceptado" onclick="setTab('aceptado')">
+      <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      <span class="lbl">Aceptados</span>
+      <span class="sb-count gray" id="sc-aceptado"></span>
+    </button>
+    <button data-tab="rechazado" onclick="setTab('rechazado')">
+      <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+      <span class="lbl">Rechazados</span>
+      <span class="sb-count gray" id="sc-rechazado"></span>
+    </button>
+  </nav>
+  <div class="sb-footer">
+    <div class="avatar" id="sbAvatar">IG</div>
+    <div><div class="sb-uname" id="sbName">ISAI EDUARDO</div><div class="sb-udept" id="sbDept">Shipping - Transportation</div></div>
+  </div>
+</aside>
+
+<!-- ===== Main area ===== -->
+<div id="mainArea">
+  <header class="mobile-header">
     <div class="brand-bar"></div>
-    <div class="titles">
+    <div class="header-titles">
       <h1>Gestión de Accesos</h1>
       <p id="greeting">Hola, ISAI EDUARDO</p>
     </div>
@@ -233,81 +365,85 @@
   </header>
 
   <div class="subhead">
-    <div class="search">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9E9E9E" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <div class="search-wrap">
+      <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       <input id="searchInput" type="text" placeholder="Buscar por nombre, empresa o sitio…" oninput="render()">
     </div>
     <div class="eyebrow" id="listEyebrow">Solicitudes</div>
   </div>
 
-  <main>
-    <div class="list" id="list"></div>
-  </main>
+  <main><div class="list" id="list"></div></main>
 
-  <nav class="tabbar" id="tabbar">
+  <nav class="tabbar">
     <button data-tab="pendiente" class="active" onclick="setTab('pendiente')">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <svg width="22" height="22" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       <span class="lbl">Pendientes</span>
       <span class="tab-badge warn" id="badge-pendiente"></span>
     </button>
     <button data-tab="aceptado" onclick="setTab('aceptado')">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>
+      <svg width="22" height="22" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
       <span class="lbl">Aceptados</span>
       <span class="tab-badge gray" id="badge-aceptado"></span>
     </button>
     <button data-tab="rechazado" onclick="setTab('rechazado')">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg>
+      <svg width="22" height="22" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
       <span class="lbl">Rechazados</span>
       <span class="tab-badge gray" id="badge-rechazado"></span>
     </button>
   </nav>
 </div>
 
-<!-- ====== Pantalla Detalle ====== -->
+<div class="screen-backdrop" id="backdrop" onclick="closeDetail()"></div>
+
+<!-- ===== Detail screen ===== -->
 <div class="screen" id="detailScreen">
-  <header>
-    <button class="icon-btn" onclick="closeDetail()">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+  <div class="screen-head">
+    <button class="icon-btn" onclick="closeDetail()" aria-label="Volver">
+      <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
     </button>
-    <div class="titles" style="margin-left:4px;"><h1 style="font-size:17px;">Detalle de solicitud</h1></div>
+    <h2>Detalle de solicitud</h2>
     <span id="detailBadge"></span>
-  </header>
+  </div>
   <div class="detail-body" id="detailBody"></div>
   <div class="action-bar" id="detailActions"></div>
 </div>
 
-<!-- ====== Modal Aceptar ====== -->
+<!-- ===== Modal: Aceptar ===== -->
 <div class="overlay" id="acceptModal">
   <div class="modal">
     <h3>Aceptar acceso</h3>
     <p class="sub" id="acceptName">—</p>
-    <div class="modal-divider"></div>
-    <label class="field-label">Fecha de vencimiento <span class="req">*</span></label>
-    <input type="date" class="input" id="expireDate">
-    <div class="field-error" id="expireError">Selecciona una fecha futura válida.</div>
+    <div class="modal-div"></div>
+    <label class="field-lbl">Fecha de vencimiento <span class="req">*</span></label>
+    <input type="date" class="finput" id="expireDate">
+    <div class="field-err" id="expireErr">Selecciona una fecha futura válida.</div>
     <div class="quick-chips">
       <button onclick="setExpire(30)">30 días</button>
       <button onclick="setExpire(90)">90 días</button>
       <button onclick="setExpire(365)">1 año</button>
     </div>
     <div class="alert-inline">
-      <span>ℹ️</span><span>Se generará un código QR de acceso al confirmar.</span>
+      <svg class="icon icon-sm" style="color:var(--primary);margin-top:1px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <div>Se generará un código QR de acceso al confirmar.</div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('acceptModal')">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmAccept()">Aceptar</button>
+      <button class="btn btn-ghost" style="flex:none;padding:13px 20px" onclick="closeModal('acceptModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmAccept()">
+        <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        Aceptar
+      </button>
     </div>
   </div>
 </div>
 
-<!-- ====== Modal Rechazar ====== -->
+<!-- ===== Modal: Rechazar ===== -->
 <div class="overlay" id="rejectModal">
   <div class="modal">
     <h3>Rechazar acceso</h3>
     <p class="sub" id="rejectName">—</p>
-    <div class="modal-divider"></div>
-    <label class="field-label">Motivo del rechazo <span class="req">*</span></label>
-    <select class="select" id="rejectReason">
+    <div class="modal-div"></div>
+    <label class="field-lbl">Motivo del rechazo <span class="req">*</span></label>
+    <select class="fsel" id="rejectReason">
       <option value="">Selecciona un motivo…</option>
       <option>Documentación incompleta</option>
       <option>Datos inválidos</option>
@@ -315,24 +451,27 @@
       <option>Fuera de política de acceso</option>
       <option>Otro</option>
     </select>
-    <div class="field-error" id="rejectError">Selecciona un motivo.</div>
-    <label class="field-label" style="margin-top:14px;">Comentario adicional</label>
-    <textarea class="textarea" id="rejectComment" placeholder="Opcional…"></textarea>
+    <div class="field-err" id="rejectErr">Selecciona un motivo.</div>
+    <label class="field-lbl" style="margin-top:14px">Comentario adicional</label>
+    <textarea class="ftextarea" id="rejectComment" placeholder="Opcional…"></textarea>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('rejectModal')">Cancelar</button>
-      <button class="btn btn-danger-outline" onclick="confirmReject()">Rechazar</button>
+      <button class="btn btn-ghost" style="flex:none;padding:13px 20px" onclick="closeModal('rejectModal')">Cancelar</button>
+      <button class="btn btn-danger-outline" onclick="confirmReject()">
+        <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        Rechazar
+      </button>
     </div>
   </div>
 </div>
 
-<!-- ====== Visor de documento ====== -->
-<div class="overlay doc-viewer" id="docModal">
+<!-- ===== Modal: Visor de documento ===== -->
+<div class="overlay" id="docModal">
   <div class="modal">
     <h3 id="docTitle">Documento</h3>
     <p class="sub" id="docOwner">—</p>
-    <div class="modal-divider"></div>
-    <div class="doc-image">
-      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#9E9E9E" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+    <div class="modal-div"></div>
+    <div class="doc-preview">
+      <svg class="icon-xl" style="width:44px;height:44px;color:var(--border-strong)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
       <span>Vista previa (placeholder)</span>
     </div>
     <div class="modal-actions">
@@ -341,346 +480,376 @@
   </div>
 </div>
 
+<div id="toastArea"></div>
+
 <script>
-/* =========================================================
-   Estado en memoria (placeholder — sin backend, sin storage)
-   ========================================================= */
-var currentTab = 'pendiente';
-var currentDetailId = null;
-var pendingAction = null; // id de la solicitud en proceso de aceptar/rechazar
-
-var solicitudes = [
-  // --- Pendientes ---
-  { id:"AC-0007", fechaSolicitud:"2026-06-17T08:10:00", correo:"juan.perez@acme.com",
-    nombre:"Juan", apPaterno:"Pérez", apMaterno:"García", empresa:"Acme S.A.",
-    puesto:"Técnico de mantenimiento", sitio:"MEX01", curp:"PEGJ900101HDFRRN01",
-    foto:true, ine:true, pasaporte:false, liderJustifica:"laura.lider@meli.com",
-    nacionalidad:"Mexicana", esDriver:true, estatus:"pendiente",
-    motivoRechazo:null, fechaVencimiento:null, qr:null },
-  { id:"AC-0008", fechaSolicitud:"2026-06-17T07:42:00", correo:"maria.lopez@logix.mx",
-    nombre:"María", apPaterno:"López", apMaterno:"Hernández", empresa:"Logix",
-    puesto:"Coordinadora logística", sitio:"GDL02", curp:"LOHM880315MJCPRR04",
-    foto:true, ine:true, pasaporte:true, liderJustifica:"carlos.jefe@meli.com",
-    nacionalidad:"Mexicana", esDriver:false, estatus:"pendiente",
-    motivoRechazo:null, fechaVencimiento:null, qr:null },
-  { id:"AC-0009", fechaSolicitud:"2026-06-16T19:05:00", correo:"p.santos@transcorp.com",
-    nombre:"Pedro", apPaterno:"Santos", apMaterno:"Díaz", empresa:"TransCorp",
-    puesto:"Conductor", sitio:"MTY03", curp:"SADP920722HNLNZD08",
-    foto:true, ine:false, pasaporte:false, liderJustifica:"ana.lead@meli.com",
-    nacionalidad:"Mexicana", esDriver:true, estatus:"pendiente",
-    motivoRechazo:null, fechaVencimiento:null, qr:null },
-  // --- Aceptados ---
-  { id:"AC-0003", fechaSolicitud:"2026-05-20T11:00:00", correo:"sofia.r@buildco.com",
-    nombre:"Sofía", apPaterno:"Ramírez", apMaterno:"Cruz", empresa:"BuildCo",
-    puesto:"Supervisora de obra", sitio:"MEX01", curp:"RACS850612MDFMRF09",
-    foto:true, ine:true, pasaporte:true, liderJustifica:"laura.lider@meli.com",
-    nacionalidad:"Mexicana", esDriver:false, estatus:"aceptado",
-    motivoRechazo:null, fechaVencimiento:"2026-12-31", qr:"AC-0003" },
-  { id:"AC-0005", fechaSolicitud:"2026-06-01T09:30:00", correo:"k.müller@globaltech.de",
-    nombre:"Klaus", apPaterno:"Müller", apMaterno:"", empresa:"GlobalTech",
-    puesto:"Auditor externo", sitio:"GDL02", curp:"—",
-    foto:true, ine:false, pasaporte:true, liderJustifica:"carlos.jefe@meli.com",
-    nacionalidad:"Alemana", esDriver:false, estatus:"aceptado",
-    motivoRechazo:null, fechaVencimiento:"2026-06-28", qr:"AC-0005" },
-  // --- Rechazados ---
-  { id:"AC-0002", fechaSolicitud:"2026-05-15T14:20:00", correo:"r.flores@adhoc.mx",
-    nombre:"Ricardo", apPaterno:"Flores", apMaterno:"Mena", empresa:"AdHoc",
-    puesto:"Visitante", sitio:"MTY03", curp:"FOMR910405HNLLNC02",
-    foto:true, ine:false, pasaporte:false, liderJustifica:"ana.lead@meli.com",
-    nacionalidad:"Mexicana", esDriver:false, estatus:"rechazado",
-    motivoRechazo:"Documentación incompleta", fechaVencimiento:null, qr:null }
-];
-
-/* =========================================================
-   Identidad del usuario — GET /api/v1/me (Biblia Sección 3)
-   ========================================================= */
-(function loadUser(){
-  if (typeof fetch !== 'function') return;
-  fetch('/api/v1/me', { credentials:'include' })
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(u){
-      if (!u) return;
-      var first = (u.full_name || u.ldap || '').split(' ')[0] || '';
-      document.getElementById('greeting').textContent = 'Hola, ' + (u.full_name || u.ldap || '');
-      var initials = (u.email || '').split('@')[0].split('.').map(function(p){return p.charAt(0);}).join('').slice(0,2).toUpperCase();
-      if (initials) document.getElementById('avatar').textContent = initials;
-    })
-    .catch(function(){ /* sin VPN: se queda el placeholder */ });
+/* ===== Lucide icon strings (inline SVG, stroke-based) ===== */
+var ic = (function(){
+  function mk(paths){
+    return '<svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths+'</svg>';
+  }
+  function mkLg(paths){
+    return '<svg style="width:44px;height:44px;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;fill:none;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">'+paths+'</svg>';
+  }
+  return {
+    clock:     mk('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+    checkCirc: mk('<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>'),
+    xCirc:     mk('<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>'),
+    check:     mk('<path d="M20 6 9 17l-5-5"/>'),
+    x:         mk('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+    mapPin:    mk('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>'),
+    truck:     mk('<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>'),
+    calendar:  mk('<rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>'),
+    alertTri:  mk('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>'),
+    undo:      mk('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'),
+    share:     mk('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>'),
+    image:     mk('<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>'),
+    idCard:    mk('<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>'),
+    globe:     mk('<circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/>'),
+    mail:      mk('<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>'),
+    briefcase: mk('<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>'),
+    building:  mk('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>'),
+    user:      mk('<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+    info:      mk('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>'),
+    /* Large icons for empty states */
+    lgInbox:   mkLg('<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'),
+    lgCheck:   mkLg('<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>'),
+    lgArchive: mkLg('<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>')
+  };
 })();
 
-/* =========================================================
-   Helpers
-   ========================================================= */
-function fullName(s){ return [s.nombre, s.apPaterno, s.apMaterno].filter(Boolean).join(' '); }
-function initials(s){ return (s.nombre.charAt(0) + (s.apPaterno||'').charAt(0)).toUpperCase(); }
-function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+/* ===== Data (state in memory — placeholder) ===== */
+var currentTab = 'pendiente';
+var currentDetailId = null;
+var pendingAction = null;
 
+var solicitudes = [
+  {id:"AC-0007",fechaSolicitud:"2026-06-17T08:10:00",correo:"juan.perez@acme.com",
+   nombre:"Juan",apPaterno:"Pérez",apMaterno:"García",empresa:"Acme S.A.",
+   puesto:"Técnico de mantenimiento",sitio:"MEX01",curp:"PEGJ900101HDFRRN01",
+   foto:true,ine:true,pasaporte:false,liderJustifica:"laura.lider@meli.com",
+   nacionalidad:"Mexicana",esDriver:true,estatus:"pendiente",
+   motivoRechazo:null,fechaVencimiento:null,qr:null},
+  {id:"AC-0008",fechaSolicitud:"2026-06-17T07:42:00",correo:"maria.lopez@logix.mx",
+   nombre:"María",apPaterno:"López",apMaterno:"Hernández",empresa:"Logix",
+   puesto:"Coordinadora logística",sitio:"GDL02",curp:"LOHM880315MJCPRR04",
+   foto:true,ine:true,pasaporte:true,liderJustifica:"carlos.jefe@meli.com",
+   nacionalidad:"Mexicana",esDriver:false,estatus:"pendiente",
+   motivoRechazo:null,fechaVencimiento:null,qr:null},
+  {id:"AC-0009",fechaSolicitud:"2026-06-16T19:05:00",correo:"p.santos@transcorp.com",
+   nombre:"Pedro",apPaterno:"Santos",apMaterno:"Díaz",empresa:"TransCorp",
+   puesto:"Conductor",sitio:"MTY03",curp:"SADP920722HNLNZD08",
+   foto:true,ine:false,pasaporte:false,liderJustifica:"ana.lead@meli.com",
+   nacionalidad:"Mexicana",esDriver:true,estatus:"pendiente",
+   motivoRechazo:null,fechaVencimiento:null,qr:null},
+  {id:"AC-0003",fechaSolicitud:"2026-05-20T11:00:00",correo:"sofia.r@buildco.com",
+   nombre:"Sofía",apPaterno:"Ramírez",apMaterno:"Cruz",empresa:"BuildCo",
+   puesto:"Supervisora de obra",sitio:"MEX01",curp:"RACS850612MDFMRF09",
+   foto:true,ine:true,pasaporte:true,liderJustifica:"laura.lider@meli.com",
+   nacionalidad:"Mexicana",esDriver:false,estatus:"aceptado",
+   motivoRechazo:null,fechaVencimiento:"2026-12-31",qr:"AC-0003"},
+  {id:"AC-0005",fechaSolicitud:"2026-06-01T09:30:00",correo:"k.muller@globaltech.de",
+   nombre:"Klaus",apPaterno:"Müller",apMaterno:"",empresa:"GlobalTech",
+   puesto:"Auditor externo",sitio:"GDL02",curp:"—",
+   foto:true,ine:false,pasaporte:true,liderJustifica:"carlos.jefe@meli.com",
+   nacionalidad:"Alemana",esDriver:false,estatus:"aceptado",
+   motivoRechazo:null,fechaVencimiento:"2026-06-28",qr:"AC-0005"},
+  {id:"AC-0002",fechaSolicitud:"2026-05-15T14:20:00",correo:"r.flores@adhoc.mx",
+   nombre:"Ricardo",apPaterno:"Flores",apMaterno:"Mena",empresa:"AdHoc",
+   puesto:"Visitante",sitio:"MTY03",curp:"FOMR910405HNLLNC02",
+   foto:true,ine:false,pasaporte:false,liderJustifica:"ana.lead@meli.com",
+   nacionalidad:"Mexicana",esDriver:false,estatus:"rechazado",
+   motivoRechazo:"Documentación incompleta",fechaVencimiento:null,qr:null}
+];
+
+/* ===== GET /api/v1/me ===== */
+(function(){
+  if(typeof fetch!=='function') return;
+  fetch('/api/v1/me',{credentials:'include'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(u){
+      if(!u) return;
+      var init=(u.email||'').split('@')[0].split('.').map(function(p){return p.charAt(0);}).join('').slice(0,2).toUpperCase();
+      var name=u.full_name||u.ldap||'';
+      var el;
+      el=document.getElementById('greeting'); if(el) el.textContent='Hola, '+name;
+      el=document.getElementById('avatar'); if(el&&init) el.textContent=init;
+      el=document.getElementById('sbAvatar'); if(el&&init) el.textContent=init;
+      el=document.getElementById('sbName'); if(el&&name) el.textContent=name;
+      el=document.getElementById('sbDept'); if(el&&u.department) el.textContent=u.department;
+    })
+    .catch(function(){});
+})();
+
+/* ===== Helpers ===== */
+function fullName(s){return [s.nombre,s.apPaterno,s.apMaterno].filter(Boolean).join(' ');}
+function initials(s){return (s.nombre.charAt(0)+(s.apPaterno||'').charAt(0)).toUpperCase();}
+function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function timeAgo(iso){
-  var diff = (Date.now() - new Date(iso).getTime())/1000;
-  if (diff < 3600) return 'hace ' + Math.max(1,Math.floor(diff/60)) + ' min';
-  if (diff < 86400) return 'hace ' + Math.floor(diff/3600) + ' h';
-  return 'hace ' + Math.floor(diff/86400) + ' d';
+  var d=(Date.now()-new Date(iso).getTime())/1000;
+  if(d<3600) return 'Hace '+Math.max(1,Math.floor(d/60))+' min';
+  if(d<86400) return 'Hace '+Math.floor(d/3600)+' h';
+  return 'Hace '+Math.floor(d/86400)+' d';
 }
 function fmtDate(iso){
-  if (!iso) return '—';
-  var meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  var d=new Date(iso+ (iso.length<=10?'T00:00:00':''));
-  return d.getDate()+' '+meses[d.getMonth()]+' '+d.getFullYear();
+  if(!iso) return '—';
+  var m=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var d=new Date(iso+(iso.length<=10?'T00:00:00':''));
+  return d.getDate()+' '+m[d.getMonth()]+' '+d.getFullYear();
 }
 function vigencia(iso){
-  if (!iso) return null;
-  var dias = Math.ceil((new Date(iso+'T23:59:59').getTime() - Date.now())/86400000);
-  if (dias < 0) return {cls:'vencido', txt:'Vencido'};
-  if (dias <= 15) return {cls:'porvencer', txt:'Por vencer ('+dias+'d)'};
-  return {cls:'vigente', txt:'Vigente'};
+  if(!iso) return null;
+  var d=Math.ceil((new Date(iso+'T23:59:59').getTime()-Date.now())/86400000);
+  if(d<0) return{cls:'vencido',txt:'Vencido'};
+  if(d<=15) return{cls:'porvencer',txt:'Por vencer ('+d+'d)'};
+  return{cls:'vigente',txt:'Vigente'};
 }
-var STATUS_LABEL = {pendiente:'⏳ Pendiente', aceptado:'✅ Aceptado', rechazado:'❌ Rechazado'};
+var BADGE_CONTENT={
+  pendiente:function(){return ic.clock+' Pendiente';},
+  aceptado:function(){return ic.checkCirc+' Aceptado';},
+  rechazado:function(){return ic.xCirc+' Rechazado';}
+};
 
-/* =========================================================
-   Render principal
-   ========================================================= */
-function setTab(tab){
-  currentTab = tab;
-  var btns = document.querySelectorAll('nav.tabbar button');
-  for (var i=0;i<btns.length;i++) btns[i].classList.toggle('active', btns[i].getAttribute('data-tab')===tab);
+/* ===== Render ===== */
+function setTab(t){
+  currentTab=t;
+  document.querySelectorAll('[data-tab]').forEach(function(b){
+    b.classList.toggle('active',b.getAttribute('data-tab')===t);
+  });
   render();
 }
-
 function render(){
   updateBadges();
-  var q = document.getElementById('searchInput').value.trim().toLowerCase();
-  var items = solicitudes.filter(function(s){ return s.estatus===currentTab; });
-  if (q){
-    items = items.filter(function(s){
-      return (fullName(s)+' '+s.empresa+' '+s.sitio).toLowerCase().indexOf(q) !== -1;
-    });
-  }
-  var labels = {pendiente:'pendientes', aceptado:'aceptadas', rechazado:'rechazadas'};
-  document.getElementById('listEyebrow').textContent = items.length + ' SOLICITUD' + (items.length===1?'':'ES') + ' ' + labels[currentTab].toUpperCase();
-
-  var list = document.getElementById('list');
-  if (!items.length){ list.innerHTML = emptyState(); return; }
-
-  list.innerHTML = items.map(cardHTML).join('');
+  var q=(document.getElementById('searchInput').value||'').trim().toLowerCase();
+  var items=solicitudes.filter(function(s){return s.estatus===currentTab;});
+  if(q) items=items.filter(function(s){
+    return (fullName(s)+' '+s.empresa+' '+s.sitio).toLowerCase().indexOf(q)!==-1;
+  });
+  var labels={pendiente:'PENDIENTES',aceptado:'ACEPTADAS',rechazado:'RECHAZADAS'};
+  document.getElementById('listEyebrow').textContent=
+    items.length+' SOLICITUD'+(items.length===1?'':'ES')+' '+labels[currentTab];
+  var list=document.getElementById('list');
+  list.innerHTML=items.length?items.map(cardHTML).join(''):emptyHTML();
 }
-
 function updateBadges(){
   ['pendiente','aceptado','rechazado'].forEach(function(st){
-    var n = solicitudes.filter(function(s){return s.estatus===st;}).length;
-    var el = document.getElementById('badge-'+st);
-    el.textContent = n; el.style.display = n ? 'flex' : 'none';
+    var n=solicitudes.filter(function(s){return s.estatus===st;}).length;
+    var tb=document.getElementById('badge-'+st);
+    if(tb){tb.textContent=n;tb.style.display=n?'flex':'none';}
+    var sc=document.getElementById('sc-'+st);
+    if(sc){sc.textContent=n;sc.style.display=n?'flex':'none';}
   });
 }
-
-function emptyState(){
-  var map = {
-    pendiente:{i:'🎉', h:'Todo al día', p:'No hay solicitudes pendientes.'},
-    aceptado:{i:'✅', h:'Sin accesos aceptados', p:'Los accesos que aceptes aparecerán aquí.'},
-    rechazado:{i:'🗂️', h:'Sin rechazos', p:'Los accesos que rechaces aparecerán aquí.'}
+function emptyHTML(){
+  var m={
+    pendiente:{i:ic.lgInbox,h:'Todo al día',p:'No hay solicitudes pendientes.'},
+    aceptado:{i:ic.lgCheck,h:'Sin accesos aceptados',p:'Los accesos aceptados aparecerán aquí.'},
+    rechazado:{i:ic.lgArchive,h:'Sin rechazos',p:'Los rechazos aparecerán aquí.'}
   };
-  var e = map[currentTab];
-  return '<div class="empty"><div class="ico">'+e.i+'</div><h3>'+e.h+'</h3><p>'+e.p+'</p></div>';
+  var e=m[currentTab];
+  return '<div class="empty"><div class="empty-icon">'+e.i+'</div><h3>'+e.h+'</h3><p>'+e.p+'</p></div>';
 }
-
 function cardHTML(s){
-  var extra = '';
-  if (s.estatus==='aceptado'){
-    var v = vigencia(s.fechaVencimiento);
-    extra = '<div class="card-extra expire">🗓️ Vence: '+fmtDate(s.fechaVencimiento)+
-            (v?' &nbsp; <span class="badge '+v.cls+'">'+v.txt+'</span>':'')+'</div>';
-  } else if (s.estatus==='rechazado'){
-    extra = '<div class="card-extra reject">Motivo: '+esc(s.motivoRechazo||'—')+'</div>';
+  var extra='';
+  if(s.estatus==='aceptado'){
+    var v=vigencia(s.fechaVencimiento);
+    extra='<div class="card-extra expire">'+ic.calendar+' Vence: '+fmtDate(s.fechaVencimiento)+
+          (v?' &nbsp;<span class="badge '+v.cls+'">'+v.txt+'</span>':'')+'</div>';
+  } else if(s.estatus==='rechazado'){
+    extra='<div class="card-extra reject">'+ic.alertTri+
+          ' <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.motivoRechazo||'—')+'</span></div>';
   }
-  return ''+
-    '<div class="card" onclick="openDetail(\''+s.id+'\')">'+
-      '<div class="card-top">'+
-        '<div class="photo">'+initials(s)+'</div>'+
-        '<div class="card-id">'+
-          '<div class="name">'+esc(fullName(s))+'</div>'+
-          '<div class="company">'+esc(s.empresa)+'</div>'+
-          '<div class="role">'+esc(s.puesto)+'</div>'+
-        '</div>'+
-        '<span class="badge '+s.estatus+'">'+STATUS_LABEL[s.estatus]+'</span>'+
+  return '<div class="card" onclick="openDetail(\''+s.id+'\')">'+
+    '<div class="card-top">'+
+      '<div class="photo">'+initials(s)+'</div>'+
+      '<div class="card-info">'+
+        '<div class="name">'+esc(fullName(s))+'</div>'+
+        '<div class="company">'+esc(s.empresa)+'</div>'+
+        '<div class="role">'+esc(s.puesto)+'</div>'+
       '</div>'+
-      '<div class="card-divider"></div>'+
-      '<div class="meta">'+
-        '<span class="chip">📍 '+esc(s.sitio)+'</span>'+
-        (s.esDriver?'<span class="chip">🚚 Driver</span>':'')+
-        '<span class="chip">🕑 '+timeAgo(s.fechaSolicitud)+'</span>'+
-      '</div>'+
-      extra+
-    '</div>';
+      '<span class="badge '+s.estatus+'">'+BADGE_CONTENT[s.estatus]()+'</span>'+
+    '</div>'+
+    '<div class="card-divider"></div>'+
+    '<div class="meta">'+
+      '<span class="chip">'+ic.mapPin+' '+esc(s.sitio)+'</span>'+
+      (s.esDriver?'<span class="chip">'+ic.truck+' Driver</span>':'')+
+      '<span class="chip">'+ic.clock+' '+timeAgo(s.fechaSolicitud)+'</span>'+
+    '</div>'+
+    extra+'</div>';
 }
 
-/* =========================================================
-   Detalle full-screen
-   ========================================================= */
-function getById(id){ for (var i=0;i<solicitudes.length;i++) if (solicitudes[i].id===id) return solicitudes[i]; return null; }
-
+/* ===== Detail ===== */
+function getById(id){for(var i=0;i<solicitudes.length;i++) if(solicitudes[i].id===id) return solicitudes[i]; return null;}
 function openDetail(id){
-  currentDetailId = id;
-  var s = getById(id); if (!s) return;
-  document.getElementById('detailBadge').innerHTML = '<span class="badge '+s.estatus+'">'+STATUS_LABEL[s.estatus]+'</span>';
-  document.getElementById('detailBody').innerHTML = detailHTML(s);
-  document.getElementById('detailActions').innerHTML = actionsHTML(s);
+  currentDetailId=id;
+  var s=getById(id); if(!s) return;
+  document.getElementById('detailBadge').innerHTML='<span class="badge '+s.estatus+'">'+BADGE_CONTENT[s.estatus]()+'</span>';
+  document.getElementById('detailBody').innerHTML=buildDetail(s);
+  document.getElementById('detailActions').innerHTML=buildActions(s);
   document.getElementById('detailScreen').classList.add('open');
+  document.getElementById('backdrop').classList.add('open');
 }
 function closeDetail(){
   document.getElementById('detailScreen').classList.remove('open');
-  currentDetailId = null;
+  document.getElementById('backdrop').classList.remove('open');
+  currentDetailId=null;
 }
+function buildDetail(s){
+  var h='<div class="detail-hero">'+
+    '<div class="photo lg">'+initials(s)+'</div>'+
+    '<div class="d-name">'+esc(fullName(s))+'</div>'+
+    '<div class="d-co">'+esc(s.empresa)+' · '+esc(s.puesto)+'</div>'+
+    '<div class="d-id">'+esc(s.id)+' · solicitado '+fmtDate(s.fechaSolicitud)+'</div>'+
+  '</div>';
 
-function detailHTML(s){
-  var html = '';
-  html += '<div class="detail-hero">'+
-            '<div class="photo lg">'+initials(s)+'</div>'+
-            '<div class="name">'+esc(fullName(s))+'</div>'+
-            '<div class="company">'+esc(s.empresa)+' · '+esc(s.puesto)+'</div>'+
-            '<div style="font-size:12px;color:var(--text-muted)">ID '+esc(s.id)+' · solicitado '+fmtDate(s.fechaSolicitud)+'</div>'+
-          '</div>';
-
-  // Resultado de gestión (si aplica)
-  if (s.estatus==='aceptado'){
-    var v = vigencia(s.fechaVencimiento);
-    html += '<div class="detail-section">'+
-              '<div class="qr-wrap">'+ qrSVG(s.qr) +
-                '<div class="qr-id">'+esc(s.qr)+'</div>'+
-                '<div class="row" style="width:100%"><span class="k">Vencimiento</span><span class="v">'+fmtDate(s.fechaVencimiento)+(v?' <span class="badge '+v.cls+'">'+v.txt+'</span>':'')+'</span></div>'+
-                '<button class="btn btn-secondary" style="width:100%" onclick="alert_placeholder()">Compartir QR</button>'+
-              '</div>'+
-            '</div>';
-  } else if (s.estatus==='rechazado'){
-    html += '<div class="detail-section"><div class="row"><span class="k">Motivo de rechazo</span><span class="v" style="color:var(--error)">'+esc(s.motivoRechazo||'—')+'</span></div></div>';
+  if(s.estatus==='aceptado'){
+    var v=vigencia(s.fechaVencimiento);
+    h+='<div class="eyebrow" style="margin:20px 2px 8px">Acceso aprobado</div>'+
+       '<div class="d-section"><div class="qr-wrap">'+qrSVG(s.qr)+
+         '<div class="qr-id">'+esc(s.qr)+'</div>'+
+         '<div class="row" style="width:100%">'+
+           '<span class="k">'+ic.calendar+' Vencimiento</span>'+
+           '<span class="v">'+fmtDate(s.fechaVencimiento)+
+           (v?' <span class="badge '+v.cls+'">'+v.txt+'</span>':'')+
+           '</span></div>'+
+         '<button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="showToast(\'Compartir QR (placeholder — sin backend)\',\'info\')">'+ic.share+' Compartir QR</button>'+
+       '</div></div>';
+  } else if(s.estatus==='rechazado'){
+    h+='<div class="eyebrow" style="margin:20px 2px 8px">Motivo de rechazo</div>'+
+       '<div class="d-section"><div class="row">'+
+         '<span class="k">'+ic.alertTri+' Motivo</span>'+
+         '<span class="v" style="color:var(--error)">'+esc(s.motivoRechazo||'—')+'</span>'+
+       '</div></div>';
   }
 
-  html += section('Datos personales', [
-    ['Correo', esc(s.correo)],
-    ['CURP', esc(s.curp)],
-    ['Nacionalidad', esc(s.nacionalidad)],
-    ['Driver', s.esDriver?'Sí 🚚':'No']
+  h+=buildSection('Datos personales',[
+    [ic.mail,'Correo',esc(s.correo)],
+    [ic.user,'CURP',esc(s.curp)],
+    [ic.globe,'Nacionalidad',esc(s.nacionalidad)],
+    [ic.truck,'Driver',s.esDriver?'Sí':'No']
   ]);
-  html += section('Datos laborales', [
-    ['Puesto', esc(s.puesto)],
-    ['Sitio', esc(s.sitio)],
-    ['Líder que justifica', esc(s.liderJustifica)]
+  h+=buildSection('Datos laborales',[
+    [ic.briefcase,'Puesto',esc(s.puesto)],
+    [ic.mapPin,'Sitio',esc(s.sitio)],
+    [ic.building,'Empresa',esc(s.empresa)],
+    [ic.mail,'Líder que justifica',esc(s.liderJustifica)]
   ]);
-
-  // Documentos
-  html += '<div class="eyebrow" style="margin:18px 2px 8px">Documentos</div>'+
-          '<div class="detail-section"><div class="docs">'+
-            docThumb('Foto', s.foto, s) +
-            docThumb('INE', s.ine, s) +
-            docThumb('Pasaporte', s.pasaporte, s) +
-          '</div></div>';
-
-  return html;
+  h+='<div class="eyebrow" style="margin:20px 2px 8px">Documentos</div>'+
+     '<div class="d-section"><div class="docs">'+
+       dThumb('Foto',s.foto,s,ic.image)+
+       dThumb('INE',s.ine,s,ic.idCard)+
+       dThumb('Pasaporte',s.pasaporte,s,ic.globe)+
+     '</div></div>';
+  return h;
 }
-
-function section(title, rows){
-  var inner = rows.map(function(r){
-    return '<div class="row"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>';
+function buildSection(title,rows){
+  var inner=rows.map(function(r){
+    return '<div class="row"><span class="k">'+r[0]+' '+r[1]+'</span><span class="v">'+r[2]+'</span></div>';
   }).join('');
-  return '<div class="eyebrow" style="margin:18px 2px 8px">'+title+'</div><div class="detail-section">'+inner+'</div>';
+  return '<div class="eyebrow" style="margin:20px 2px 8px">'+title+'</div><div class="d-section">'+inner+'</div>';
 }
-
-function docThumb(label, has, s){
-  if (!has) return '<div class="doc-thumb empty-doc"><span>📄</span><span>'+label+'</span><span style="font-size:11px">No adjunto</span></div>';
-  return '<div class="doc-thumb" onclick="openDoc(\''+label+'\',\''+esc(fullName(s))+'\')">'+
-           '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>'+
-           '<span>'+label+'</span></div>';
+function dThumb(label,has,s,iconStr){
+  if(!has) return '<div class="doc-thumb missing">'+iconStr+'<span>'+label+'</span><span style="font-size:11px;color:var(--text-muted)">No adjunto</span></div>';
+  return '<div class="doc-thumb" onclick="openDoc(\''+label+'\',\''+esc(fullName(s))+'\')">'+iconStr+'<span>'+label+'</span></div>';
 }
-
 function qrSVG(id){
-  // QR placeholder determinístico (no es un QR real escaneable)
-  var seed = 0; for (var i=0;i<(id||'').length;i++) seed += (id.charCodeAt(i)*(i+7));
-  var n=11, cells='';
-  for (var y=0;y<n;y++) for (var x=0;x<n;x++){
-    var on = ((x*31 + y*17 + seed) % 3) === 0;
-    // marcadores de esquina
-    var corner = (x<3&&y<3)||(x>n-4&&y<3)||(x<3&&y>n-4);
-    var edge = (x===0||y===0||x===2||y===2)||(x===n-1||x===n-3)||(y===n-1||y===n-3);
-    if (corner) on = edge ? true : (x===1&&y===1)||(x>n-3&&y===1)||(x===1&&y>n-3);
-    if (on) cells += '<rect x="'+x+'" y="'+y+'" width="1" height="1" fill="#1A1A1A"/>';
+  var seed=0; for(var i=0;i<(id||'').length;i++) seed+=(id.charCodeAt(i)*(i+7));
+  var n=11,cells='';
+  for(var y=0;y<n;y++) for(var x=0;x<n;x++){
+    var on=((x*31+y*17+seed)%3)===0;
+    var corner=(x<3&&y<3)||(x>n-4&&y<3)||(x<3&&y>n-4);
+    var edge=(x===0||y===0||x===2||y===2)||(x===n-1||x===n-3)||(y===n-1||y===n-3);
+    if(corner) on=edge?true:(x===1&&y===1)||(x>n-3&&y===1)||(x===1&&y>n-3);
+    if(on) cells+='<rect x="'+x+'" y="'+y+'" width="1" height="1" fill="#1A1A1A"/>';
   }
   return '<svg class="qr-box" viewBox="0 0 '+n+' '+n+'" shape-rendering="crispEdges">'+cells+'</svg>';
 }
 
-/* =========================================================
-   Acciones (barra inferior del detalle)
-   ========================================================= */
-function actionsHTML(s){
-  if (s.estatus==='pendiente'){
-    return '<button class="btn btn-danger-outline" onclick="openReject(\''+s.id+'\')">❌ Rechazar</button>'+
-           '<button class="btn btn-primary" onclick="openAccept(\''+s.id+'\')">✅ Aceptar</button>';
+/* ===== Actions ===== */
+function buildActions(s){
+  if(s.estatus==='pendiente'){
+    return '<button class="btn btn-danger-outline" onclick="openReject(\''+s.id+'\')">'+ic.x+' Rechazar</button>'+
+           '<button class="btn btn-primary" onclick="openAccept(\''+s.id+'\')">'+ic.check+' Aceptar</button>';
   }
-  return '<button class="btn btn-ghost" onclick="revert(\''+s.id+'\')">↩︎ Revertir a pendiente</button>';
+  return '<button class="btn btn-ghost" onclick="revert(\''+s.id+'\')">'+ic.undo+' Revertir a pendiente</button>';
 }
-
 function revert(id){
-  var s = getById(id); if (!s) return;
-  s.estatus='pendiente'; s.motivoRechazo=null; s.fechaVencimiento=null; s.qr=null;
-  closeDetail(); setTab('pendiente');
+  var s=getById(id); if(!s) return;
+  s.estatus='pendiente';s.motivoRechazo=null;s.fechaVencimiento=null;s.qr=null;
+  closeDetail();setTab('pendiente');showToast('Solicitud revertida a pendiente','info');
 }
 
-/* ---- Aceptar ---- */
+/* ===== Accept modal ===== */
 function openAccept(id){
-  pendingAction = id;
-  var s = getById(id);
-  document.getElementById('acceptName').textContent = fullName(s);
-  document.getElementById('expireDate').value = '';
-  document.getElementById('expireError').classList.remove('show');
+  pendingAction=id;
+  document.getElementById('acceptName').textContent=fullName(getById(id));
+  document.getElementById('expireDate').value='';
+  document.getElementById('expireErr').classList.remove('show');
   openModal('acceptModal');
 }
 function setExpire(days){
-  var d = new Date(); d.setDate(d.getDate()+days);
-  document.getElementById('expireDate').value = d.toISOString().slice(0,10);
-  document.getElementById('expireError').classList.remove('show');
+  var d=new Date();d.setDate(d.getDate()+days);
+  document.getElementById('expireDate').value=d.toISOString().slice(0,10);
+  document.getElementById('expireErr').classList.remove('show');
 }
 function confirmAccept(){
-  var val = document.getElementById('expireDate').value;
-  var today = new Date().toISOString().slice(0,10);
-  if (!val || val <= today){ document.getElementById('expireError').classList.add('show'); return; }
-  var s = getById(pendingAction);
-  s.estatus='aceptado'; s.fechaVencimiento=val; s.qr=s.id; s.motivoRechazo=null;
-  closeModal('acceptModal'); closeDetail(); setTab('aceptado');
+  var val=document.getElementById('expireDate').value;
+  var today=new Date().toISOString().slice(0,10);
+  if(!val||val<=today){document.getElementById('expireErr').classList.add('show');return;}
+  var s=getById(pendingAction);
+  s.estatus='aceptado';s.fechaVencimiento=val;s.qr=s.id;s.motivoRechazo=null;
+  closeModal('acceptModal');closeDetail();setTab('aceptado');
+  showToast('Acceso aceptado correctamente','success');
 }
 
-/* ---- Rechazar ---- */
+/* ===== Reject modal ===== */
 function openReject(id){
-  pendingAction = id;
-  var s = getById(id);
-  document.getElementById('rejectName').textContent = fullName(s);
-  document.getElementById('rejectReason').value = '';
-  document.getElementById('rejectComment').value = '';
-  document.getElementById('rejectError').classList.remove('show');
+  pendingAction=id;
+  document.getElementById('rejectName').textContent=fullName(getById(id));
+  document.getElementById('rejectReason').value='';
+  document.getElementById('rejectComment').value='';
+  document.getElementById('rejectErr').classList.remove('show');
   openModal('rejectModal');
 }
 function confirmReject(){
-  var reason = document.getElementById('rejectReason').value;
-  if (!reason){ document.getElementById('rejectError').classList.add('show'); return; }
-  var comment = document.getElementById('rejectComment').value.trim();
-  var s = getById(pendingAction);
-  s.estatus='rechazado'; s.motivoRechazo = reason + (comment?' — '+comment:''); s.fechaVencimiento=null; s.qr=null;
-  closeModal('rejectModal'); closeDetail(); setTab('rechazado');
+  var reason=document.getElementById('rejectReason').value;
+  if(!reason){document.getElementById('rejectErr').classList.add('show');return;}
+  var comment=document.getElementById('rejectComment').value.trim();
+  var s=getById(pendingAction);
+  s.estatus='rechazado';s.motivoRechazo=reason+(comment?' — '+comment:'');s.fechaVencimiento=null;s.qr=null;
+  closeModal('rejectModal');closeDetail();setTab('rechazado');
+  showToast('Solicitud rechazada','warning');
 }
 
-/* ---- Visor doc ---- */
-function openDoc(label, owner){
-  document.getElementById('docTitle').textContent = label;
-  document.getElementById('docOwner').textContent = owner;
+/* ===== Doc viewer ===== */
+function openDoc(label,owner){
+  document.getElementById('docTitle').textContent=label;
+  document.getElementById('docOwner').textContent=owner;
   openModal('docModal');
 }
-function alert_placeholder(){ /* placeholder: compartir QR (sin backend) */ }
 
-/* ---- Modal helpers ---- */
-function openModal(id){ document.getElementById(id).classList.add('open'); }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
-// cerrar modal al tocar overlay
+/* ===== Modal helpers ===== */
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.overlay').forEach(function(ov){
-  ov.addEventListener('click', function(e){ if (e.target===ov) ov.classList.remove('open'); });
+  ov.addEventListener('click',function(e){if(e.target===ov) ov.classList.remove('open');});
 });
 
-/* Init */
+/* ===== Toast ===== */
+function showToast(msg,type){
+  var iconMap={
+    success:ic.checkCirc,warning:ic.alertTri,
+    error_:ic.xCirc,
+    info:ic.info
+  };
+  var t=document.createElement('div');
+  t.className='toast '+(type||'');
+  t.innerHTML=(iconMap[type]||'')+' <span>'+esc(msg)+'</span>';
+  var area=document.getElementById('toastArea');
+  area.appendChild(t);
+  setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3500);
+}
+
 render();
 </script>
 </body>
