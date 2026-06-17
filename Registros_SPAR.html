@@ -898,7 +898,7 @@ function refreshTables(){
   });
 }
 function sparBadges(v){ return (v||"").split("|").filter(Boolean).map(function(s){ return '<span class="badge yellow">'+esc(s)+'</span>'; }).join(" "); }
-function photoSummary(r){ var tot=0; PHOTO_FIELDS.forEach(function(pf){ tot+=idCount(r[pf.key]); }); return tot?'<span class="ph-dot">📎 '+tot+'</span>':'<span style="color:var(--text-mut);font-size:12px;">—</span>'; }
+function photoSummary(r){ var tot=0; PHOTO_FIELDS.forEach(function(pf){ tot+=idCount(r[pf.key]); }); return tot?'<span class="ph-dot"><svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 1.5H6a2 2 0 0 0-2 2v3"/><path d="M14 1h1a2 2 0 0 1 2 2v2.5M9 3.5a2 2 0 0 1 2-2h1"/><path d="M16 4.5a2 2 0 0 1 2 2v3M6 7a1 1 0 0 0-1 1v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8a1 1 0 0 0-1-1"/><path d="M10 12.5h4M12 10.5v4"/></svg> '+tot+'</span>':'<span style="color:var(--text-mut);font-size:12px;">—</span>'; }
 function renderResguardo(){
   var rows=allRows.filter(function(r){ return r.estado!=="historial"&&(!currentSitio||(r.sitio||"")===currentSitio); });
   var host=document.getElementById("resguardo-table");
@@ -1185,7 +1185,7 @@ function openReporte(id){
     openModal('<div class="ico-big"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg></div><h3>Reporte disponible</h3><p class="sub">ID <b>'+esc(row.id)+'</b> ya tiene un PDF generado.</p>'+
       '<div class="kv"><span class="k">Doc ID</span><span class="v" style="word-break:break-all;font-family:monospace;font-size:11px;">'+esc(row.pdf_doc_id.trim())+'</span></div>'+
       '<div class="actions"><button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>'+
-      '<button class="btn btn-secondary" onclick="regenerarPdf(\''+esc(id)+'\')">🔄 Regenerar</button>'+
+      '<button class="btn btn-secondary" onclick="regenerarPdf(\''+esc(id)+'\')"><svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"/></svg> Regenerar</button>'+
       '<button class="btn btn-primary" onclick="window.open(\''+existingUrl+'\',\'_blank\')">Descargar PDF</button></div>');
     return;
   }
@@ -1210,7 +1210,7 @@ function _iniciarGeneracionPdf(row){
       '<div class="kv"><span class="k">Archivo</span><span class="v">ID'+String(row.id).replace(/[^0-9]/g,"")+'_Resguardo.pdf</span>'+
       '<span class="k">Doc ID</span><span class="v" style="word-break:break-all;font-family:monospace;font-size:11px;">'+esc(pdfDocId)+'</span></div>'+
       '<div class="actions"><button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>'+
-      '<button class="btn btn-secondary" onclick="regenerarPdf(\''+esc(row.id)+'\')">🔄 Regenerar</button>'+
+      '<button class="btn btn-secondary" onclick="regenerarPdf(\''+esc(row.id)+'\')"><svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"/></svg> Regenerar</button>'+
       '<button class="btn btn-primary" onclick="window.open(\''+downloadUrl+'\',\'_blank\')">Descargar PDF</button></div>';
   })
   .catch(function(err){
