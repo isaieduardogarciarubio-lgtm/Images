@@ -344,6 +344,7 @@ nav.tabbar button.active{color:var(--primary);}
   #mainArea{max-width:none;flex:1;}
   .mobile-header{display:none;}
   nav.tabbar{display:none;}
+  .mobile-site-bar{display:none!important;}
   .subhead{top:0;}
   main{padding:0 24px 40px;}
   .list{max-width:680px;}
@@ -356,9 +357,69 @@ nav.tabbar button.active{color:var(--primary);}
   }
 }
 @media(min-width:1024px){.list{max-width:720px;}}
+
+/* ===== Site selector ===== */
+.site-select-wrap{display:flex;align-items:center;gap:8px;}
+.site-select{
+  padding:8px 10px;border:1px solid var(--border-strong);border-radius:var(--r-md);
+  background:var(--input-bg);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;outline:none;max-width:100%;
+}
+.site-select:focus{border-color:var(--primary);}
+/* Mobile site bar (hidden on desktop) */
+.mobile-site-bar{
+  display:flex;align-items:center;gap:8px;margin-top:10px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:8px 12px;
+}
+.mobile-site-bar .k{font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:5px;flex:none;}
+.mobile-site-bar .site-select{flex:1;}
+/* Sidebar footer area/site */
+.sb-footer-meta{font-size:12px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:5px;}
+.sb-site-row{padding:10px 16px;border-top:1px solid var(--border);}
+.sb-site-row .lbl-sm{font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;display:block;}
+.sb-site-row .site-select{width:100%;}
+
+/* App oculta mientras se resuelve el gate */
+body.gating .sidebar,body.gating #mainArea{display:none!important;}
+
+/* ===== Gate (acceso a la interfaz) ===== */
+.gate{
+  position:fixed;inset:0;z-index:120;background:var(--page);
+  display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto;
+}
+.gate.open{display:flex;}
+.gate-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
+  width:100%;max-width:420px;padding:28px 24px;text-align:center;
+  box-shadow:0 8px 32px rgba(0,0,0,.12);
+}
+.gate-icon{
+  width:64px;height:64px;border-radius:var(--r-full);margin:0 auto 16px;
+  display:flex;align-items:center;justify-content:center;
+}
+.gate-icon.info{background:var(--primary-bg);color:var(--primary);}
+.gate-icon.wait{background:var(--warning-bg);color:var(--warning);}
+.gate-icon.deny{background:var(--error-bg);color:var(--error);}
+.gate-card h2{font-size:20px;font-weight:800;margin-bottom:8px;}
+.gate-card .gate-sub{font-size:14px;color:var(--text-2);margin-bottom:20px;line-height:1.5;}
+.gate-card .gate-user{
+  background:var(--surface);border-radius:var(--r-md);padding:12px 14px;margin-bottom:20px;
+  font-size:13px;color:var(--text-2);text-align:left;
+}
+.gate-card .gate-user strong{color:var(--text);}
+.gate-form{text-align:left;}
+.gate-form .field-lbl{margin-top:14px;}
+.gate-form .field-lbl:first-child{margin-top:0;}
+.checklist{display:flex;flex-direction:column;gap:8px;margin-top:6px;}
+.checklist label{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border:1px solid var(--border-strong);border-radius:var(--r-md);cursor:pointer;font-size:14px;
+}
+.checklist label:hover{background:var(--surface);}
+.checklist input{width:16px;height:16px;accent-color:var(--primary);cursor:pointer;}
+.gate-card .btn{width:100%;margin-top:22px;}
 </style>
 </head>
-<body>
+<body class="gating">
 
 <!-- ===== Sidebar (desktop) ===== -->
 <aside class="sidebar" id="sidebar">
@@ -386,9 +447,16 @@ nav.tabbar button.active{color:var(--primary);}
       <span class="sb-count gray" id="sc-rechazado"></span>
     </button>
   </nav>
+  <div class="sb-site-row" id="sbSiteRow" style="display:none">
+    <span class="lbl-sm">Sitio activo</span>
+    <select class="site-select" id="sbSiteSelect" onchange="onSiteChange(this.value)"></select>
+  </div>
   <div class="sb-footer">
     <div class="avatar" id="sbAvatar">IG</div>
-    <div><div class="sb-uname" id="sbName">ISAI EDUARDO</div><div class="sb-udept" id="sbDept">Shipping - Transportation</div></div>
+    <div>
+      <div class="sb-uname" id="sbName">ISAI EDUARDO</div>
+      <div class="sb-footer-meta" id="sbArea">Área —</div>
+    </div>
   </div>
 </aside>
 
@@ -408,6 +476,10 @@ nav.tabbar button.active{color:var(--primary);}
     <div class="search-wrap">
       <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       <input id="searchInput" type="text" placeholder="Buscar por nombre, empresa o sitio…" oninput="render()">
+    </div>
+    <div class="mobile-site-bar" id="mobileSiteBar" style="display:none">
+      <span class="k" id="mobileSiteIcon"></span>
+      <select class="site-select" id="mobileSiteSelect" onchange="onSiteChange(this.value)"></select>
     </div>
     <div class="eyebrow" id="listEyebrow">Solicitudes</div>
   </div>
@@ -520,6 +592,72 @@ nav.tabbar button.active{color:var(--primary);}
   </div>
 </div>
 
+<!-- =====================================================================
+     GATE: control de acceso a la interfaz (whitelist usuarios.csv)
+     - El #app/#sidebar permanecen ocultos hasta resolver el gate.
+     - Pantalla mostrada según estatus del usuario en usuarios.csv:
+       · no registrado  -> #gateRegister (form sitio+área -> escribe fila pendiente)
+       · pendiente       -> #gateWaiting
+       · rechazado       -> #gateRejected
+       · aceptado        -> se abre la app
+     ===================================================================== -->
+
+<!-- Gate: registro de usuario nuevo -->
+<div class="gate" id="gateRegister">
+  <div class="gate-card">
+    <div class="gate-icon info">
+      <svg style="width:30px;height:30px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+    </div>
+    <h2>Solicita tu acceso</h2>
+    <p class="gate-sub">No estás registrado como gestor. Selecciona tu área y tus sitios para solicitar acceso. Un administrador revisará tu solicitud.</p>
+    <div class="gate-user">
+      Identidad de sesión:<br>
+      <strong id="gateUserName">—</strong><br>
+      <span id="gateUserEmail">—</span>
+    </div>
+    <div class="gate-form">
+      <label class="field-lbl">Área <span class="req">*</span></label>
+      <select class="fsel" id="regArea"><option value="">Selecciona tu área…</option></select>
+      <div class="field-err" id="regAreaErr">Selecciona un área.</div>
+
+      <label class="field-lbl">Sitio(s) <span class="req">*</span></label>
+      <div class="checklist" id="regSites"></div>
+      <div class="field-err" id="regSitesErr">Selecciona al menos un sitio.</div>
+    </div>
+    <button class="btn btn-primary" onclick="submitRegistration()">Enviar solicitud</button>
+  </div>
+</div>
+
+<!-- Gate: en espera de aprobación -->
+<div class="gate" id="gateWaiting">
+  <div class="gate-card">
+    <div class="gate-icon wait">
+      <svg style="width:30px;height:30px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </div>
+    <h2>En espera de aprobación</h2>
+    <p class="gate-sub">Tu solicitud fue registrada y está pendiente de aprobación por un administrador. Te notificaremos cuando sea revisada.</p>
+    <div class="gate-user">
+      <strong id="waitUserName">—</strong><br>
+      <span id="waitUserMeta">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- Gate: acceso rechazado -->
+<div class="gate" id="gateRejected">
+  <div class="gate-card">
+    <div class="gate-icon deny">
+      <svg style="width:30px;height:30px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+    </div>
+    <h2>Acceso denegado</h2>
+    <p class="gate-sub">Tu solicitud de acceso fue rechazada. Si crees que es un error, contacta a un administrador.</p>
+    <div class="gate-user">
+      <strong id="rejUserName">—</strong><br>
+      <span id="rejUserMeta">—</span>
+    </div>
+  </div>
+</div>
+
 <div id="toastArea"></div>
 
 <script>
@@ -565,6 +703,9 @@ var currentTab = 'pendiente';
 var currentDetailId = null;
 var pendingAction = null;
 
+/* MOCK de accesos.csv (solicitudes de personas externas).
+   <<< BACKEND: reemplazar por fetchAccesos(activeSite) -> read accesos.csv (Biblia §3).
+   El campo `sitio` se usa para filtrar qué ve cada gestor según su sitio activo. */
 var solicitudes = [
   {id:"AC-0007",fechaSolicitud:"2026-06-17T08:10:00",correo:"juan.perez@acme.com",
    nombre:"Juan",apPaterno:"Pérez",apMaterno:"García",empresa:"Acme S.A.",
@@ -604,24 +745,262 @@ var solicitudes = [
    motivoRechazo:"Documentación incompleta",fechaVencimiento:null,qr:null}
 ];
 
-/* ===== GET /api/v1/me ===== */
-(function(){
-  if(typeof fetch!=='function') return;
-  fetch('/api/v1/me',{credentials:'include'})
+/* =====================================================================================
+   ███  CAPA DE BACKEND — GUÍA DE INTEGRACIÓN  ███
+   -------------------------------------------------------------------------------------
+   Este HTML es un PROTOTIPO UI. Toda la persistencia está simulada en memoria.
+   Para conectar el backend real (Grid de MercadoLibre), reemplaza el cuerpo de las
+   funciones marcadas con  // <<< BACKEND  por las llamadas reales indicadas.
+
+   REGLAS DE ORO (Biblia Grid V9.1):
+   - Todo fetch lleva  { credentials:"include" }  (identidad por VPN/X-User-Email).
+   - Identidad del usuario en sesión:  GET /api/v1/me   (NUNCA window.GRID ni owner_id).
+   - Leer datos:        GET /api/v1/documents/{id}/download  -> devuelve JSON con
+                        download_url -> hacer 2º fetch a esa URL para el contenido.
+                        OJO: Promesas en CADENA PLANA (flat chain), nunca anidadas.
+   - Escribir en CSV:   read -> combine -> POST /api/v1/documents/{id}/versions (FormData).
+                        NUNCA usar PUT /data/{name} sobre un CSV (se cuelga).
+   - No CDNs externos, no localStorage/sessionStorage/cookie, no alert/confirm/prompt.
+
+   -------------------------------------------------------------------------------------
+   FUENTES DE DATOS (documentos Grid a crear y pegar sus doc_id en DOC_IDS):
+   1) usuarios.csv  -> whitelist de gestores que pueden usar la app.  [IMPLEMENTADO aquí]
+   2) accesos.csv   -> solicitudes de personas externas.              [PENDIENTE, ver nota]
+
+   ESQUEMA usuarios.csv  (encabezados EXACTOS, en este orden):
+     ldap,email,nombre,sitios,area,rol,estatus,fecha_registro
+       · ldap          string  (PK, viene de /api/v1/me — no editable por el usuario)
+       · email         string  (viene de /api/v1/me — no editable por el usuario)
+       · nombre        string  (viene de /api/v1/me full_name)
+       · sitios        string  (uno o varios ENUM separados por "|", ej "MEX01|GDL02")
+       · area          string  (ENUM, ver ENUMS.area)
+       · rol           string  ENUM: "admin" | "gestor"
+       · estatus       string  ENUM: "pendiente" | "aceptado" | "rechazado"
+       · fecha_registro string ISO 8601
+     Aprobación de usuarios: por ahora MANUAL — un admin edita usuarios.csv y cambia
+     estatus de "pendiente" a "aceptado"/"rechazado". (Futuro: panel admin in-app.)
+
+   ESQUEMA accesos.csv  (futuro — ver objeto `solicitudes` para los campos):
+     id,fechaSolicitud,correo,nombre,apPaterno,apMaterno,empresa,puesto,sitio,curp,
+     foto,ine,pasaporte,liderJustifica,nacionalidad,esDriver,estatus,motivoRechazo,
+     fechaVencimiento,qr
+   ===================================================================================== */
+
+/* --- ENUMS (placeholder — editar aquí cuando se confirmen los valores reales) --- */
+var ENUMS = {
+  sitio: ["MEX01","GDL02","MTY03","QRO04"],
+  area:  ["Transportation","Shipping","Last Mile","Fulfillment","Cross Docking"]
+};
+
+/* --- doc_ids de Grid (rellenar al crear los documentos en Grid) --- */
+var DOC_IDS = {
+  usuarios: "REEMPLAZAR_CON_DOC_ID_DE_usuarios_csv",
+  accesos:  "REEMPLAZAR_CON_DOC_ID_DE_accesos_csv"
+};
+
+/* --- DEMO: fuerza una pantalla de gate para previsualizarla sin tocar el mock ---
+   Valores válidos: null | 'register' | 'pending' | 'rejected'
+   Dejar en null para flujo normal (usa el mock / backend). */
+var DEMO_FORCE_GATE = null;
+
+/* --- Estado de sesión resuelto --- */
+var SESSION = { user:null /* /api/v1/me */, usuario:null /* fila de usuarios.csv */ };
+var activeSite = null; // sitio seleccionado actualmente (filtra los accesos)
+
+/* =====================================================================================
+   MOCK de usuarios.csv (en memoria). El usuario de la sesión real (igarciarubio)
+   está pre-aprobado como admin para que la demo abra. Para probar el gate:
+   - cambia DEMO_FORCE_GATE arriba, o
+   - quita/edita la fila de tu ldap aquí abajo.
+   ===================================================================================== */
+var MOCK_USUARIOS = [
+  { ldap:"igarciarubio", email:"isaieduardo.garciarubio@mercadolibre.com.mx",
+    nombre:"ISAI EDUARDO GARCIA", sitios:"MEX01|GDL02", area:"Cross Docking",
+    rol:"admin", estatus:"aceptado", fecha_registro:"2026-01-10T09:00:00" },
+  { ldap:"llider", email:"laura.lider@meli.com", nombre:"LAURA LIDER",
+    sitios:"MEX01", area:"Transportation", rol:"gestor", estatus:"aceptado",
+    fecha_registro:"2026-02-01T09:00:00" }
+];
+
+/* =====================================================================================
+   BACKEND STUBS — reemplazar el cuerpo por las llamadas reales a Grid.
+   ===================================================================================== */
+
+// Identidad del usuario en sesión.  [LISTO PARA PRODUCCIÓN]
+function fetchCurrentUser(){
+  if(typeof fetch!=='function') return Promise.resolve(null);
+  return fetch('/api/v1/me',{credentials:'include'})
     .then(function(r){return r.ok?r.json():null;})
-    .then(function(u){
-      if(!u) return;
-      var init=(u.email||'').split('@')[0].split('.').map(function(p){return p.charAt(0);}).join('').slice(0,2).toUpperCase();
-      var name=u.full_name||u.ldap||'';
-      var el;
-      el=document.getElementById('greeting'); if(el) el.textContent='Hola, '+name;
-      el=document.getElementById('avatar'); if(el&&init) el.textContent=init;
-      el=document.getElementById('sbAvatar'); if(el&&init) el.textContent=init;
-      el=document.getElementById('sbName'); if(el&&name) el.textContent=name;
-      el=document.getElementById('sbDept'); if(el&&u.department) el.textContent=u.department;
-    })
-    .catch(function(){});
-})();
+    .catch(function(){return null;});
+}
+
+// Lee usuarios.csv y devuelve array de filas {ldap,email,nombre,sitios,area,rol,estatus,...}
+function fetchUsuarios(){
+  // <<< BACKEND: reemplazar por lectura real del CSV (flat chain, Biblia §3 "Escritura en CSV"):
+  //   return gridDownload(DOC_IDS.usuarios).then(parseCSV);   // parseCSV -> array de objetos
+  //   donde gridDownload hace: GET /download -> meta.download_url -> fetch(url) -> res.text()
+  return Promise.resolve(MOCK_USUARIOS.slice());
+}
+
+// Busca la fila de un ldap dentro de usuarios.csv. Devuelve la fila o null.
+function findUsuario(usuarios, ldap){
+  for(var i=0;i<usuarios.length;i++) if(usuarios[i].ldap===ldap) return usuarios[i];
+  return null;
+}
+
+// Registra un usuario nuevo con estatus "pendiente" (append a usuarios.csv).
+function registerUsuario(row){
+  // <<< BACKEND: append real al CSV (Biblia §3): leer -> combinar -> POST /versions
+  //   return gridAppendCSV(DOC_IDS.usuarios, [row]);  // CSV_HEADERS = encabezados de usuarios.csv
+  MOCK_USUARIOS.push(row);            // simulación en memoria
+  console.log('[SIM] append usuarios.csv:', row);
+  return Promise.resolve({ok:true});
+}
+
+// Lee los accesos (solicitudes externas) filtrados por sitio.  [PENDIENTE accesos.csv]
+function fetchAccesos(sitio){
+  // <<< BACKEND: return gridDownload(DOC_IDS.accesos).then(parseCSV)
+  //   y filtrar por sitio. Por ahora se usa el array `solicitudes` en memoria.
+  return Promise.resolve(solicitudes.filter(function(s){return !sitio||s.sitio===sitio;}));
+}
+
+// Persiste un cambio de estatus de un acceso (aceptar/rechazar/revertir).  [PENDIENTE]
+function persistAcceso(acceso){
+  // <<< BACKEND: actualizar fila en accesos.csv:
+  //   leer CSV -> reemplazar fila por id -> POST /versions (reescribe el archivo completo).
+  console.log('[SIM] persistAcceso:', acceso.id, acceso.estatus);
+  return Promise.resolve({ok:true});
+}
+
+/* =====================================================================================
+   BOOTSTRAP / GATE — decide si el usuario entra a la app o ve una pantalla de gate.
+   ===================================================================================== */
+function bootstrap(){
+  fetchCurrentUser().then(function(user){
+    // Fallback de demo si no hay sesión (fuera de Grid / sin VPN): usuario simulado.
+    if(!user){
+      user = { ldap:"igarciarubio", email:"isaieduardo.garciarubio@mercadolibre.com.mx",
+               full_name:"ISAI EDUARDO GARCIA", department:"Shipping - Transportation" };
+    }
+    SESSION.user = user;
+
+    // Atajo de demo para previsualizar pantallas de gate.
+    if(DEMO_FORCE_GATE==='register') return showGate('register');
+    if(DEMO_FORCE_GATE==='pending')  return showGate('pending');
+    if(DEMO_FORCE_GATE==='rejected') return showGate('rejected');
+
+    return fetchUsuarios().then(function(usuarios){
+      var row = findUsuario(usuarios, user.ldap);
+      if(!row)                       return showGate('register'); // no está en el CSV
+      SESSION.usuario = row;
+      if(row.estatus==='pendiente')  return showGate('pending');
+      if(row.estatus==='rechazado')  return showGate('rejected');
+      return enterApp(row);                                       // aceptado -> entra
+    });
+  });
+}
+
+function hideAllGates(){
+  ['gateRegister','gateWaiting','gateRejected'].forEach(function(id){
+    document.getElementById(id).classList.remove('open');
+  });
+}
+
+function showGate(kind){
+  hideAllGates();
+  document.body.classList.add('gating'); // mantiene la app oculta
+  var u = SESSION.user || {};
+  var name = u.full_name || u.ldap || '—';
+  if(kind==='register'){
+    document.getElementById('gateUserName').textContent = name;
+    document.getElementById('gateUserEmail').textContent = u.email || '—';
+    populateRegistrationForm();
+    document.getElementById('gateRegister').classList.add('open');
+  } else if(kind==='pending'){
+    document.getElementById('waitUserName').textContent = name;
+    document.getElementById('waitUserMeta').textContent =
+      (SESSION.usuario? (SESSION.usuario.area+' · '+SESSION.usuario.sitios.replace(/\|/g,', ')) : '');
+    document.getElementById('gateWaiting').classList.add('open');
+  } else if(kind==='rejected'){
+    document.getElementById('rejUserName').textContent = name;
+    document.getElementById('rejUserMeta').textContent = u.email || '';
+    document.getElementById('gateRejected').classList.add('open');
+  }
+}
+
+function populateRegistrationForm(){
+  // Área (select)
+  var areaSel = document.getElementById('regArea');
+  areaSel.innerHTML = '<option value="">Selecciona tu área…</option>' +
+    ENUMS.area.map(function(a){return '<option value="'+esc(a)+'">'+esc(a)+'</option>';}).join('');
+  // Sitios (checklist multi-selección)
+  document.getElementById('regSites').innerHTML = ENUMS.sitio.map(function(s){
+    return '<label><input type="checkbox" value="'+esc(s)+'"> '+esc(s)+'</label>';
+  }).join('');
+}
+
+function submitRegistration(){
+  var area = document.getElementById('regArea').value;
+  var checks = document.querySelectorAll('#regSites input:checked');
+  var sites = Array.prototype.map.call(checks,function(c){return c.value;});
+  var ok = true;
+  document.getElementById('regAreaErr').classList.toggle('show', !area); if(!area) ok=false;
+  document.getElementById('regSitesErr').classList.toggle('show', !sites.length); if(!sites.length) ok=false;
+  if(!ok) return;
+
+  var u = SESSION.user || {};
+  var row = {
+    ldap: u.ldap, email: u.email, nombre: u.full_name||u.ldap,
+    sitios: sites.join('|'), area: area, rol: 'gestor', estatus: 'pendiente',
+    fecha_registro: new Date().toISOString()
+  };
+  registerUsuario(row).then(function(){
+    SESSION.usuario = row;
+    showGate('pending'); // tras enviar -> pantalla de espera
+  });
+}
+
+/* Entra a la app: rellena identidad, configura sitios del usuario y arranca la UI. */
+function enterApp(row){
+  hideAllGates();
+  document.body.classList.remove('gating');
+
+  var u = SESSION.user || {};
+  var init=(u.email||'').split('@')[0].split('.').map(function(p){return p.charAt(0);}).join('').slice(0,2).toUpperCase();
+  var name=u.full_name||u.ldap||'';
+  setText('greeting','Hola, '+name);
+  if(init){ setText('avatar',init); setText('sbAvatar',init); }
+  setText('sbName',name);
+  setText('sbArea', row.area ? row.area : 'Área —');
+
+  // Sitios del usuario -> pueblan ambos selectores; activeSite = primer sitio.
+  var userSites = (row.sitios||'').split('|').filter(Boolean);
+  if(!userSites.length) userSites = ENUMS.sitio.slice(); // fallback admin sin sitios
+  activeSite = userSites[0];
+  buildSiteSelectors(userSites);
+
+  render();
+}
+
+function buildSiteSelectors(sites){
+  var opts = sites.map(function(s){return '<option value="'+esc(s)+'">'+esc(s)+'</option>';}).join('');
+  var sb = document.getElementById('sbSiteSelect');
+  var mb = document.getElementById('mobileSiteSelect');
+  if(sb){ sb.innerHTML=opts; sb.value=activeSite; document.getElementById('sbSiteRow').style.display = sites.length>1?'block':'block'; }
+  if(mb){ mb.innerHTML=opts; mb.value=activeSite; }
+  document.getElementById('mobileSiteBar').style.display='flex';
+  document.getElementById('mobileSiteIcon').innerHTML=ic.mapPin;
+}
+
+function onSiteChange(val){
+  activeSite = val;
+  // sincroniza ambos selectores
+  var sb=document.getElementById('sbSiteSelect'); if(sb) sb.value=val;
+  var mb=document.getElementById('mobileSiteSelect'); if(mb) mb.value=val;
+  render();
+}
+
+function setText(id,txt){var el=document.getElementById(id); if(el) el.textContent=txt;}
 
 /* ===== Dark mode (prefers-color-scheme only, no persistence) ===== */
 function currentTheme(){
@@ -689,22 +1068,28 @@ function setTab(t){
   });
   render();
 }
+// Accesos visibles para el sitio activo (un gestor solo ve los de su sitio seleccionado).
+function accesosDelSitio(){
+  return solicitudes.filter(function(s){return !activeSite || s.sitio===activeSite;});
+}
 function render(){
   updateBadges();
   var q=(document.getElementById('searchInput').value||'').trim().toLowerCase();
-  var items=solicitudes.filter(function(s){return s.estatus===currentTab;});
+  var items=accesosDelSitio().filter(function(s){return s.estatus===currentTab;});
   if(q) items=items.filter(function(s){
     return (fullName(s)+' '+s.empresa+' '+s.sitio).toLowerCase().indexOf(q)!==-1;
   });
   var labels={pendiente:'PENDIENTES',aceptado:'ACEPTADAS',rechazado:'RECHAZADAS'};
   document.getElementById('listEyebrow').textContent=
-    items.length+' SOLICITUD'+(items.length===1?'':'ES')+' '+labels[currentTab];
+    items.length+' SOLICITUD'+(items.length===1?'':'ES')+' '+labels[currentTab]+
+    (activeSite?(' · '+activeSite):'');
   var list=document.getElementById('list');
   list.innerHTML=items.length?items.map(cardHTML).join(''):emptyHTML();
 }
 function updateBadges(){
+  var base=accesosDelSitio();
   ['pendiente','aceptado','rechazado'].forEach(function(st){
-    var n=solicitudes.filter(function(s){return s.estatus===st;}).length;
+    var n=base.filter(function(s){return s.estatus===st;}).length;
     var tb=document.getElementById('badge-'+st);
     if(tb){tb.textContent=n;tb.style.display=n?'flex':'none';}
     var sc=document.getElementById('sc-'+st);
@@ -847,6 +1232,7 @@ function buildActions(s){
 function revert(id){
   var s=getById(id); if(!s) return;
   s.estatus='pendiente';s.motivoRechazo=null;s.fechaVencimiento=null;s.qr=null;
+  persistAcceso(s); // <<< BACKEND: actualiza fila en accesos.csv
   closeDetail();setTab('pendiente');showToast('Solicitud revertida a pendiente','info');
 }
 
@@ -869,6 +1255,8 @@ function confirmAccept(){
   if(!val||val<=today){document.getElementById('expireErr').classList.add('show');return;}
   var s=getById(pendingAction);
   s.estatus='aceptado';s.fechaVencimiento=val;s.qr=s.id;s.motivoRechazo=null;
+  // <<< BACKEND: el QR real lo genera/devuelve el back (campo Nuevo_QR). Aquí es placeholder.
+  persistAcceso(s); // <<< BACKEND: actualiza fila en accesos.csv
   closeModal('acceptModal');closeDetail();setTab('aceptado');
   showToast('Acceso aceptado correctamente','success');
 }
@@ -888,6 +1276,7 @@ function confirmReject(){
   var comment=document.getElementById('rejectComment').value.trim();
   var s=getById(pendingAction);
   s.estatus='rechazado';s.motivoRechazo=reason+(comment?' — '+comment:'');s.fechaVencimiento=null;s.qr=null;
+  persistAcceso(s); // <<< BACKEND: actualiza fila en accesos.csv
   closeModal('rejectModal');closeDetail();setTab('rechazado');
   showToast('Solicitud rechazada','warning');
 }
@@ -921,7 +1310,8 @@ function showToast(msg,type){
   setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3500);
 }
 
-render();
+/* Arranca el control de acceso (gate). Si el usuario está aceptado, enterApp() -> render(). */
+bootstrap();
 </script>
 </body>
 </html>
