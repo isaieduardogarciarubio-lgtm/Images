@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grid — QA Workspaces</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Proxima Nova', Arial, sans-serif; background: #ebebeb; color: #333; }
+  header { background: #FFD100; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 20px; font-weight: 700; color: #333; }
+  header .badge { background: #333; color: #FFD100; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  .user-bar { background: #fff; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555; }
+  .user-bar strong { color: #333; }
+  .user-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: #00a650; }
+  .section-title { font-size: 16px; font-weight: 700; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .section-title .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; }
+  .tag-ok { background: #e8f5e9; color: #2e7d32; }
+  .tag-warn { background: #fff3e0; color: #e65100; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; border: 1px solid #ddd; }
+  .card h3 { font-size: 13px; font-weight: 700; color: #555; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  .form-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .form-row label { font-size: 12px; color: #666; display: block; margin-bottom: 3px; }
+  .form-group { flex: 1; min-width: 120px; }
+  input[type=text], select, textarea {
+    width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 13px; background: #fafafa; transition: border-color .2s;
+  }
+  input[type=text]:focus, select:focus, textarea:focus { border-color: #3483fa; outline: none; background: #fff; }
+  textarea { resize: vertical; min-height: 60px; }
+  button {
+    padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: opacity .2s;
+  }
+  button:hover { opacity: .85; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: #3483fa; color: #fff; }
+  .btn-danger { background: #ff4757; color: #fff; }
+  .btn-warn { background: #ff9800; color: #fff; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .results { margin-top: 12px; }
+  .result-item {
+    padding: 8px 12px; border-radius: 6px; margin-bottom: 6px;
+    font-size: 12px; font-family: monospace; border-left: 3px solid;
+  }
+  .result-ok { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
+  .result-err { background: #ffebee; border-color: #ef5350; color: #c62828; }
+  .result-warn { background: #fff8e1; border-color: #ffc107; color: #795548; }
+  .result-info { background: #e3f2fd; border-color: #2196f3; color: #0d47a1; }
+  pre { white-space: pre-wrap; word-break: break-all; font-family: monospace; font-size: 11px; }
+  .ws-list { margin-top: 8px; }
+  .ws-item {
+    background: #f5f7fa; border: 1px solid #ddd; border-radius: 6px;
+    padding: 10px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .ws-item strong { font-size: 13px; flex: 1; }
+  .ws-item small { color: #888; font-size: 11px; }
+  .ws-id { font-family: monospace; font-size: 11px; color: #3483fa; cursor: pointer; text-decoration: underline; }
+  .selected-ws { background: #e3f0ff; border-color: #3483fa; }
+  .pill { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: #eee; color: #555; }
+  .separator { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+  .full { grid-column: 1 / -1; }
+  #activeWsBar {
+    background: #3483fa; color: #fff; padding: 10px 16px; border-radius: 8px;
+    margin-bottom: 16px; font-size: 13px; display: none; align-items: center; gap: 12px;
+  }
+  #activeWsBar strong { font-size: 14px; }
+  #activeWsBar .clear-btn { background: rgba(255,255,255,.25); border: none; color: #fff; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+  .log-panel {
+    background: #1e1e2e; color: #cdd6f4; border-radius: 8px; padding: 12px;
+    font-family: monospace; font-size: 11px; max-height: 260px; overflow-y: auto;
+    margin-top: 8px;
+  }
+  .log-ok { color: #a6e3a1; }
+  .log-err { color: #f38ba8; }
+  .log-info { color: #89b4fa; }
+  .log-ts { color: #6c7086; margin-right: 6px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab { padding: 8px 16px; border-radius: 6px 6px 0 0; font-size: 13px; font-weight: 600; cursor: pointer; background: #ddd; color: #666; border: none; }
+  .tab.active { background: #3483fa; color: #fff; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Grid — QA Workspaces</h1>
+  <span class="badge">V11.4</span>
+</header>
+
+<div class="container">
+
+  <!-- User bar -->
+  <div class="user-bar">
+    <div class="dot"></div>
+    <span>Usuario: <strong id="userDisplay">cargando...</strong></span>
+    <span style="margin-left:auto;color:#3483fa;cursor:pointer;font-size:12px" onclick="loadMe()">↻ refrescar</span>
+  </div>
+
+  <!-- Active workspace indicator -->
+  <div id="activeWsBar">
+    <span>Workspace activo:</span>
+    <strong id="activeWsName">—</strong>
+    <span style="font-family:monospace;font-size:11px;opacity:.8" id="activeWsId"></span>
+    <button class="clear-btn" onclick="clearActiveWs()">× limpiar</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('creation')">1 · Creación</button>
+    <button class="tab" onclick="switchTab('members')">2 · Miembros</button>
+    <button class="tab" onclick="switchTab('documents')">3 · Documentos</button>
+    <button class="tab" onclick="switchTab('mgmt')">4 · Gestión</button>
+    <button class="tab" onclick="switchTab('log')">5 · Log</button>
+  </div>
+
+  <!-- TAB 1: Creación -->
+  <div id="tab-creation" class="tab-content active">
+    <div class="grid">
+
+      <!-- Crear workspace -->
+      <div class="card">
+        <h3>Crear Workspace</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre *</label>
+            <input type="text" id="wsName" placeholder="Mi Workspace QA">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Descripción</label>
+            <input type="text" id="wsDesc" placeholder="Descripción opcional">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>linked_doc_permission *</label>
+            <select id="wsPermission">
+              <option value="viewer">viewer (solo lectura)</option>
+              <option value="editor">editor (co-edición)</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="createWorkspace()">Crear Workspace →</button>
+        <div class="results" id="r-create"></div>
+      </div>
+
+      <!-- Listar workspaces -->
+      <div class="card">
+        <h3>Listar Workspaces</h3>
+        <p style="font-size:12px;color:#888;margin-bottom:12px">Lista todos los workspaces accesibles. Haz clic en un ID para seleccionarlo como activo.</p>
+        <button class="btn-primary" onclick="listWorkspaces()">Cargar lista →</button>
+        <div class="ws-list" id="r-list"></div>
+      </div>
+
+    </div>
+
+    <!-- Detalle de workspace -->
+    <div class="card">
+      <h3>Detalle de Workspace (GET)</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Workspace ID</label>
+          <input type="text" id="wsDetailId" placeholder="01KWXXXXX... (o selecciona de la lista)">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn-primary" onclick="getWorkspace()">Ver detalle →</button>
+        </div>
+      </div>
+      <div class="results" id="r-detail"></div>
+    </div>
+  </div>
+
+  <!-- TAB 2: Miembros -->
+  <div id="tab-members" class="tab-content">
+    <div class="grid">
+
+      <!-- Agregar miembro -->
+      <div class="card">
+        <h3>Agregar Miembro</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Workspace ID</label>
+            <input type="text" id="memberWsId" placeholder="ID del workspace">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>LDAP / member_id</label>
+            <input type="text" id="memberId" placeholder="ldap del usuario">
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select id="memberRole">
+              <option value="member">member (hereda linked_doc_permission)</option>
+              <option value="editor">editor</option>
+              <option value="owner">owner</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="addMember()">Agregar →</button>
+        <div class="results" id="r-addmember"></div>
+      </div>
+
+      <!-- Remover miembro -->
+      <div class="card">
+        <h3>Remover Miembro</h3>
+        <p style="font-size:12px;color:#888;margin-bottom:12px">Al remover un miembro, se revoca automáticamente su acceso a todos los documentos del workspace.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Workspace ID</label>
+            <input type="text" id="removeMemberWsId" placeholder="ID del workspace">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>LDAP / member_id</label>
+            <input type="text" id="removeMemberId" placeholder="ldap del usuario">
+          </div>
+        </div>
+        <button class="btn-danger" onclick="removeMember()">Remover →</button>
+        <div class="results" id="r-removemember"></div>
+      </div>
+
+    </div>
+
+    <!-- Verificar permisos heredados -->
+    <div class="card">
+      <h3>Verificar Herencia de Permisos</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:12px">
+        Tras agregar/remover un miembro, verifica que el documento refleje el cambio de permisos.
+        Compara <code>shared_with</code> / <code>editors</code> del doc antes y después.
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Doc ID para verificar</label>
+          <input type="text" id="verifyDocId" placeholder="01KWXXXXX...">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn-primary" onclick="verifyDocPerms()">Ver metadata doc →</button>
+        </div>
+      </div>
+      <div class="results" id="r-verifyperms"></div>
+    </div>
+  </div>
+
+  <!-- TAB 3: Documentos -->
+  <div id="tab-documents" class="tab-content">
+    <div class="grid">
+
+      <!-- Vincular documento -->
+      <div class="card">
+        <h3>Vincular Documento al Workspace</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Workspace ID</label>
+            <input type="text" id="linkWsId" placeholder="ID del workspace">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Doc ID</label>
+            <input type="text" id="linkDocId" placeholder="01KWXXXXX...">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="linkDocument()">Vincular →</button>
+        <div class="results" id="r-linkdoc"></div>
+      </div>
+
+      <!-- Subir + vincular con engine -->
+      <div class="card">
+        <h3>Subir Archivo + Vincular (Engine)</h3>
+        <p style="font-size:12px;color:#888;margin-bottom:12px">
+          Sube un archivo y lo vincula al workspace en un solo paso usando <code>POST /engine/run</code>.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Workspace ID</label>
+            <input type="text" id="engineWsId" placeholder="ID del workspace">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Título del documento</label>
+            <input type="text" id="engineTitle" placeholder="Mi documento QA">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Archivo (.html, .csv, .md, .pdf…)</label>
+            <input type="file" id="engineFile" accept=".html,.htm,.csv,.md,.txt,.pdf,.json">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="uploadWithEngine()">Subir + Vincular →</button>
+        <div class="results" id="r-engine"></div>
+      </div>
+
+    </div>
+
+    <!-- Listar documentos del workspace -->
+    <div class="card">
+      <h3>Documentos del Workspace</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:12px">
+        Busca documentos cuyo <code>workspace_id</code> coincida.
+        Usa <code>GET /api/v1/documents</code> con filtro por workspace.
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Workspace ID</label>
+          <input type="text" id="listDocWsId" placeholder="ID del workspace">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn-primary" onclick="listWorkspaceDocs()">Listar →</button>
+        </div>
+      </div>
+      <div class="results" id="r-listdocs"></div>
+    </div>
+  </div>
+
+  <!-- TAB 4: Gestión -->
+  <div id="tab-mgmt" class="tab-content">
+    <div class="grid">
+
+      <!-- Actualizar workspace -->
+      <div class="card">
+        <h3>Actualizar Workspace (PATCH)</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Workspace ID</label>
+            <input type="text" id="patchWsId" placeholder="ID del workspace">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nuevo nombre (opcional)</label>
+            <input type="text" id="patchWsName" placeholder="Nuevo nombre">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nueva descripción (opcional)</label>
+            <input type="text" id="patchWsDesc" placeholder="Nueva descripción">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>linked_doc_permission (opcional)</label>
+            <select id="patchWsPermission">
+              <option value="">— sin cambio —</option>
+              <option value="viewer">viewer</option>
+              <option value="editor">editor</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="patchWorkspace()">Actualizar →</button>
+        <div class="results" id="r-patch"></div>
+      </div>
+
+      <!-- Eliminar workspace -->
+      <div class="card">
+        <h3>Eliminar Workspace (DELETE)</h3>
+        <p style="font-size:12px;color:#f44336;margin-bottom:12px;font-weight:600">
+          ⚠ Soft-delete — solo el owner puede eliminar. Los documentos NO se eliminan, solo pierden la referencia al workspace.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Workspace ID</label>
+            <input type="text" id="deleteWsId" placeholder="ID del workspace">
+          </div>
+        </div>
+        <button class="btn-danger" onclick="deleteWorkspace()">Eliminar →</button>
+        <div class="results" id="r-delete"></div>
+      </div>
+
+    </div>
+
+    <!-- Flujo completo -->
+    <div class="card">
+      <h3>🧪 Test Flujo Completo de Workspace</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:12px">
+        Ejecuta secuencialmente: <strong>Crear WS → Subir doc via Engine → Vincular doc → Verificar metadata doc → Limpiar</strong>.
+        Ideal para smoke test de integración.
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nombre del workspace de prueba</label>
+          <input type="text" id="smokeWsName" value="QA-Smoke-Test">
+        </div>
+        <div class="form-group">
+          <label>linked_doc_permission</label>
+          <select id="smokePermission">
+            <option value="viewer">viewer</option>
+            <option value="editor">editor</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-primary" onclick="runSmokeTest()">▶ Ejecutar Smoke Test</button>
+          <button class="btn-warn" onclick="clearSmokeLog()">× Limpiar log</button>
+        </div>
+      </div>
+      <div class="log-panel" id="smoke-log"><span class="log-info">Listo para ejecutar...</span></div>
+    </div>
+  </div>
+
+  <!-- TAB 5: Log global -->
+  <div id="tab-log" class="tab-content">
+    <div class="card">
+      <h3>Log Global de Requests</h3>
+      <button class="btn-sm btn-warn" onclick="clearLog()" style="margin-bottom:8px">× Limpiar</button>
+      <div class="log-panel" id="global-log"><span class="log-info">Sin actividad todavía.</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const BASE = location.origin;
+let currentUser = null;
+let activeWs = null;
+let logLines = [];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function ts() {
+  return new Date().toLocaleTimeString('es-MX', {hour12: false});
+}
+
+function appendLog(msg, type = 'info') {
+  const el = document.getElementById('global-log');
+  if (el.querySelector('.log-info')?.textContent === 'Sin actividad todavía.') el.innerHTML = '';
+  const line = document.createElement('div');
+  line.innerHTML = `<span class="log-ts">[${ts()}]</span><span class="log-${type}">${escHtml(msg)}</span>`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendSmokeLog(msg, type = 'info') {
+  const el = document.getElementById('smoke-log');
+  if (el.querySelector('.log-info')?.textContent === 'Listo para ejecutar...') el.innerHTML = '';
+  const line = document.createElement('div');
+  line.innerHTML = `<span class="log-ts">[${ts()}]</span><span class="log-${type}">${escHtml(msg)}</span>`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() { document.getElementById('global-log').innerHTML = '<span class="log-info">Sin actividad todavía.</span>'; }
+function clearSmokeLog() { document.getElementById('smoke-log').innerHTML = '<span class="log-info">Listo para ejecutar...</span>'; }
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderResult(containerId, status, body) {
+  const el = document.getElementById(containerId);
+  const cls = status >= 200 && status < 300 ? 'result-ok' : status >= 400 ? 'result-err' : 'result-warn';
+  const txt = typeof body === 'object' ? JSON.stringify(body, null, 2) : String(body);
+  el.innerHTML = `<div class="result-item ${cls}"><strong>HTTP ${status}</strong><pre>${escHtml(txt)}</pre></div>`;
+}
+
+async function apiFetch(method, path, body, isForm = false) {
+  const url = `${BASE}${path}`;
+  const opts = { method, credentials: 'include' };
+  if (body && !isForm) {
+    opts.headers = { 'Content-Type': 'application/json' };
+    opts.body = JSON.stringify(body);
+  } else if (body && isForm) {
+    opts.body = body; // FormData
+  }
+  appendLog(`${method} ${path}`, 'info');
+  const t0 = Date.now();
+  try {
+    const r = await fetch(url, opts);
+    const ms = Date.now() - t0;
+    let data;
+    const ct = r.headers.get('content-type') || '';
+    if (ct.includes('json')) data = await r.json();
+    else data = await r.text();
+    appendLog(`← ${r.status} (${ms}ms)`, r.ok ? 'ok' : 'err');
+    return { status: r.status, data };
+  } catch (e) {
+    appendLog(`✗ Error de red: ${e.message}`, 'err');
+    return { status: 0, data: `Error de red: ${e.message}` };
+  }
+}
+
+function fillWsId(id, name) {
+  // fill all workspace id inputs with the selected ws
+  ['wsDetailId','memberWsId','removeMemberWsId','linkWsId','engineWsId','listDocWsId','patchWsId','deleteWsId'].forEach(fid => {
+    const el = document.getElementById(fid);
+    if (el && !el.value) el.value = id;
+  });
+  setActiveWs(id, name);
+}
+
+function setActiveWs(id, name) {
+  activeWs = { id, name };
+  document.getElementById('activeWsBar').style.display = 'flex';
+  document.getElementById('activeWsName').textContent = name;
+  document.getElementById('activeWsId').textContent = id;
+}
+
+function clearActiveWs() {
+  activeWs = null;
+  document.getElementById('activeWsBar').style.display = 'none';
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+async function loadMe() {
+  const { status, data } = await apiFetch('GET', '/api/v1/me');
+  if (status === 200) {
+    currentUser = data;
+    document.getElementById('userDisplay').textContent =
+      `${data.full_name || data.ldap || data.email} (${data.ldap || data.caller_id})`;
+  } else {
+    document.getElementById('userDisplay').textContent = '⚠ No autenticado';
+  }
+}
+
+// ── 1. Creación ───────────────────────────────────────────────────────────────
+
+async function createWorkspace() {
+  const name = document.getElementById('wsName').value.trim();
+  const desc = document.getElementById('wsDesc').value.trim();
+  const perm = document.getElementById('wsPermission').value;
+  if (!name) return alert('El nombre es obligatorio.');
+  const body = { name, linked_doc_permission: perm };
+  if (desc) body.description = desc;
+  const { status, data } = await apiFetch('POST', '/api/v1/workspaces', body);
+  renderResult('r-create', status, data);
+  if (status === 200 || status === 201) {
+    const id = data.workspace_id || data.id;
+    if (id) fillWsId(id, data.name || name);
+  }
+}
+
+async function listWorkspaces() {
+  const { status, data } = await apiFetch('GET', '/api/v1/workspaces');
+  const el = document.getElementById('r-list');
+  if (status !== 200) { renderResult('r-list', status, data); return; }
+  const items = Array.isArray(data) ? data : (data.workspaces || data.items || []);
+  if (!items.length) { el.innerHTML = '<div class="result-item result-warn">Sin workspaces.</div>'; return; }
+  el.innerHTML = items.map(ws => {
+    const id = ws.workspace_id || ws.id;
+    return `<div class="ws-item ${activeWs?.id === id ? 'selected-ws' : ''}">
+      <strong>${escHtml(ws.name || '—')}</strong>
+      <span class="pill">${escHtml(ws.linked_doc_permission || '?')}</span>
+      <span class="ws-id" onclick="fillWsId('${escHtml(id)}','${escHtml(ws.name||'')}');renderResult('r-detail',200,${escHtml(JSON.stringify(ws))})">${escHtml(id)}</span>
+    </div>`;
+  }).join('');
+}
+
+async function getWorkspace() {
+  const id = document.getElementById('wsDetailId').value.trim();
+  if (!id) return alert('Ingresa un Workspace ID.');
+  const { status, data } = await apiFetch('GET', `/api/v1/workspaces/${id}`);
+  renderResult('r-detail', status, data);
+  if (status === 200) fillWsId(id, data.name || id);
+}
+
+// ── 2. Miembros ───────────────────────────────────────────────────────────────
+
+async function addMember() {
+  const wsId = document.getElementById('memberWsId').value.trim();
+  const memberId = document.getElementById('memberId').value.trim();
+  const role = document.getElementById('memberRole').value;
+  if (!wsId || !memberId) return alert('Completa Workspace ID y LDAP.');
+  const { status, data } = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, { member_id: memberId, role });
+  renderResult('r-addmember', status, data);
+}
+
+async function removeMember() {
+  const wsId = document.getElementById('removeMemberWsId').value.trim();
+  const memberId = document.getElementById('removeMemberId').value.trim();
+  if (!wsId || !memberId) return alert('Completa Workspace ID y LDAP.');
+  const { status, data } = await apiFetch('DELETE', `/api/v1/workspaces/${wsId}/members/${memberId}`);
+  renderResult('r-removemember', status, data);
+}
+
+async function verifyDocPerms() {
+  const docId = document.getElementById('verifyDocId').value.trim();
+  if (!docId) return alert('Ingresa un Doc ID.');
+  const { status, data } = await apiFetch('GET', `/api/v1/documents/${docId}`);
+  if (status !== 200) { renderResult('r-verifyperms', status, data); return; }
+  // highlight relevant fields
+  const info = {
+    doc_id: data.doc_id,
+    workspace_id: data.workspace_id,
+    visibility: data.visibility,
+    shared_with: data.shared_with,
+    editors: data.editors,
+    owner_id: data.owner_id
+  };
+  renderResult('r-verifyperms', status, info);
+}
+
+// ── 3. Documentos ─────────────────────────────────────────────────────────────
+
+async function linkDocument() {
+  const wsId = document.getElementById('linkWsId').value.trim();
+  const docId = document.getElementById('linkDocId').value.trim();
+  if (!wsId || !docId) return alert('Completa Workspace ID y Doc ID.');
+  const { status, data } = await apiFetch('POST', `/api/v1/workspaces/${wsId}/documents`, { doc_id: docId });
+  renderResult('r-linkdoc', status, data);
+}
+
+async function uploadWithEngine() {
+  const wsId = document.getElementById('engineWsId').value.trim();
+  const title = document.getElementById('engineTitle').value.trim();
+  const fileInput = document.getElementById('engineFile');
+  if (!wsId) return alert('Ingresa el Workspace ID.');
+  if (!title) return alert('Ingresa un título.');
+  if (!fileInput.files.length) return alert('Selecciona un archivo.');
+
+  const file = fileInput.files[0];
+  const config = { title, workspace_id: wsId, file_new_version: true, skill_version: '3.6.3' };
+  const fd = new FormData();
+  fd.append('config', JSON.stringify(config));
+  fd.append('file', file, file.name);
+
+  const { status, data } = await apiFetch('POST', '/api/v1/engine/run', fd, true);
+  renderResult('r-engine', status, data);
+  if (status === 200 && data.ok) {
+    appendLog(`✅ Documento creado: ${data.doc_id} → vinculado a WS ${wsId}`, 'ok');
+  }
+}
+
+async function listWorkspaceDocs() {
+  const wsId = document.getElementById('listDocWsId').value.trim();
+  if (!wsId) return alert('Ingresa el Workspace ID.');
+  // GET /api/v1/documents with workspace_id filter
+  const { status, data } = await apiFetch('GET', `/api/v1/documents?workspace_id=${encodeURIComponent(wsId)}&limit=50`);
+  if (status !== 200) { renderResult('r-listdocs', status, data); return; }
+  const items = Array.isArray(data) ? data : (data.documents || data.items || []);
+  if (!items.length) {
+    document.getElementById('r-listdocs').innerHTML = '<div class="result-item result-warn">Sin documentos en este workspace.</div>';
+    return;
+  }
+  document.getElementById('r-listdocs').innerHTML = items.map(doc => `
+    <div class="ws-item">
+      <strong>${escHtml(doc.title || doc.doc_id)}</strong>
+      <span class="pill">${escHtml(doc.doc_type || '?')}</span>
+      <span class="pill">v${doc.version || 1}</span>
+      <span class="ws-id">${escHtml(doc.doc_id)}</span>
+    </div>`).join('');
+}
+
+// ── 4. Gestión ────────────────────────────────────────────────────────────────
+
+async function patchWorkspace() {
+  const wsId = document.getElementById('patchWsId').value.trim();
+  if (!wsId) return alert('Ingresa el Workspace ID.');
+  const body = {};
+  const name = document.getElementById('patchWsName').value.trim();
+  const desc = document.getElementById('patchWsDesc').value.trim();
+  const perm = document.getElementById('patchWsPermission').value;
+  if (name) body.name = name;
+  if (desc) body.description = desc;
+  if (perm) body.linked_doc_permission = perm;
+  if (!Object.keys(body).length) return alert('Ingresa al menos un campo a actualizar.');
+  const { status, data } = await apiFetch('PATCH', `/api/v1/workspaces/${wsId}`, body);
+  renderResult('r-patch', status, data);
+}
+
+async function deleteWorkspace() {
+  const wsId = document.getElementById('deleteWsId').value.trim();
+  if (!wsId) return alert('Ingresa el Workspace ID.');
+  if (!confirm(`¿Eliminar workspace ${wsId}? Esta acción no se puede deshacer fácilmente.`)) return;
+  const { status, data } = await apiFetch('DELETE', `/api/v1/workspaces/${wsId}`);
+  renderResult('r-delete', status, data);
+  if (status === 200 || status === 204) {
+    if (activeWs?.id === wsId) clearActiveWs();
+    appendLog(`Workspace ${wsId} eliminado`, 'warn');
+  }
+}
+
+// ── Smoke Test ────────────────────────────────────────────────────────────────
+
+async function runSmokeTest() {
+  clearSmokeLog();
+  const name = document.getElementById('smokeWsName').value.trim() || 'QA-Smoke';
+  const perm = document.getElementById('smokePermission').value;
+  let wsId = null, docId = null;
+
+  appendSmokeLog(`▶ Iniciando smoke test para workspace: "${name}" (${perm})`, 'info');
+
+  // Step 1: Crear workspace
+  appendSmokeLog('1/5 Creando workspace...', 'info');
+  const r1 = await apiFetch('POST', '/api/v1/workspaces', { name, linked_doc_permission: perm });
+  if (r1.status === 200 || r1.status === 201) {
+    wsId = r1.data.workspace_id || r1.data.id;
+    appendSmokeLog(`  ✅ Workspace creado: ${wsId}`, 'ok');
+  } else {
+    appendSmokeLog(`  ✗ Falló creación: HTTP ${r1.status} — ${JSON.stringify(r1.data)}`, 'err');
+    return;
+  }
+
+  // Step 2: GET del workspace
+  appendSmokeLog('2/5 Verificando detalle del workspace...', 'info');
+  const r2 = await apiFetch('GET', `/api/v1/workspaces/${wsId}`);
+  if (r2.status === 200) {
+    appendSmokeLog(`  ✅ GET OK — nombre: "${r2.data.name}", permission: ${r2.data.linked_doc_permission}`, 'ok');
+  } else {
+    appendSmokeLog(`  ✗ GET falló: HTTP ${r2.status}`, 'err');
+  }
+
+  // Step 3: Subir un documento mínimo y vincularlo
+  appendSmokeLog('3/5 Subiendo doc de prueba y vinculando al workspace...', 'info');
+  const htmlBlob = new Blob([`<!DOCTYPE html><html><body><h1>QA Smoke Test - ${name}</h1></body></html>`], {type:'text/html'});
+  const fd = new FormData();
+  fd.append('config', JSON.stringify({ title: `smoke-test-${Date.now()}`, workspace_id: wsId, file_new_version: true, skill_version: '3.6.3' }));
+  fd.append('file', htmlBlob, 'smoke.html');
+  const r3 = await apiFetch('POST', '/api/v1/engine/run', fd, true);
+  if (r3.status === 200 && r3.data.ok) {
+    docId = r3.data.doc_id;
+    appendSmokeLog(`  ✅ Documento creado: ${docId}`, 'ok');
+  } else {
+    appendSmokeLog(`  ✗ Engine falló: HTTP ${r3.status} — ok=${r3.data?.ok}, error=${r3.data?.error}`, 'err');
+    appendSmokeLog('  → Intentando link manual de un doc existente... (omitido en smoke auto)', 'warn');
+  }
+
+  // Step 4: Verificar que el doc tenga workspace_id
+  if (docId) {
+    appendSmokeLog('4/5 Verificando metadata del documento (workspace_id)...', 'info');
+    const r4 = await apiFetch('GET', `/api/v1/documents/${docId}`);
+    if (r4.status === 200) {
+      const wsMatch = r4.data.workspace_id === wsId;
+      appendSmokeLog(`  ${wsMatch ? '✅' : '⚠'} workspace_id en doc: ${r4.data.workspace_id} ${wsMatch ? '(match ✓)' : `(esperado: ${wsId})`}`, wsMatch ? 'ok' : 'warn');
+    } else {
+      appendSmokeLog(`  ✗ GET doc falló: HTTP ${r4.status}`, 'err');
+    }
+  } else {
+    appendSmokeLog('4/5 Omitida (sin docId)', 'warn');
+  }
+
+  // Step 5: PATCH del workspace
+  appendSmokeLog('5/5 Actualizando nombre del workspace (PATCH)...', 'info');
+  const r5 = await apiFetch('PATCH', `/api/v1/workspaces/${wsId}`, { description: `smoke-test-patched-${Date.now()}` });
+  if (r5.status === 200) {
+    appendSmokeLog(`  ✅ PATCH OK`, 'ok');
+  } else {
+    appendSmokeLog(`  ✗ PATCH falló: HTTP ${r5.status} — ${JSON.stringify(r5.data)}`, 'err');
+  }
+
+  appendSmokeLog('', 'info');
+  appendSmokeLog(`━━ Smoke test completado ━━`, 'info');
+  appendSmokeLog(`Workspace ID: ${wsId}`, 'ok');
+  if (docId) appendSmokeLog(`Doc ID:       ${docId}`, 'ok');
+  appendSmokeLog('Recuerda eliminar el workspace de prueba cuando termines (Tab 4).', 'warn');
+
+  // Populate fields for easy cleanup
+  document.getElementById('deleteWsId').value = wsId;
+  setActiveWs(wsId, name);
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+
+loadMe();
+</script>
+</body>
+</html>
