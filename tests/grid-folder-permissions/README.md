@@ -36,6 +36,37 @@ compartir, promover, reemplazar ACL, borrar la carpeta) — esto es lo único
 que confirma que las restricciones de rol se aplican de verdad y no solo que
 el owner puede hacer todo.
 
+## Hallazgos de la Ronda 7 (2026-07-07)
+
+Corrida real contra `grid.adminml.com` (LDAP `igarciarubio`): 12/13 tests
+no-skip en **PASS**, incluyendo la reproducción en vivo del bug de
+no-deduplicación de `shared_with`/`editors` (V11.3) y el contrato exacto del
+límite de nesting (`422 folder_depth_limit`, corta justo en el nivel 6).
+
+**Hallazgo nuevo (FAIL):** `PUT /folders/{folder_id}/permissions` devolvió
+`HTTP 422 {"error":"Invalid values in body object."}` con un `folder_id`
+recién creado y válido (usado exitosamente segundos antes en `share`,
+`permissions` GET y `PATCH`). Esto contradice la explicación de la Biblia
+V11.3 para ese mismo mensaje de error ("era un `folder_id` obsoleto, no el
+endpoint") — acá el `folder_id` era fresco.
+
+Para aislar la causa real se agregó la sección **"2b. Diagnóstico — PUT
+/permissions"** al harness, que corre variantes del body (LDAP resuelto vs.
+email crudo, con/sin historial previo de sharing en la carpeta, con/sin la
+clave `visibility`) contra la misma carpeta y contra una carpeta nueva sin
+historial. Correr esa sección después de la Suite A y comparar:
+
+- **D1 vs D2** — si D2 (LDAP) pasa y D1 (email) falla, el endpoint no
+  resuelve emails a LDAP como sí lo hace `POST /share`.
+- **D1 vs D3** — si D3 (carpeta nueva, mismo email) pasa y D1 falla, la causa
+  es el historial de sharing previo de la carpeta, no el formato del
+  identificador.
+- **D5/D6** — si fallan igual que D1, la clave `visibility` (u otra) es la
+  culpable, no `shared_with`.
+
+Este hallazgo queda abierto — pendiente de correr el diagnóstico y, si se
+confirma un patrón claro, actualizar la Biblia con la causa raíz.
+
 ## Cómo correrlo
 
 Grid impone origen único por cookies/CORS (`grid.adminml.com` y

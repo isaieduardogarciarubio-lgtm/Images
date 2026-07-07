@@ -138,6 +138,18 @@
   </div>
 
   <div class="card">
+    <h2>2b. Diagnóstico — PUT /permissions devuelve 422 "Invalid values in body object"</h2>
+    <p style="font-size:13px">
+      En una corrida real (2026-07-07) <code>PUT /folders/{id}/permissions</code> falló con
+      <code>HTTP 422 {"error":"Invalid values in body object."}</code> usando un <code>folder_id</code> recién
+      creado y válido — descarta la explicación de la Biblia V11.3 ("era un folder_id obsoleto"). Este bloque
+      corre variantes de body (LDAP vs email, con/sin historial de sharing previo, claves opcionales omitidas)
+      para aislar la causa real. Requiere haber corrido la Suite A primero (usa su carpeta y su segundo usuario).
+    </p>
+    <button id="btnRunA8Diag">Correr diagnóstico de PUT /permissions</button>
+  </div>
+
+  <div class="card">
     <h2>3. Suite B — Colaborador (permisos negativos, requiere segunda sesión LDAP)</h2>
     <p style="font-size:13px">
       Suite A comparte la carpeta creada con el usuario indicado en "segundo usuario" arriba, primero como
@@ -440,6 +452,84 @@
     record("A14. Suite finalizada", "-", "-", "-", null, `Carpetas de prueba creadas: ${state.createdFolders.length}. Usá 'Limpiar carpetas de prueba' para desvincular documentos y borrarlas.`, null);
   }
 
+  // ---------- Diagnóstico A8: PUT /permissions 422 "Invalid values in body object" ----------
+
+  async function runDiagA8() {
+    const c = cfg();
+    const folderId = state.ctx.folderId;
+    if (!folderId) {
+      record("A8-Diag", "-", "-", "-", false, "No hay carpeta de Suite A en esta sesión de la página. Corré 'Suite A completa' primero.", null);
+      return;
+    }
+    if (!c.secondUser) {
+      record("A8-Diag", "-", "-", "-", false, "Falta el segundo usuario en la configuración (necesario para reproducir el body original).", null);
+      return;
+    }
+
+    const currentPerms = await req("GET", `/api/v1/folders/${folderId}/permissions`);
+    const shared = (currentPerms.ok && currentPerms.data.shared_with) || [];
+    const resolvedLdap = shared.find(u => u !== c.secondUser) || null;
+
+    const variants = [
+      {
+        id: "D1",
+        desc: "Reproducir falla original: folder con historial de sharing, shared_with en formato EMAIL",
+        folderId,
+        body: { shared_with: [c.secondUser], editors: [], visibility: "private" }
+      }
+    ];
+    if (resolvedLdap) {
+      variants.push({
+        id: "D2",
+        desc: "Mismo folder con historial, shared_with en formato LDAP resuelto en vez de email",
+        folderId,
+        body: { shared_with: [resolvedLdap], editors: [], visibility: "private" }
+      });
+    }
+    variants.push({
+      id: "D5",
+      desc: "Mismo folder, mismo identificador que D1/D2 pero SIN la clave 'visibility'",
+      folderId,
+      body: { shared_with: resolvedLdap ? [resolvedLdap] : [c.secondUser], editors: [] }
+    });
+    variants.push({
+      id: "D6",
+      desc: "Mismo folder, SOLO 'visibility' (shared_with/editors omitidos, ambos son opcionales según contrato)",
+      folderId,
+      body: { visibility: "private" }
+    });
+
+    const fresh = await req("POST", "/api/v1/folders", { name: `QA_HARNESS_${Date.now()}_diag_a8` });
+    const freshId = fresh.data && fresh.data.folder_id;
+    if (freshId) {
+      state.createdFolders.push(freshId);
+      variants.push({
+        id: "D3",
+        desc: "Folder NUEVO sin historial de sharing, shared_with en formato EMAIL (aísla si el historial previo es la causa)",
+        folderId: freshId,
+        body: { shared_with: [c.secondUser], editors: [], visibility: "private" }
+      });
+      if (resolvedLdap) {
+        variants.push({
+          id: "D4",
+          desc: "Folder NUEVO sin historial de sharing, shared_with en formato LDAP",
+          folderId: freshId,
+          body: { shared_with: [resolvedLdap], editors: [], visibility: "private" }
+        });
+      }
+    }
+
+    for (const v of variants) {
+      const resp = await req("PUT", `/api/v1/folders/${v.folderId}/permissions`, v.body);
+      record(`A8-${v.id}. ${v.desc}`, `/api/v1/folders/${v.folderId}/permissions`, "PUT",
+        "Exploratorio — ver detalle para la conclusión", resp.ok,
+        `body=${JSON.stringify(v.body)} → HTTP ${resp.status} ${JSON.stringify(resp.data)}`, resp);
+    }
+
+    record("A8-Diag. Resumen", "-", "-", "-", null,
+      "Comparar D1 vs D2 aísla formato (email vs LDAP). Comparar D1 vs D3 aísla si el historial previo de sharing es la causa. D5/D6 aíslan si 'visibility' u otra clave es la culpable.", null);
+  }
+
   // ---------- Suite B: colaborador ----------
 
   async function runSuiteB() {
@@ -555,6 +645,7 @@
 
   document.getElementById("btnWhoAmI").addEventListener("click", whoAmI);
   document.getElementById("btnRunA").addEventListener("click", runSuiteA);
+  document.getElementById("btnRunA8Diag").addEventListener("click", runDiagA8);
   document.getElementById("btnRunB").addEventListener("click", runSuiteB);
   document.getElementById("btnCleanup").addEventListener("click", cleanupTestFolders);
   document.getElementById("btnExportMd").addEventListener("click", exportMarkdown);
