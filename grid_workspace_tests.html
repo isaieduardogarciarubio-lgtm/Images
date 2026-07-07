@@ -90,7 +90,7 @@
 <header>
   <h1>Grid — QA Workspaces</h1>
   <span class="badge">V11.4</span>
-  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 10</span>
+  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 11</span>
 </header>
 
 <div class="container">
@@ -184,14 +184,12 @@
       <!-- Agregar miembro -->
       <div class="card">
         <h3>Agregar Miembro</h3>
-        <p style="font-size:12px;background:#ffebee;color:#c62828;padding:10px;border-radius:6px;margin-bottom:12px;font-weight:600;line-height:1.6">
-          🔴 HALLAZGO CONFIRMADO (2026-07-07) — No existe ningún camino funcional para agregar miembros via API:<br>
-          <span style="font-weight:400">
-          • <code>POST /members</code> → 422 para todo input (incluso body vacío)<br>
-          • <code>GET/PUT/PATCH /members</code> → 500 Internal Server Error<br>
-          • <code>PATCH /workspaces/{id}</code> con <code>members[]</code> → 200 pero campo ignorado silenciosamente<br>
-          • <code>/share, /invite, /add-member</code> → 405 Method Not Allowed
-          </span>
+        <p style="font-size:12px;background:#fff8e1;color:#795548;padding:10px;border-radius:6px;margin-bottom:12px;line-height:1.6">
+          ⚠️ <strong>Re-test pendiente (build 11):</strong> las pruebas previas usaron usuarios inválidos
+          (<code>igarciarubio</code> ya es owner → duplicado; <code>iramirezreno</code> posiblemente no existe).
+          El 422 <em>"Invalid values in body object"</em> puede significar "usuario no resolvible / ya es miembro",
+          NO necesariamente "endpoint roto".<br>
+          <strong>Probar con un LDAP válido y resolvible que no sea ya miembro</strong> (ej: un compañero real de tu equipo).
         </p>
         <div class="form-row">
           <div class="form-group">
@@ -213,7 +211,8 @@
             </select>
           </div>
         </div>
-        <button class="btn-primary" onclick="addMember()" disabled title="Endpoint roto — ningún camino funcional confirmado">Agregar miembro (roto)</button>
+        <button class="btn-primary" onclick="addMember()">Agregar (POST /members) →</button>
+        <button class="btn-sm" style="background:#eee;color:#333;margin-left:4px" onclick="verifyMemberAdded()" title="GET del workspace para ver si el miembro quedó en members[]">✓ Verificar en members[]</button>
         <div class="results" id="r-addmember"></div>
         <div class="log-panel" id="brute-log" style="display:none;margin-top:8px"></div>
       </div>
@@ -590,15 +589,33 @@ async function addMember() {
   const memberId = document.getElementById('memberId').value.trim();
   const role = document.getElementById('memberRole').value;
   if (!wsId || !memberId) return alert('Completa Workspace ID y LDAP.');
-  // Contrato real confirmado: PATCH /workspaces/{id} con members[] en el body
-  const { status, data } = await apiFetch('PATCH', `/api/v1/workspaces/${wsId}`, {
-    members: [{ user_id: memberId, role }]
-  });
+  // Path documentado en la Biblia (Sección 18): POST /workspaces/{id}/members {user_id, role}
+  const { status, data } = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, { user_id: memberId, role });
   renderResult('r-addmember', status, data);
-  if (status === 200) {
-    const added = data.members?.find(m => m.user_id === memberId);
-    if (added) appendLog(`✅ Miembro ${memberId} agregado como ${added.role}`, 'ok');
+  if (status >= 200 && status < 300) {
+    appendLog(`✅ POST /members OK — verificando members[]...`, 'ok');
+    setTimeout(verifyMemberAdded, 300);
+  } else if (status === 422) {
+    appendLog(`⚠️ 422 — ¿el LDAP "${memberId}" existe y no es ya miembro? Prueba con otro usuario válido.`, 'err');
   }
+}
+
+async function verifyMemberAdded() {
+  const wsId = document.getElementById('memberWsId').value.trim();
+  const memberId = document.getElementById('memberId').value.trim();
+  if (!wsId) return alert('Ingresa el Workspace ID.');
+  const { status, data } = await apiFetch('GET', `/api/v1/workspaces/${wsId}`);
+  if (status !== 200) { renderResult('r-addmember', status, data); return; }
+  const members = data.members || [];
+  const found = members.find(m => m.user_id === memberId);
+  const summary = {
+    member_count: data.member_count,
+    members: members.map(m => `${m.user_id} (${m.role})`),
+    buscado: memberId,
+    presente: found ? `✅ SÍ — role: ${found.role}` : '❌ NO está en members[]'
+  };
+  renderResult('r-addmember', status, summary);
+  appendLog(found ? `✅ ${memberId} CONFIRMADO en members[]` : `❌ ${memberId} NO aparece en members[]`, found ? 'ok' : 'err');
 }
 
 function setMemberBody(field, role) {
