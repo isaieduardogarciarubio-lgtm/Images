@@ -90,7 +90,7 @@
 <header>
   <h1>Grid — QA Workspaces</h1>
   <span class="badge">V11.4</span>
-  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 15</span>
+  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 16</span>
 </header>
 
 <div class="container">
@@ -184,21 +184,17 @@
       <!-- Agregar miembro -->
       <div class="card">
         <h3>Agregar Miembro</h3>
-        <p style="font-size:12px;background:#ffebee;color:#c62828;padding:10px;border-radius:6px;margin-bottom:12px;font-weight:600;line-height:1.7">
-          🔴 CONCLUSIÓN FINAL (2026-07-07) — Sin camino funcional confirmado vía API pública:<br>
-          <span style="font-weight:400">
-          Se probaron 40+ combinaciones sobre <code>/api/v1/workspaces/{id}/members</code> y rutas relacionadas:
-          campos (<code>user_id, member_id, ldap, email, emails[], invitees[], caller_id...</code>),
-          roles (minúscula/Mayúscula, <code>member/viewer/editor/owner</code>), métodos (GET/POST/PUT/PATCH/DELETE),
-          rutas alternativas (<code>/share, /invite, /add-member</code>), LDAP real confirmado (<code>kgutierrezch</code>)
-          y su email real confirmado. <strong>Resultado uniforme:</strong> 422 "Invalid values in body object"
-          (incluso con body vacío), 500 en GET/PUT/PATCH, 405 en rutas alternativas.<br><br>
-          La UI nativa "Invite to workspace" SÍ funciona, lo que sugiere que usa un endpoint/servicio
-          interno distinto al REST público documentado — no confirmable sin inspeccionar el tráfico real
-          (DevTools bloqueado por política corporativa en este entorno).<br><br>
-          <strong>Workaround:</strong> usar la UI nativa de Grid para agregar miembros manualmente.
-          <strong>Pendiente:</strong> escalar al equipo de plataforma de Grid con esta evidencia.
-          </span>
+        <p style="font-size:12px;background:#e8f5e9;color:#2e7d32;padding:10px;border-radius:6px;margin-bottom:12px;font-weight:600;line-height:1.7">
+          🆕 PISTA NUEVA de la skill oficial de Grid (references/sections_and_collections.md):
+          la API de <strong>Groups</strong> (hermana de Workspaces, mismo diseño) usa
+          <code>POST /groups/{id}/members {"members":[{"ldap":"..."}]}</code> — el campo dentro
+          del array es <strong>"ldap"</strong>, NO "user_id". Nunca probamos esta key exacta.<br>
+          <span style="font-weight:400">Probar con los botones verdes "members: [{ldap}]" abajo antes de dar por roto el endpoint.</span>
+        </p>
+        <p style="font-size:11px;color:#999;margin-bottom:12px">
+          (Historial: 40+ combos con <code>user_id/member_id/email/emails[]/invitees[]</code>,
+          roles en ambos casings, métodos GET/PUT/PATCH/DELETE, rutas <code>/share /invite /add-member</code>
+          — todas 422/405/500. LDAP conocido: <code>kgutierrezch</code>.)
         </p>
         <div class="form-row">
           <div class="form-group">
@@ -223,6 +219,14 @@
         <button class="btn-primary" onclick="addMember()">Agregar (POST /members) →</button>
         <button class="btn-sm" style="background:#eee;color:#333;margin-left:4px" onclick="verifyMemberAdded()" title="GET del workspace para ver si el miembro quedó en members[]">✓ Verificar en members[]</button>
 
+        <hr class="separator">
+        <p style="font-size:11px;color:#2e7d32;font-weight:600;margin-bottom:6px">🎯 PRIORIDAD — patrón de Groups API (campo "ldap"):</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <button class="btn-sm" style="background:#c8e6c9;color:#1b5e20;font-weight:600" onclick="tryVariant('members_ldap_key')">members:[{ldap}]</button>
+          <button class="btn-sm" style="background:#c8e6c9;color:#1b5e20;font-weight:600" onclick="tryVariant('members_ldap_key_role')">members:[{ldap,role}]</button>
+          <button class="btn-sm" style="background:#c8e6c9;color:#1b5e20;font-weight:600" onclick="tryVariant('members_ldap_only_no_wrapper')">{ldap}</button>
+          <button class="btn-sm" style="background:#c8e6c9;color:#1b5e20;font-weight:600" onclick="tryVariant('members_ldap_role_no_wrapper')">{ldap,role}</button>
+        </div>
         <hr class="separator">
         <p style="font-size:11px;color:#888;margin-bottom:6px">Variantes basadas en la UI nativa (emails[] array, roles capitalizados, /invite):</p>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
@@ -692,6 +696,21 @@ async function tryVariant(kind) {
       body = { shared_with: [email], role: 'member' };
       break;
     }
+    // 🆕 Pista de la skill oficial (sections_and_collections.md): Groups API usa
+    // POST /groups/{id}/members {"members":[{"ldap":"..."}]} — campo "ldap", NO "user_id".
+    // Nunca probamos esta key exacta. Workspaces podría seguir el mismo patrón.
+    case 'members_ldap_key':
+      body = { members: [{ ldap }] };
+      break;
+    case 'members_ldap_key_role':
+      body = { members: [{ ldap, role: 'member' }] };
+      break;
+    case 'members_ldap_only_no_wrapper':
+      body = { ldap };
+      break;
+    case 'members_ldap_role_no_wrapper':
+      body = { ldap, role: 'member' };
+      break;
   }
   const { status, data } = await apiFetch('POST', path, body);
   renderResult('r-addmember', status, data);
