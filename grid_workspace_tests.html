@@ -654,28 +654,56 @@ async function bruteForceMembers() {
   // array
   combos.push({ members: [{ user_id: ldap, role: 'member' }] });
   combos.push({ members: [{ user_id: ldap }] });
+  // body vacío — puede revelar campos requeridos en el error
+  combos.push({ _note: 'BODY VACÍO', _empty: true });
+  // variantes de campo menos comunes
+  combos.push({ user_id: ldap, role: 'member', _note: 'con x-api-source header', _extraHeader: {'x-api-source': 'office'} });
+  combos.push({ invitee_id: ldap, role: 'member' });
+  combos.push({ invite_id: ldap, role: 'member' });
+  combos.push({ recipient_id: ldap, role: 'member' });
+  combos.push({ caller_id: ldap, role: 'member' });
 
   let found = false;
   for (const body of combos) {
-    const { _note, ...sendBody } = body;
-    const label = (_note ? `[${_note}] ` : '') + JSON.stringify(sendBody);
-    const r = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, sendBody);
+    const { _note, _empty, _extraHeader, ...sendBody } = body;
+    const label = (_note ? `[${_note}] ` : '') + (_empty ? '{}' : JSON.stringify(sendBody));
+    const actualBody = _empty ? {} : sendBody;
+
+    // fetch manual para poder inyectar headers extra
+    const url = `${BASE}/api/v1/workspaces/${wsId}/members`;
+    const headers = { 'Content-Type': 'application/json', ...(_extraHeader || {}) };
+    appendLog(`POST /api/v1/workspaces/${wsId}/members ${_note ? `[${_note}]` : ''}`, 'info');
+    const t0 = Date.now();
+    let r;
+    try {
+      const res = await fetch(url, { method: 'POST', credentials: 'include', headers, body: JSON.stringify(actualBody) });
+      const ms = Date.now() - t0;
+      const ct = res.headers.get('content-type') || '';
+      const data = ct.includes('json') ? await res.json() : await res.text();
+      appendLog(`← ${res.status} (${ms}ms)`, res.ok ? 'ok' : 'err');
+      r = { status: res.status, data };
+    } catch(e) {
+      r = { status: 0, data: e.message };
+    }
+
     const ok = r.status >= 200 && r.status < 300;
+    // mostrar respuesta completa si es distinta a la de antes
+    const respStr = JSON.stringify(r.data);
     const line = document.createElement('div');
     line.innerHTML = `<span class="log-ts">[${ts()}]</span>`
-      + `<span class="${ok ? 'log-ok' : 'log-err'}">HTTP ${r.status} — ${escHtml(label)}</span>`;
+      + `<span class="${ok ? 'log-ok' : 'log-err'}">HTTP ${r.status} — ${escHtml(label)} → ${escHtml(respStr.slice(0,120))}</span>`;
     logEl.appendChild(line);
     logEl.scrollTop = logEl.scrollHeight;
     if (ok) {
       found = true;
-      document.getElementById('memberRawBody').value = JSON.stringify(sendBody, null, 2);
+      document.getElementById('memberRawBody').value = JSON.stringify(actualBody, null, 2);
       renderResult('r-addmember', r.status, r.data);
       const win = document.createElement('div');
       win.innerHTML = `<span class="log-ok">✅ COMBINACIÓN CORRECTA: ${escHtml(label)}</span>`;
       logEl.appendChild(win);
       break;
     }
-    await new Promise(res => setTimeout(res, 120)); // pequeña pausa entre requests
+    await new Promise(res => setTimeout(res, 120));
   }
   if (!found) {
     const fin = document.createElement('div');
