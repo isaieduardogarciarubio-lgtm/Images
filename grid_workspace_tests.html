@@ -662,15 +662,19 @@ async function bruteForceMembers() {
   combos.push({ invite_id: ldap, role: 'member' });
   combos.push({ recipient_id: ldap, role: 'member' });
   combos.push({ caller_id: ldap, role: 'member' });
+  // hipótesis: endpoint /share (como usa Folders API)
+  combos.push({ _note: 'POST /share share_with[]', _overridePath: `/api/v1/workspaces/${wsId}/share`, share_with: [ldap] });
+  combos.push({ _note: 'POST /share add_as_editors', _overridePath: `/api/v1/workspaces/${wsId}/share`, share_with: [ldap], add_as_editors: false });
+  combos.push({ _note: 'POST /share editor', _overridePath: `/api/v1/workspaces/${wsId}/share`, share_with: [ldap], add_as_editors: true });
 
   let found = false;
   for (const body of combos) {
-    const { _note, _empty, _extraHeader, ...sendBody } = body;
+    const { _note, _empty, _extraHeader, _overridePath, ...sendBody } = body;
     const label = (_note ? `[${_note}] ` : '') + (_empty ? '{}' : JSON.stringify(sendBody));
     const actualBody = _empty ? {} : sendBody;
 
-    // fetch manual para poder inyectar headers extra
-    const url = `${BASE}/api/v1/workspaces/${wsId}/members`;
+    // fetch manual para poder inyectar headers extra o cambiar el path
+    const url = `${BASE}${_overridePath || `/api/v1/workspaces/${wsId}/members`}`;
     const headers = { 'Content-Type': 'application/json', ...(_extraHeader || {}) };
     appendLog(`POST /api/v1/workspaces/${wsId}/members ${_note ? `[${_note}]` : ''}`, 'info');
     const t0 = Date.now();
