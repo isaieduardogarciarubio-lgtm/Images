@@ -90,7 +90,7 @@
 <header>
   <h1>Grid — QA Workspaces</h1>
   <span class="badge">V11.4</span>
-  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 14</span>
+  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 15</span>
 </header>
 
 <div class="container">
@@ -184,14 +184,21 @@
       <!-- Agregar miembro -->
       <div class="card">
         <h3>Agregar Miembro</h3>
-        <p style="font-size:12px;background:#e3f2fd;color:#0d47a1;padding:10px;border-radius:6px;margin-bottom:12px;line-height:1.6">
-          🔎 <strong>Pista nueva:</strong> la UI nativa de Grid ("Invite to workspace") pide
-          <em>"Search by name or email (comma-separated)"</em> + un selector "Groups" + roles
-          <strong>"Member"/"Editor"</strong> (capitalizados). Esto sugiere que el contrato real
-          podría ser: <code>emails: []</code> (array, no user_id), <code>role</code> capitalizado,
-          y quizás requiere resolución previa vía búsqueda (no un LDAP crudo).<br>
-          <strong>Más confiable:</strong> abre DevTools (F12 → Network) en Grid, haz clic en
-          "Invite" real, y copia el payload exacto que se envía.
+        <p style="font-size:12px;background:#ffebee;color:#c62828;padding:10px;border-radius:6px;margin-bottom:12px;font-weight:600;line-height:1.7">
+          🔴 CONCLUSIÓN FINAL (2026-07-07) — Sin camino funcional confirmado vía API pública:<br>
+          <span style="font-weight:400">
+          Se probaron 40+ combinaciones sobre <code>/api/v1/workspaces/{id}/members</code> y rutas relacionadas:
+          campos (<code>user_id, member_id, ldap, email, emails[], invitees[], caller_id...</code>),
+          roles (minúscula/Mayúscula, <code>member/viewer/editor/owner</code>), métodos (GET/POST/PUT/PATCH/DELETE),
+          rutas alternativas (<code>/share, /invite, /add-member</code>), LDAP real confirmado (<code>kgutierrezch</code>)
+          y su email real confirmado. <strong>Resultado uniforme:</strong> 422 "Invalid values in body object"
+          (incluso con body vacío), 500 en GET/PUT/PATCH, 405 en rutas alternativas.<br><br>
+          La UI nativa "Invite to workspace" SÍ funciona, lo que sugiere que usa un endpoint/servicio
+          interno distinto al REST público documentado — no confirmable sin inspeccionar el tráfico real
+          (DevTools bloqueado por política corporativa en este entorno).<br><br>
+          <strong>Workaround:</strong> usar la UI nativa de Grid para agregar miembros manualmente.
+          <strong>Pendiente:</strong> escalar al equipo de plataforma de Grid con esta evidencia.
+          </span>
         </p>
         <div class="form-row">
           <div class="form-group">
