@@ -90,7 +90,7 @@
 <header>
   <h1>Grid — QA Workspaces</h1>
   <span class="badge">V11.4</span>
-  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 13</span>
+  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 14</span>
 </header>
 
 <div class="container">
@@ -225,6 +225,15 @@
           <button class="btn-sm" style="background:#fff3e0;color:#e65100" onclick="tryVariant('emails_role_cap')">emails:[] + role:"Member"</button>
           <button class="btn-sm" style="background:#fff3e0;color:#e65100" onclick="tryVariant('post_invite_emails')">POST /invite emails:[]</button>
           <button class="btn-sm" style="background:#fff3e0;color:#e65100" onclick="testKnownLdap()">kgutierrezch (control conocido)</button>
+        </div>
+        <p style="font-size:11px;color:#888;margin-bottom:6px">🆕 Hipótesis: email completo real (como en Folders API, Sección 13) en vez de LDAP crudo.
+        Si el campo LDAP dice "kgutierrezch", estos botones usan automáticamente el email real confirmado
+        (<code>karenaimee.gutierrezchazarreta@mercadolibre.com.mx</code>):</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <button class="btn-sm" style="background:#e8f5e9;color:#2e7d32" onclick="tryVariant('full_email_user_id')">user_id: email completo</button>
+          <button class="btn-sm" style="background:#e8f5e9;color:#2e7d32" onclick="tryVariant('full_email_field')">email: email completo</button>
+          <button class="btn-sm" style="background:#e8f5e9;color:#2e7d32" onclick="tryVariant('full_email_share_with')">share_with: [email]</button>
+          <button class="btn-sm" style="background:#e8f5e9;color:#2e7d32" onclick="tryVariant('full_email_shared_with_role')">shared_with: [email] + role</button>
         </div>
         <div class="results" id="r-addmember"></div>
       </div>
@@ -654,6 +663,28 @@ async function tryVariant(kind) {
       path = `/api/v1/workspaces/${wsId}/invite`;
       body = { emails: [ldap], role: 'Member' };
       break;
+    // Hipótesis: igual que Folders (Sección 13), el endpoint espera EMAIL completo, no LDAP crudo.
+    // Email real confirmado en la Biblia para kgutierrezch: karenaimee.gutierrezchazarreta@mercadolibre.com.mx
+    case 'full_email_user_id': {
+      const email = ldap === 'kgutierrezch' ? 'karenaimee.gutierrezchazarreta@mercadolibre.com.mx' : ldap;
+      body = { user_id: email, role: 'member' };
+      break;
+    }
+    case 'full_email_field': {
+      const email = ldap === 'kgutierrezch' ? 'karenaimee.gutierrezchazarreta@mercadolibre.com.mx' : ldap;
+      body = { email, role: 'member' };
+      break;
+    }
+    case 'full_email_share_with': {
+      const email = ldap === 'kgutierrezch' ? 'karenaimee.gutierrezchazarreta@mercadolibre.com.mx' : ldap;
+      body = { share_with: [email] };
+      break;
+    }
+    case 'full_email_shared_with_role': {
+      const email = ldap === 'kgutierrezch' ? 'karenaimee.gutierrezchazarreta@mercadolibre.com.mx' : ldap;
+      body = { shared_with: [email], role: 'member' };
+      break;
+    }
   }
   const { status, data } = await apiFetch('POST', path, body);
   renderResult('r-addmember', status, data);
