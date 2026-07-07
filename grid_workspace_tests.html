@@ -215,12 +215,21 @@
             <textarea id="memberRawBody" rows="5">{"user_id": "LDAP_AQUI", "role": "member"}</textarea>
           </div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">
-          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('user_id','member')">user_id+role</button>
-          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('member_id','member')">member_id+role</button>
-          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('ldap','member')">ldap+role</button>
-          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('email','member')">email+role</button>
+        <p style="font-size:11px;color:#888;margin-bottom:4px">Variantes de campo:</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('user_id','member')">user_id / member</button>
+          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('member_id','member')">member_id / member</button>
+          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('ldap','member')">ldap / member</button>
+          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('email','member')">email / member</button>
           <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBodyArr()">members[] array</button>
+        </div>
+        <p style="font-size:11px;color:#888;margin-bottom:4px">Variantes de role (con user_id):</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <button class="btn-sm" style="background:#dbeafe;color:#1e40af" onclick="setMemberBody('user_id','viewer')">role: viewer</button>
+          <button class="btn-sm" style="background:#dbeafe;color:#1e40af" onclick="setMemberBody('user_id','editor')">role: editor</button>
+          <button class="btn-sm" style="background:#dbeafe;color:#1e40af" onclick="setMemberBody('user_id','owner')">role: owner</button>
+          <button class="btn-sm" style="background:#dbeafe;color:#1e40af" onclick="setMemberBody('user_id','member')">role: member</button>
+          <button class="btn-sm" style="background:#dbeafe;color:#1e40af" onclick="setMemberBodyNoRole()">sin role</button>
         </div>
         <button class="btn-primary btn-sm" onclick="addMemberRaw()">Enviar body libre →</button>
         <div class="results" id="r-addmember"></div>
@@ -612,6 +621,11 @@ function setMemberBody(field, role) {
 function setMemberBodyArr() {
   const ldap = document.getElementById('memberId').value.trim() || 'LDAP_AQUI';
   document.getElementById('memberRawBody').value = JSON.stringify({ members: [{ user_id: ldap, role: 'member' }] }, null, 2);
+}
+
+function setMemberBodyNoRole() {
+  const ldap = document.getElementById('memberId').value.trim() || 'LDAP_AQUI';
+  document.getElementById('memberRawBody').value = JSON.stringify({ user_id: ldap }, null, 2);
 }
 
 async function addMemberRaw() {
