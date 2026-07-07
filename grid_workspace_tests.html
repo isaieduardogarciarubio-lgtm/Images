@@ -662,25 +662,37 @@ async function bruteForceMembers() {
   combos.push({ invite_id: ldap, role: 'member' });
   combos.push({ recipient_id: ldap, role: 'member' });
   combos.push({ caller_id: ldap, role: 'member' });
-  // hipótesis: endpoint /share (como usa Folders API)
-  combos.push({ _note: 'POST /share share_with[]', _overridePath: `/api/v1/workspaces/${wsId}/share`, share_with: [ldap] });
-  combos.push({ _note: 'POST /share add_as_editors', _overridePath: `/api/v1/workspaces/${wsId}/share`, share_with: [ldap], add_as_editors: false });
-  combos.push({ _note: 'POST /share editor', _overridePath: `/api/v1/workspaces/${wsId}/share`, share_with: [ldap], add_as_editors: true });
+  // /share con otros métodos (POST da 405 — el endpoint existe)
+  combos.push({ _note: 'PUT /share share_with[]', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT', share_with: [ldap] });
+  combos.push({ _note: 'PUT /share add_as_editors:false', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT', share_with: [ldap], add_as_editors: false });
+  combos.push({ _note: 'PUT /share add_as_editors:true', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT', share_with: [ldap], add_as_editors: true });
+  combos.push({ _note: 'PATCH /share', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PATCH', share_with: [ldap] });
+  // GET /members — ver si el endpoint de lectura responde (confirma si ruta existe)
+  combos.push({ _note: 'GET /members (lectura)', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'GET', _empty: true });
+  // GET /share
+  combos.push({ _note: 'GET /share (lectura)', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'GET', _empty: true });
+  // PUT /members (por si acaso)
+  combos.push({ _note: 'PUT /members user_id', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PUT', user_id: ldap, role: 'member' });
+  combos.push({ _note: 'PATCH /members user_id', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PATCH', user_id: ldap, role: 'member' });
 
   let found = false;
   for (const body of combos) {
-    const { _note, _empty, _extraHeader, _overridePath, ...sendBody } = body;
+    const { _note, _empty, _extraHeader, _overridePath, _method, ...sendBody } = body;
     const label = (_note ? `[${_note}] ` : '') + (_empty ? '{}' : JSON.stringify(sendBody));
     const actualBody = _empty ? {} : sendBody;
+    const method = _method || 'POST';
 
-    // fetch manual para poder inyectar headers extra o cambiar el path
+    // fetch manual para poder inyectar headers extra, cambiar path o método
     const url = `${BASE}${_overridePath || `/api/v1/workspaces/${wsId}/members`}`;
     const headers = { 'Content-Type': 'application/json', ...(_extraHeader || {}) };
-    appendLog(`POST /api/v1/workspaces/${wsId}/members ${_note ? `[${_note}]` : ''}`, 'info');
+    const pathLabel = (_overridePath || `/api/v1/workspaces/${wsId}/members`).replace(`/api/v1/workspaces/${wsId}`, '');
+    appendLog(`${method} ...${pathLabel} ${_note ? `[${_note}]` : ''}`, 'info');
     const t0 = Date.now();
     let r;
     try {
-      const res = await fetch(url, { method: 'POST', credentials: 'include', headers, body: JSON.stringify(actualBody) });
+      const fetchOpts = { method, credentials: 'include', headers };
+      if (method !== 'GET') fetchOpts.body = JSON.stringify(actualBody);
+      const res = await fetch(url, fetchOpts);
       const ms = Date.now() - t0;
       const ct = res.headers.get('content-type') || '';
       const data = ct.includes('json') ? await res.json() : await res.text();
