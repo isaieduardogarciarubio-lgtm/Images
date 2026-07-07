@@ -204,6 +204,25 @@
           </div>
         </div>
         <button class="btn-primary" onclick="addMember()">Agregar →</button>
+
+        <!-- Debug: probar distintos body formats -->
+        <hr class="separator">
+        <h3 style="margin-bottom:8px">🔬 Debug — body libre</h3>
+        <p style="font-size:12px;color:#888;margin-bottom:8px">Prueba cualquier combinación de campos. El WS ID de arriba se usa como endpoint.</p>
+        <div class="form-row">
+          <div class="form-group" style="flex:3">
+            <label>JSON body (editable)</label>
+            <textarea id="memberRawBody" rows="5">{"user_id": "LDAP_AQUI", "role": "member"}</textarea>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('user_id','member')">user_id+role</button>
+          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('member_id','member')">member_id+role</button>
+          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('ldap','member')">ldap+role</button>
+          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBody('email','member')">email+role</button>
+          <button class="btn-sm" style="background:#eee;color:#333" onclick="setMemberBodyArr()">members[] array</button>
+        </div>
+        <button class="btn-primary btn-sm" onclick="addMemberRaw()">Enviar body libre →</button>
         <div class="results" id="r-addmember"></div>
       </div>
 
@@ -579,7 +598,29 @@ async function addMember() {
   const memberId = document.getElementById('memberId').value.trim();
   const role = document.getElementById('memberRole').value;
   if (!wsId || !memberId) return alert('Completa Workspace ID y LDAP.');
+  // sync raw body textarea too
+  document.getElementById('memberRawBody').value = JSON.stringify({ user_id: memberId, role }, null, 2);
   const { status, data } = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, { user_id: memberId, role });
+  renderResult('r-addmember', status, data);
+}
+
+function setMemberBody(field, role) {
+  const ldap = document.getElementById('memberId').value.trim() || 'LDAP_AQUI';
+  document.getElementById('memberRawBody').value = JSON.stringify({ [field]: ldap, role }, null, 2);
+}
+
+function setMemberBodyArr() {
+  const ldap = document.getElementById('memberId').value.trim() || 'LDAP_AQUI';
+  document.getElementById('memberRawBody').value = JSON.stringify({ members: [{ user_id: ldap, role: 'member' }] }, null, 2);
+}
+
+async function addMemberRaw() {
+  const wsId = document.getElementById('memberWsId').value.trim();
+  if (!wsId) return alert('Ingresa el Workspace ID arriba.');
+  let body;
+  try { body = JSON.parse(document.getElementById('memberRawBody').value); }
+  catch(e) { return alert('JSON inválido: ' + e.message); }
+  const { status, data } = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, body);
   renderResult('r-addmember', status, data);
 }
 
