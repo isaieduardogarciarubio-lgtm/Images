@@ -232,7 +232,9 @@
           <button class="btn-sm" style="background:#dbeafe;color:#1e40af" onclick="setMemberBodyNoRole()">sin role</button>
         </div>
         <button class="btn-primary btn-sm" onclick="addMemberRaw()">Enviar body libre →</button>
+        <button class="btn-sm btn-warn" onclick="bruteForceMembers()" style="margin-left:4px">🔁 Probar todas las combinaciones</button>
         <div class="results" id="r-addmember"></div>
+        <div class="log-panel" id="brute-log" style="display:none;margin-top:8px"></div>
       </div>
 
       <!-- Remover miembro -->
@@ -626,6 +628,55 @@ function setMemberBodyArr() {
 function setMemberBodyNoRole() {
   const ldap = document.getElementById('memberId').value.trim() || 'LDAP_AQUI';
   document.getElementById('memberRawBody').value = JSON.stringify({ user_id: ldap }, null, 2);
+}
+
+async function bruteForceMembers() {
+  const wsId = document.getElementById('memberWsId').value.trim();
+  const ldap  = document.getElementById('memberId').value.trim();
+  if (!wsId || !ldap) return alert('Completa Workspace ID y LDAP primero.');
+
+  const logEl = document.getElementById('brute-log');
+  logEl.style.display = 'block';
+  logEl.innerHTML = `<span class="log-info">[${ts()}] Probando combinaciones para WS ${wsId} + ldap ${ldap}...</span>\n`;
+
+  const roles   = ['member', 'viewer', 'editor', 'owner'];
+  const fields  = ['user_id', 'member_id', 'ldap', 'email'];
+  const combos  = [];
+
+  // campo + role
+  for (const f of fields) for (const r of roles) combos.push({ [f]: ldap, role: r });
+  // sin role
+  for (const f of fields) combos.push({ [f]: ldap });
+  // array
+  combos.push({ members: [{ user_id: ldap, role: 'member' }] });
+  combos.push({ members: [{ user_id: ldap }] });
+
+  let found = false;
+  for (const body of combos) {
+    const label = JSON.stringify(body);
+    const r = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, body);
+    const ok = r.status >= 200 && r.status < 300;
+    const line = document.createElement('div');
+    line.innerHTML = `<span class="log-ts">[${ts()}]</span>`
+      + `<span class="${ok ? 'log-ok' : 'log-err'}">HTTP ${r.status} — ${escHtml(label)}</span>`;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    if (ok) {
+      found = true;
+      document.getElementById('memberRawBody').value = JSON.stringify(body, null, 2);
+      renderResult('r-addmember', r.status, r.data);
+      const win = document.createElement('div');
+      win.innerHTML = `<span class="log-ok">✅ COMBINACIÓN CORRECTA: ${escHtml(label)}</span>`;
+      logEl.appendChild(win);
+      break;
+    }
+    await new Promise(res => setTimeout(res, 120)); // pequeña pausa entre requests
+  }
+  if (!found) {
+    const fin = document.createElement('div');
+    fin.innerHTML = `<span class="log-err">✗ Ninguna combinación dio 2xx. Ver log global para detalles.</span>`;
+    logEl.appendChild(fin);
+  }
 }
 
 async function addMemberRaw() {
