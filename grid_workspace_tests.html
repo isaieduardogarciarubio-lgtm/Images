@@ -90,7 +90,7 @@
 <header>
   <h1>Grid — QA Workspaces</h1>
   <span class="badge">V11.4</span>
-  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 16</span>
+  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 17</span>
 </header>
 
 <div class="container">
@@ -226,6 +226,8 @@
           <button class="btn-sm" style="background:#c8e6c9;color:#1b5e20;font-weight:600" onclick="tryVariant('members_ldap_key_role')">members:[{ldap,role}]</button>
           <button class="btn-sm" style="background:#c8e6c9;color:#1b5e20;font-weight:600" onclick="tryVariant('members_ldap_only_no_wrapper')">{ldap}</button>
           <button class="btn-sm" style="background:#c8e6c9;color:#1b5e20;font-weight:600" onclick="tryVariant('members_ldap_role_no_wrapper')">{ldap,role}</button>
+          <button class="btn-sm" style="background:#c8e6c9;color:#1b5e20;font-weight:600" onclick="tryVariant('workspace_id_in_body')">+workspace_id en body</button>
+          <button class="btn-sm" style="background:#c8e6c9;color:#1b5e20;font-weight:600" onclick="tryVariant('top_level_array')">[array top-level]</button>
         </div>
         <hr class="separator">
         <p style="font-size:11px;color:#888;margin-bottom:6px">Variantes basadas en la UI nativa (emails[] array, roles capitalizados, /invite):</p>
@@ -711,6 +713,25 @@ async function tryVariant(kind) {
     case 'members_ldap_role_no_wrapper':
       body = { ldap, role: 'member' };
       break;
+    // Últimas 2 hipótesis baratas: workspace_id duplicado en body, y array top-level
+    case 'workspace_id_in_body':
+      body = { workspace_id: wsId, user_id: ldap, role: 'member' };
+      break;
+    case 'top_level_array':
+      body = [{ user_id: ldap, role: 'member' }];
+      break;
+  }
+  // top_level_array necesita fetch manual porque apiFetch espera objeto
+  if (kind === 'top_level_array') {
+    const res = await fetch(`${BASE}${path}`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => res.text());
+    renderResult('r-addmember', res.status, data);
+    appendLog(`${res.status >= 200 && res.status < 300 ? '✅' : '✗'} Variante "${kind}" → HTTP ${res.status}`, res.ok ? 'ok' : 'err');
+    return;
   }
   const { status, data } = await apiFetch('POST', path, body);
   renderResult('r-addmember', status, data);
