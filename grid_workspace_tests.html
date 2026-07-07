@@ -90,7 +90,7 @@
 <header>
   <h1>Grid — QA Workspaces</h1>
   <span class="badge">V11.4</span>
-  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 9</span>
+  <span class="badge" style="background:#3483fa;color:#fff;margin-left:4px">build 10</span>
 </header>
 
 <div class="container">
@@ -184,9 +184,14 @@
       <!-- Agregar miembro -->
       <div class="card">
         <h3>Agregar Miembro</h3>
-        <p style="font-size:12px;background:#e8f5e9;color:#2e7d32;padding:8px;border-radius:6px;margin-bottom:12px;font-weight:600">
-          ✅ Contrato real confirmado (2026-07-07): <code>PATCH /api/v1/workspaces/{id}</code> con <code>{"members":[{"user_id":"ldap","role":"member"}]}</code><br>
-          <span style="font-weight:400">POST /members → roto (422 para todo input). GET/PUT/PATCH /members → 500.</span>
+        <p style="font-size:12px;background:#ffebee;color:#c62828;padding:10px;border-radius:6px;margin-bottom:12px;font-weight:600;line-height:1.6">
+          🔴 HALLAZGO CONFIRMADO (2026-07-07) — No existe ningún camino funcional para agregar miembros via API:<br>
+          <span style="font-weight:400">
+          • <code>POST /members</code> → 422 para todo input (incluso body vacío)<br>
+          • <code>GET/PUT/PATCH /members</code> → 500 Internal Server Error<br>
+          • <code>PATCH /workspaces/{id}</code> con <code>members[]</code> → 200 pero campo ignorado silenciosamente<br>
+          • <code>/share, /invite, /add-member</code> → 405 Method Not Allowed
+          </span>
         </p>
         <div class="form-row">
           <div class="form-group">
@@ -208,7 +213,7 @@
             </select>
           </div>
         </div>
-        <button class="btn-primary" onclick="addMember()">Agregar vía PATCH →</button>
+        <button class="btn-primary" onclick="addMember()" disabled title="Endpoint roto — ningún camino funcional confirmado">Agregar miembro (roto)</button>
         <div class="results" id="r-addmember"></div>
         <div class="log-panel" id="brute-log" style="display:none;margin-top:8px"></div>
       </div>
