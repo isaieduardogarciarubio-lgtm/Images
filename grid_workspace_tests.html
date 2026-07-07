@@ -643,6 +643,10 @@ async function bruteForceMembers() {
   const fields  = ['user_id', 'member_id', 'ldap', 'email'];
   const combos  = [];
 
+  // primero: prueba rápida con el propio usuario para verificar que el endpoint funciona
+  const selfId = document.getElementById('userDisplay').textContent.match(/\(([^)]+)\)/)?.[1] || 'igarciarubio';
+  if (selfId !== ldap) combos.push({ _note: `SELF-TEST con ${selfId}`, user_id: selfId, role: 'editor' });
+
   // campo + role
   for (const f of fields) for (const r of roles) combos.push({ [f]: ldap, role: r });
   // sin role
@@ -653,8 +657,9 @@ async function bruteForceMembers() {
 
   let found = false;
   for (const body of combos) {
-    const label = JSON.stringify(body);
-    const r = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, body);
+    const { _note, ...sendBody } = body;
+    const label = (_note ? `[${_note}] ` : '') + JSON.stringify(sendBody);
+    const r = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, sendBody);
     const ok = r.status >= 200 && r.status < 300;
     const line = document.createElement('div');
     line.innerHTML = `<span class="log-ts">[${ts()}]</span>`
@@ -663,7 +668,7 @@ async function bruteForceMembers() {
     logEl.scrollTop = logEl.scrollHeight;
     if (ok) {
       found = true;
-      document.getElementById('memberRawBody').value = JSON.stringify(body, null, 2);
+      document.getElementById('memberRawBody').value = JSON.stringify(sendBody, null, 2);
       renderResult('r-addmember', r.status, r.data);
       const win = document.createElement('div');
       win.innerHTML = `<span class="log-ok">✅ COMBINACIÓN CORRECTA: ${escHtml(label)}</span>`;
