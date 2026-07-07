@@ -191,7 +191,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>LDAP / member_id</label>
+            <label>LDAP / user_id <span style="color:#3483fa;font-weight:400">(campo real confirmado: user_id)</span></label>
             <input type="text" id="memberId" placeholder="ldap del usuario">
           </div>
           <div class="form-group">
@@ -579,7 +579,7 @@ async function addMember() {
   const memberId = document.getElementById('memberId').value.trim();
   const role = document.getElementById('memberRole').value;
   if (!wsId || !memberId) return alert('Completa Workspace ID y LDAP.');
-  const { status, data } = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, { member_id: memberId, role });
+  const { status, data } = await apiFetch('POST', `/api/v1/workspaces/${wsId}/members`, { user_id: memberId, role });
   renderResult('r-addmember', status, data);
 }
 
