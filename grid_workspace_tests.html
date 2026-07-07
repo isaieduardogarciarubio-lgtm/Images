@@ -639,41 +639,26 @@ async function bruteForceMembers() {
   logEl.style.display = 'block';
   logEl.innerHTML = `<span class="log-info">[${ts()}] Probando combinaciones para WS ${wsId} + ldap ${ldap}...</span>\n`;
 
-  const roles   = ['member', 'viewer', 'editor', 'owner'];
-  const fields  = ['user_id', 'member_id', 'ldap', 'email'];
-  const combos  = [];
-
-  // primero: prueba rápida con el propio usuario para verificar que el endpoint funciona
-  const selfId = document.getElementById('userDisplay').textContent.match(/\(([^)]+)\)/)?.[1] || 'igarciarubio';
-  if (selfId !== ldap) combos.push({ _note: `SELF-TEST con ${selfId}`, user_id: selfId, role: 'editor' });
-
-  // campo + role
-  for (const f of fields) for (const r of roles) combos.push({ [f]: ldap, role: r });
-  // sin role
-  for (const f of fields) combos.push({ [f]: ldap });
-  // array
-  combos.push({ members: [{ user_id: ldap, role: 'member' }] });
-  combos.push({ members: [{ user_id: ldap }] });
-  // body vacío — puede revelar campos requeridos en el error
-  combos.push({ _note: 'BODY VACÍO', _empty: true });
-  // variantes de campo menos comunes
-  combos.push({ user_id: ldap, role: 'member', _note: 'con x-api-source header', _extraHeader: {'x-api-source': 'office'} });
-  combos.push({ invitee_id: ldap, role: 'member' });
-  combos.push({ invite_id: ldap, role: 'member' });
-  combos.push({ recipient_id: ldap, role: 'member' });
-  combos.push({ caller_id: ldap, role: 'member' });
-  // /share con otros métodos (POST da 405 — el endpoint existe)
-  combos.push({ _note: 'PUT /share share_with[]', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT', share_with: [ldap] });
-  combos.push({ _note: 'PUT /share add_as_editors:false', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT', share_with: [ldap], add_as_editors: false });
-  combos.push({ _note: 'PUT /share add_as_editors:true', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT', share_with: [ldap], add_as_editors: true });
-  combos.push({ _note: 'PATCH /share', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PATCH', share_with: [ldap] });
-  // GET /members — ver si el endpoint de lectura responde (confirma si ruta existe)
-  combos.push({ _note: 'GET /members (lectura)', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'GET', _empty: true });
-  // GET /share
-  combos.push({ _note: 'GET /share (lectura)', _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'GET', _empty: true });
-  // PUT /members (por si acaso)
-  combos.push({ _note: 'PUT /members user_id', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PUT', user_id: ldap, role: 'member' });
-  combos.push({ _note: 'PATCH /members user_id', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PATCH', user_id: ldap, role: 'member' });
+  // ── CONFIRMADO 422 (todas las combinaciones de campo+role sobre /members) ──
+  // ── CONFIRMADO 405 (POST sobre /share existe pero método incorrecto) ──
+  // Solo probamos lo nuevo:
+  const combos = [
+    // /share con métodos distintos (ruta existe, POST → 405)
+    { _note: 'GET /share',              _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'GET',   _empty: true },
+    { _note: 'PUT /share viewer',       _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT',   share_with: [ldap], add_as_editors: false },
+    { _note: 'PUT /share editor',       _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT',   share_with: [ldap], add_as_editors: true },
+    { _note: 'PATCH /share',            _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PATCH', share_with: [ldap] },
+    // /members con métodos distintos
+    { _note: 'GET /members',            _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'GET', _empty: true },
+    { _note: 'PUT /members user_id',    _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PUT',  user_id: ldap, role: 'member' },
+    { _note: 'PUT /members user_id editor', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PUT', user_id: ldap, role: 'editor' },
+    { _note: 'PATCH /members user_id', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PATCH', user_id: ldap, role: 'member' },
+    // rutas alternativas que podrían existir
+    { _note: 'POST /invite',            _overridePath: `/api/v1/workspaces/${wsId}/invite`, _method: 'POST', user_id: ldap, role: 'member' },
+    { _note: 'POST /add-member',        _overridePath: `/api/v1/workspaces/${wsId}/add-member`, _method: 'POST', user_id: ldap, role: 'member' },
+    { _note: 'POST /members email fmt', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'POST', user_id: `${ldap}@mercadolibre.com`, role: 'member' },
+    { _note: 'POST /members email mx',  _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'POST', user_id: `${ldap}@mercadolibre.com.mx`, role: 'member' },
+  ];
 
   let found = false;
   for (const body of combos) {
