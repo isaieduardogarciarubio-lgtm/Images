@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grid QA Harness — Permisos de Carpetas</title>
+<style>
+  :root {
+    --ml-yellow: #FFD100;
+    --ml-blue: #3483fa;
+    --ml-bg: #ebebeb;
+    --ok: #00a650;
+    --fail: #f23d4f;
+    --skip: #999;
+    --text: #333333;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Proxima Nova", Arial, sans-serif;
+    background: var(--ml-bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--ml-blue);
+    color: white;
+    padding: 16px 24px;
+  }
+  header h1 { margin: 0; font-size: 18px; }
+  header p { margin: 4px 0 0; font-size: 12px; opacity: 0.85; }
+  main { max-width: 1100px; margin: 20px auto; padding: 0 16px 60px; }
+  .card {
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; border-bottom: 2px solid var(--ml-yellow); padding-bottom: 6px; }
+  .warn {
+    background: #fff8e6;
+    border-left: 4px solid var(--ml-yellow);
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  label { display: block; font-size: 12px; font-weight: 600; margin: 8px 0 4px; }
+  input[type=text] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 220px; }
+  button {
+    background: var(--ml-blue);
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    margin: 4px 6px 4px 0;
+  }
+  button.secondary { background: #666; }
+  button.danger { background: var(--fail); }
+  button:disabled { background: #ccc; cursor: not-allowed; }
+  #identity { font-size: 13px; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+  th { background: #fafafa; }
+  .status-PASS { color: var(--ok); font-weight: 700; }
+  .status-FAIL { color: var(--fail); font-weight: 700; }
+  .status-SKIP { color: var(--skip); font-weight: 700; }
+  details summary { cursor: pointer; color: var(--ml-blue); }
+  pre { background: #f7f7f7; padding: 8px; border-radius: 4px; overflow-x: auto; max-height: 200px; }
+  #summary { font-size: 13px; margin-top: 10px; }
+  #summary b { margin-right: 14px; }
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    align-items: center; justify-content: center; z-index: 999;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: white; border-radius: 6px; padding: 20px; max-width: 420px; width: 90%;
+  }
+  .modal p { font-size: 13px; }
+  .modal .actions { text-align: right; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Grid QA Harness — Permisos de Carpetas (Folders API)</h1>
+  <p>Basado en Biblia de Desarrollo en Grid V11.4 — Sección 13 (Folders API)</p>
+</header>
+
+<main>
+
+  <div class="warn">
+    ⚠️ Este harness crea y borra carpetas <b>reales</b> en tu cuenta de Grid. Los objetos de prueba se nombran con el
+    prefijo <code>QA_HARNESS_</code> para poder identificarlos y limpiarlos. Si vas a probar la asociación
+    documento↔carpeta, usá un <b>doc_id descartable</b> — el borrado de una carpeta es recursivo y también
+    soft-elimina los documentos que contiene, por eso este harness siempre desvincula el documento
+    (<code>DELETE /folders/{id}/documents/{doc_id}</code>) antes de borrar la carpeta de prueba.
+  </div>
+
+  <div class="card">
+    <h2>1. Configuración</h2>
+    <div class="row">
+      <div>
+        <label>Base URL de la API</label>
+        <input type="text" id="cfgBaseUrl">
+      </div>
+      <div>
+        <label>LDAP o email de un segundo usuario (para tests de sharing/roles)</label>
+        <input type="text" id="cfgSecondUser" placeholder="ej: kgutierrezch o nombre@mercadolibre.com.mx">
+      </div>
+      <div>
+        <label>doc_id existente y descartable (opcional, para tests de asociación doc↔carpeta)</label>
+        <input type="text" id="cfgDocId" placeholder="ej: 01KWSNVRN7FJFWRTM34CYN89KF">
+      </div>
+    </div>
+    <p id="identity">Identidad: no verificada todavía.</p>
+    <button id="btnWhoAmI">Verificar identidad (GET /api/v1/me)</button>
+  </div>
+
+  <div class="card">
+    <h2>2. Suite A — Dueño de la carpeta (automática, corre con tu sesión)</h2>
+    <p style="font-size:13px">
+      Crea una carpeta de prueba, valida CRUD, roles (owner/editor/viewer), ACL, límite de nesting y
+      asociación de documentos. No requiere segunda cuenta.
+    </p>
+    <button id="btnRunA">Correr Suite A completa</button>
+    <button id="btnCleanup" class="danger">Limpiar carpetas de prueba (QA_HARNESS_*)</button>
+  </div>
+
+  <div class="card">
+    <h2>3. Suite B — Colaborador (permisos negativos, requiere segunda sesión LDAP)</h2>
+    <p style="font-size:13px">
+      Suite A comparte la carpeta creada con el usuario indicado en "segundo usuario" arriba, primero como
+      <b>viewer</b> y luego lo promueve a <b>editor</b>. Para validar que las restricciones de rol se cumplen
+      de verdad, esa <b>otra persona</b> debe abrir este mismo HTML en su propia sesión de Grid, pegar el
+      <code>folder_id</code> que le paso el dueño abajo, y correr esta suite — se espera que reciba <b>403</b>
+      en las operaciones que su rol no permite.
+    </p>
+    <div class="row">
+      <div>
+        <label>folder_id a probar (provisto por el dueño)</label>
+        <input type="text" id="cfgFolderIdB">
+      </div>
+      <div>
+        <label>Rol esperado en esa carpeta</label>
+        <input type="text" id="cfgRoleB" placeholder="viewer o editor">
+      </div>
+    </div>
+    <button id="btnRunB">Correr Suite B (como colaborador)</button>
+  </div>
+
+  <div class="card">
+    <h2>4. Resultados</h2>
+    <div id="summary">Sin resultados todavía.</div>
+    <table id="resultsTable">
+      <thead>
+        <tr><th>#</th><th>Test</th><th>Endpoint</th><th>Resultado esperado</th><th>Status</th><th>Detalle</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button id="btnExportMd" class="secondary">Descargar reporte (Markdown)</button>
+    <button id="btnExportJson" class="secondary">Descargar reporte (JSON)</button>
+  </div>
+
+</main>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <p id="modalText"></p>
+    <div class="actions">
+      <button class="secondary" id="modalCancel">Cancelar</button>
+      <button class="danger" id="modalConfirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const state = {
+    baseUrl: location.origin && location.origin !== "null" ? location.origin : "https://grid.adminml.com",
+    results: [],
+    createdFolders: [],
+    docFolderLinks: [],
+    ctx: {}
+  };
+
+  document.getElementById("cfgBaseUrl").value = state.baseUrl;
+
+  function cfg() {
+    return {
+      baseUrl: document.getElementById("cfgBaseUrl").value.trim().replace(/\/$/, ""),
+      secondUser: document.getElementById("cfgSecondUser").value.trim(),
+      docId: document.getElementById("cfgDocId").value.trim()
+    };
+  }
+
+  function confirmModal(text) {
+    return new Promise((resolve) => {
+      const backdrop = document.getElementById("modalBackdrop");
+      document.getElementById("modalText").textContent = text;
+      backdrop.classList.add("open");
+      const onConfirm = () => { cleanup(true); };
+      const onCancel = () => { cleanup(false); };
+      function cleanup(result) {
+        backdrop.classList.remove("open");
+        document.getElementById("modalConfirm").removeEventListener("click", onConfirm);
+        document.getElementById("modalCancel").removeEventListener("click", onCancel);
+        resolve(result);
+      }
+      document.getElementById("modalConfirm").addEventListener("click", onConfirm);
+      document.getElementById("modalCancel").addEventListener("click", onCancel);
+    });
+  }
+
+  async function req(method, path, body) {
+    const url = cfg().baseUrl + path;
+    const start = performance.now();
+    try {
+      const resp = await fetch(url, {
+        method,
+        credentials: "include",
+        headers: body !== undefined ? { "Content-Type": "application/json" } : {},
+        body: body !== undefined ? JSON.stringify(body) : undefined
+      });
+      const ms = Math.round(performance.now() - start);
+      let data = null;
+      const text = await resp.text();
+      try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+      return { status: resp.status, ok: resp.ok, ms, data, url, method };
+    } catch (err) {
+      const ms = Math.round(performance.now() - start);
+      return { status: 0, ok: false, ms, data: { networkError: String(err) }, url, method };
+    }
+  }
+
+  function logResult(row) {
+    state.results.push(row);
+    renderResults();
+  }
+
+  function renderResults() {
+    const tbody = document.querySelector("#resultsTable tbody");
+    tbody.innerHTML = "";
+    state.results.forEach((r, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${r.name}</td>
+        <td>${r.method || ""} ${r.endpoint || ""}</td>
+        <td>${r.expected}</td>
+        <td class="status-${r.status}">${r.status}</td>
+        <td>
+          ${r.detail}
+          <details><summary>ver respuesta (HTTP ${r.httpStatus ?? "-"}, ${r.ms ?? "-"}ms)</summary>
+          <pre>${escapeHtml(JSON.stringify(r.response, null, 2))}</pre></details>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    const pass = state.results.filter(r => r.status === "PASS").length;
+    const fail = state.results.filter(r => r.status === "FAIL").length;
+    const skip = state.results.filter(r => r.status === "SKIP").length;
+    document.getElementById("summary").innerHTML =
+      `<b class="status-PASS">PASS: ${pass}</b><b class="status-FAIL">FAIL: ${fail}</b><b class="status-SKIP">SKIP: ${skip}</b>Total: ${state.results.length}`;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
+  function record(name, endpoint, method, expected, pass, detail, resp) {
+    logResult({
+      name, endpoint, method, expected,
+      status: pass === null ? "SKIP" : (pass ? "PASS" : "FAIL"),
+      detail,
+      httpStatus: resp ? resp.status : null,
+      ms: resp ? resp.ms : null,
+      response: resp ? resp.data : null
+    });
+  }
+
+  // ---------- Identidad ----------
+
+  async function whoAmI() {
+    const r = await req("GET", "/api/v1/me");
+    const box = document.getElementById("identity");
+    if (r.ok && r.data) {
+      box.textContent = `Identidad: ${r.data.full_name || "?"} (ldap: ${r.data.ldap || "?"}, email: ${r.data.email || "?"})`;
+    } else {
+      box.textContent = `No se pudo verificar identidad (HTTP ${r.status}). Revisá que baseUrl sea correcto y que tengas sesión activa en Grid.`;
+    }
+    return r;
+  }
+
+  // ---------- Suite A: dueño ----------
+
+  async function runSuiteA() {
+    state.results = [];
+    renderResults();
+    const c = cfg();
+    const stamp = Date.now();
+    const ctx = { stamp, folderId: null, childFolderId: null, secondFolderId: null, nestChain: [] };
+    state.ctx = ctx;
+
+    const idResp = await whoAmI();
+    record("Sanity: identidad", "/api/v1/me", "GET", "HTTP 200", idResp.ok, idResp.ok ? "OK" : "No se pudo identificar al usuario actual", idResp);
+    if (!idResp.ok) return;
+
+    // A1. Crear carpeta
+    const create = await req("POST", "/api/v1/folders", { name: `QA_HARNESS_${stamp}`, description: "Carpeta de prueba de permisos (auto-generada)" });
+    const folderId = create.data && create.data.folder_id;
+    record("A1. Crear carpeta", "/api/v1/folders", "POST", "HTTP 201 + folder_id", create.status === 201 && !!folderId,
+      folderId ? `folder_id=${folderId}` : "No se recibió folder_id en la respuesta", create);
+    if (!folderId) return;
+    ctx.folderId = folderId;
+    state.createdFolders.push(folderId);
+
+    // A2. Obtener detalle
+    const detail = await req("GET", `/api/v1/folders/${folderId}`);
+    const shapeOk = detail.ok && Array.isArray(detail.data.doc_ids) && Array.isArray(detail.data.subfolder_ids);
+    record("A2. Obtener detalle de carpeta", `/api/v1/folders/${folderId}`, "GET", "HTTP 200 con doc_ids/subfolder_ids", shapeOk,
+      shapeOk ? "Estructura esperada" : "Faltan campos esperados en la respuesta", detail);
+
+    // A3. Compartir como viewer
+    if (c.secondUser) {
+      const shareViewer = await req("POST", `/api/v1/folders/${folderId}/share`, { share_with: [c.secondUser], add_as_editors: false });
+      record("A3. Compartir como viewer", `/api/v1/folders/${folderId}/share`, "POST", "HTTP 200", shareViewer.ok,
+        shareViewer.ok ? "Compartido" : "Falló el share", shareViewer);
+
+      // A4. Verificar ACL: viewer en shared_with, no en editors
+      const perms1 = await req("GET", `/api/v1/folders/${folderId}/permissions`);
+      const inShared = perms1.ok && Array.isArray(perms1.data.shared_with) &&
+        perms1.data.shared_with.some(u => u === c.secondUser || u.includes(c.secondUser));
+      const notEditor = perms1.ok && Array.isArray(perms1.data.editors) &&
+        !perms1.data.editors.some(u => u === c.secondUser || u.includes(c.secondUser));
+      record("A4. ACL refleja viewer (no editor)", `/api/v1/folders/${folderId}/permissions`, "GET", "usuario en shared_with, ausente de editors",
+        inShared && notEditor, `shared_with=${JSON.stringify(perms1.data && perms1.data.shared_with)} editors=${JSON.stringify(perms1.data && perms1.data.editors)}`, perms1);
+
+      // A4b. Dedup: si secondUser es un email, revisar si aparecen dos formas (LDAP + email)
+      if (c.secondUser.includes("@")) {
+        const dupCount = perms1.ok ? perms1.data.shared_with.filter(u => u === c.secondUser || u.toLowerCase().includes(c.secondUser.split("@")[0].toLowerCase())).length : 0;
+        record("A4b. Chequeo de deduplicación shared_with", `/api/v1/folders/${folderId}/permissions`, "GET",
+          "Informativo — Biblia V11.3 documenta que NO deduplica (LDAP + email pueden coexistir)",
+          null, `Entradas relacionadas al usuario encontradas: ${dupCount}. ${dupCount > 1 ? "Reproduce el hallazgo conocido de no-dedup." : "No se reprodujo duplicidad en esta corrida."}`, perms1);
+      }
+
+      // A5. Promover a editor
+      const promote = await req("POST", `/api/v1/folders/${folderId}/share`, { share_with: [c.secondUser], add_as_editors: true });
+      record("A5. Promover viewer a editor (owner)", `/api/v1/folders/${folderId}/share`, "POST", "HTTP 200", promote.ok,
+        promote.ok ? "Promovido" : "Falló la promoción", promote);
+
+      const perms2 = await req("GET", `/api/v1/folders/${folderId}/permissions`);
+      const nowEditor = perms2.ok && Array.isArray(perms2.data.editors) &&
+        perms2.data.editors.some(u => u === c.secondUser || u.includes(c.secondUser));
+      record("A6. ACL refleja promoción a editor", `/api/v1/folders/${folderId}/permissions`, "GET", "usuario presente en editors",
+        nowEditor, `editors=${JSON.stringify(perms2.data && perms2.data.editors)}`, perms2);
+    } else {
+      record("A3-A6. Sharing / roles / ACL", `/api/v1/folders/${folderId}/share`, "POST", "—", null, "SKIP: no se indicó un segundo usuario en la configuración", null);
+    }
+
+    // A7. PATCH metadata (owner)
+    const patch = await req("PATCH", `/api/v1/folders/${folderId}`, { name: `QA_HARNESS_${stamp}_renamed` });
+    record("A7. Renombrar carpeta (owner)", `/api/v1/folders/${folderId}`, "PATCH", "HTTP 200", patch.ok,
+      patch.ok ? "Renombrada" : "Falló el rename", patch);
+
+    // A8. PUT permissions (reemplazo completo de ACL, owner only)
+    const putPerms = await req("PUT", `/api/v1/folders/${folderId}/permissions`, { shared_with: c.secondUser ? [c.secondUser] : [], editors: [], visibility: "private" });
+    record("A8. Reemplazar ACL completo (owner)", `/api/v1/folders/${folderId}/permissions`, "PUT", "HTTP 200", putPerms.ok,
+      putPerms.ok ? "ACL reemplazado" : "Falló el reemplazo de ACL", putPerms);
+
+    // A9. Límite de nesting (hasta 5 niveles, 6to debe fallar con 422 folder_depth_limit)
+    let parent = null;
+    let depthLimitHit = false;
+    let depthLimitContractOk = false;
+    let levelsCreated = 0;
+    for (let level = 1; level <= 7; level++) {
+      const nest = await req("POST", "/api/v1/folders", { name: `QA_HARNESS_${stamp}_nest_L${level}`, parent_folder_id: parent });
+      if (nest.status === 201 && nest.data && nest.data.folder_id) {
+        parent = nest.data.folder_id;
+        ctx.nestChain.push(parent);
+        state.createdFolders.push(parent);
+        levelsCreated = level;
+      } else {
+        depthLimitHit = true;
+        depthLimitContractOk = nest.status === 422 && nest.data && nest.data.error === "folder_depth_limit" && nest.data.limit === 5;
+        record("A9. Límite de nesting (contrato del error)", "/api/v1/folders", "POST", "HTTP 422 {error:'folder_depth_limit', limit:5}",
+          depthLimitContractOk, `Se cortó en el nivel ${level} tras crear ${levelsCreated} niveles. status=${nest.status} body=${JSON.stringify(nest.data)}`, nest);
+        break;
+      }
+    }
+    if (!depthLimitHit) {
+      record("A9. Límite de nesting (contrato del error)", "/api/v1/folders", "POST", "HTTP 422 {error:'folder_depth_limit', limit:5}",
+        false, `No se alcanzó el límite tras crear ${levelsCreated} niveles seguidos — revisar manualmente`, null);
+    }
+
+    // A10-A13. Asociación documento <-> carpeta
+    if (c.docId) {
+      const secondFolder = await req("POST", "/api/v1/folders", { name: `QA_HARNESS_${stamp}_folder2` });
+      const secondFolderId = secondFolder.data && secondFolder.data.folder_id;
+      if (secondFolderId) state.createdFolders.push(secondFolderId);
+      ctx.secondFolderId = secondFolderId;
+
+      const addDoc = await req("POST", `/api/v1/folders/${folderId}/documents`, { doc_id: c.docId });
+      record("A10. Agregar documento a carpeta", `/api/v1/folders/${folderId}/documents`, "POST", "HTTP 200", addDoc.ok,
+        addDoc.ok ? "Documento agregado" : "Falló al agregar el documento (¿tenés read access sobre ese doc_id?)", addDoc);
+      if (addDoc.ok) state.docFolderLinks.push({ folderId, docId: c.docId });
+
+      const docMeta1 = await req("GET", `/api/v1/documents/${c.docId}`);
+      const folderIdMatches = docMeta1.ok && docMeta1.data.folder_id === folderId;
+      record("A11. Documento refleja folder_id correcto", `/api/v1/documents/${c.docId}`, "GET", `folder_id === ${folderId}`,
+        folderIdMatches, `folder_id recibido: ${docMeta1.data && docMeta1.data.folder_id}`, docMeta1);
+
+      if (secondFolderId) {
+        const addDoc2 = await req("POST", `/api/v1/folders/${secondFolderId}/documents`, { doc_id: c.docId });
+        record("A12. Mover documento agregándolo a otra carpeta", `/api/v1/folders/${secondFolderId}/documents`, "POST", "HTTP 200", addDoc2.ok,
+          addDoc2.ok ? "Documento agregado a la 2da carpeta" : "Falló", addDoc2);
+        if (addDoc2.ok) state.docFolderLinks = state.docFolderLinks.filter(l => l.docId !== c.docId).concat([{ folderId: secondFolderId, docId: c.docId }]);
+
+        const docMeta2 = await req("GET", `/api/v1/documents/${c.docId}`);
+        const unlinkedFromFirst = docMeta2.ok && docMeta2.data.folder_id === secondFolderId;
+        record("A13. Doc pertenece a una sola carpeta a la vez", `/api/v1/documents/${c.docId}`, "GET", `folder_id === ${secondFolderId} (se desvinculó de la 1ra)`,
+          unlinkedFromFirst, `folder_id recibido: ${docMeta2.data && docMeta2.data.folder_id}`, docMeta2);
+      }
+    } else {
+      record("A10-A13. Asociación documento <-> carpeta", "/api/v1/folders/{id}/documents", "POST", "—", null,
+        "SKIP: no se indicó un doc_id descartable en la configuración", null);
+    }
+
+    record("A14. Suite finalizada", "-", "-", "-", null, `Carpetas de prueba creadas: ${state.createdFolders.length}. Usá 'Limpiar carpetas de prueba' para desvincular documentos y borrarlas.`, null);
+  }
+
+  // ---------- Suite B: colaborador ----------
+
+  async function runSuiteB() {
+    state.results = [];
+    renderResults();
+    const folderId = document.getElementById("cfgFolderIdB").value.trim();
+    const role = document.getElementById("cfgRoleB").value.trim().toLowerCase();
+
+    const idResp = await whoAmI();
+    record("Sanity: identidad", "/api/v1/me", "GET", "HTTP 200", idResp.ok, idResp.ok ? "OK" : "No se pudo identificar al usuario actual", idResp);
+    if (!idResp.ok || !folderId) {
+      record("Suite B", "-", "-", "-", false, "Falta folder_id o no se pudo verificar identidad", null);
+      return;
+    }
+
+    // B1. Leer permisos (solo owner/editor pueden)
+    const perms = await req("GET", `/api/v1/folders/${folderId}/permissions`);
+    if (role === "viewer") {
+      record("B1. Viewer NO puede leer ACL", `/api/v1/folders/${folderId}/permissions`, "GET", "HTTP 403", perms.status === 403,
+        `HTTP ${perms.status}`, perms);
+    } else {
+      record("B1. Editor puede leer ACL", `/api/v1/folders/${folderId}/permissions`, "GET", "HTTP 200", perms.ok,
+        `HTTP ${perms.status}`, perms);
+    }
+
+    // B2. Intentar renombrar (viewer: prohibido, editor: permitido)
+    const patch = await req("PATCH", `/api/v1/folders/${folderId}`, { name: `QA_HARNESS_collab_attempt_${Date.now()}` });
+    if (role === "viewer") {
+      record("B2. Viewer NO puede renombrar carpeta", `/api/v1/folders/${folderId}`, "PATCH", "HTTP 403", patch.status === 403,
+        `HTTP ${patch.status}`, patch);
+    } else {
+      record("B2. Editor SÍ puede renombrar carpeta", `/api/v1/folders/${folderId}`, "PATCH", "HTTP 200", patch.ok,
+        `HTTP ${patch.status}`, patch);
+    }
+
+    // B3. Intentar agregar un viewer (editor puede agregar viewers; viewer no puede)
+    const shareAttempt = await req("POST", `/api/v1/folders/${folderId}/share`, { share_with: ["qa_harness_dummy_user"], add_as_editors: false });
+    if (role === "viewer") {
+      record("B3. Viewer NO puede compartir la carpeta", `/api/v1/folders/${folderId}/share`, "POST", "HTTP 403", shareAttempt.status === 403,
+        `HTTP ${shareAttempt.status}`, shareAttempt);
+    } else {
+      record("B3. Editor SÍ puede agregar viewers", `/api/v1/folders/${folderId}/share`, "POST", "HTTP 200", shareAttempt.ok,
+        `HTTP ${shareAttempt.status}`, shareAttempt);
+    }
+
+    // B4. Intentar promover a editor (solo owner puede, ni editor ni viewer deberían poder)
+    const promoteAttempt = await req("POST", `/api/v1/folders/${folderId}/share`, { share_with: ["qa_harness_dummy_user"], add_as_editors: true });
+    record("B4. Ni viewer ni editor pueden promover a editor (solo owner)", `/api/v1/folders/${folderId}/share`, "POST", "HTTP 403",
+      promoteAttempt.status === 403, `HTTP ${promoteAttempt.status}`, promoteAttempt);
+
+    // B5. Intentar reemplazar ACL completo (solo owner)
+    const putPerms = await req("PUT", `/api/v1/folders/${folderId}/permissions`, { shared_with: [], editors: [], visibility: "private" });
+    record("B5. Ni viewer ni editor pueden reemplazar el ACL (solo owner)", `/api/v1/folders/${folderId}/permissions`, "PUT", "HTTP 403",
+      putPerms.status === 403, `HTTP ${putPerms.status}`, putPerms);
+
+    // B6. Intentar borrar la carpeta (solo owner)
+    const del = await req("DELETE", `/api/v1/folders/${folderId}`);
+    record("B6. Ni viewer ni editor pueden borrar la carpeta (solo owner)", `/api/v1/folders/${folderId}`, "DELETE", "HTTP 403",
+      del.status === 403, `HTTP ${del.status}`, del);
+  }
+
+  // ---------- Cleanup ----------
+
+  async function cleanupTestFolders() {
+    const ok = await confirmModal(`Se van a desvincular documentos y borrar ${state.createdFolders.length} carpeta(s) de prueba (prefijo QA_HARNESS_). ¿Confirmás?`);
+    if (!ok) return;
+
+    for (const link of state.docFolderLinks) {
+      await req("DELETE", `/api/v1/folders/${link.folderId}/documents/${link.docId}`);
+    }
+
+    const remaining = [...state.createdFolders];
+    for (const folderId of remaining) {
+      const del = await req("DELETE", `/api/v1/folders/${folderId}`);
+      record("Cleanup: borrar carpeta de prueba", `/api/v1/folders/${folderId}`, "DELETE", "HTTP 200/204/404",
+        del.ok || del.status === 404, `HTTP ${del.status}`, del);
+    }
+    state.createdFolders = [];
+    state.docFolderLinks = [];
+  }
+
+  // ---------- Export ----------
+
+  function exportMarkdown() {
+    const c = cfg();
+    let md = `# Reporte QA Harness — Permisos de Carpetas (Grid)\n\n`;
+    md += `Fecha: ${new Date().toISOString()}\nBase URL: ${c.baseUrl}\n\n`;
+    md += `| # | Test | Endpoint | Esperado | Resultado | HTTP | ms | Detalle |\n`;
+    md += `|---|------|----------|----------|-----------|------|----|---------|\n`;
+    state.results.forEach((r, i) => {
+      md += `| ${i + 1} | ${r.name} | \`${r.method || ""} ${r.endpoint || ""}\` | ${r.expected} | ${r.status} | ${r.httpStatus ?? "-"} | ${r.ms ?? "-"} | ${(r.detail || "").replace(/\|/g, "\\|")} |\n`;
+    });
+    downloadFile(`grid_folder_permissions_report_${Date.now()}.md`, md, "text/markdown");
+  }
+
+  function exportJson() {
+    downloadFile(`grid_folder_permissions_report_${Date.now()}.json`, JSON.stringify(state.results, null, 2), "application/json");
+  }
+
+  function downloadFile(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- Wiring ----------
+
+  document.getElementById("btnWhoAmI").addEventListener("click", whoAmI);
+  document.getElementById("btnRunA").addEventListener("click", runSuiteA);
+  document.getElementById("btnRunB").addEventListener("click", runSuiteB);
+  document.getElementById("btnCleanup").addEventListener("click", cleanupTestFolders);
+  document.getElementById("btnExportMd").addEventListener("click", exportMarkdown);
+  document.getElementById("btnExportJson").addEventListener("click", exportJson);
+})();
+</script>
+</body>
+</html>
