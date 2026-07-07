@@ -639,25 +639,37 @@ async function bruteForceMembers() {
   logEl.style.display = 'block';
   logEl.innerHTML = `<span class="log-info">[${ts()}] Probando combinaciones para WS ${wsId} + ldap ${ldap}...</span>\n`;
 
-  // ── CONFIRMADO 422 (todas las combinaciones de campo+role sobre /members) ──
-  // ── CONFIRMADO 405 (POST sobre /share existe pero método incorrecto) ──
-  // Solo probamos lo nuevo:
+  // ── CONFIRMADO ROTO (2026-07-07) ──────────────────────────────────────────
+  // POST /members → 422 para TODO input (campo, role, body vacío, headers extra)
+  // GET/PUT/PATCH /members → 500 Internal Server Error (handler crashea)
+  // POST/PUT/PATCH /share → 405 Method Not Allowed; GET /share → 404
+  // POST /invite, POST /add-member → 405
+  // ─────────────────────────────────────────────────────────────────────────
+  // Verificar si es workspace-específico creando uno nuevo y probando /members en él:
+  appendSmokeLog?.('Creando WS temporal para verificar si el bug es global...', 'info');
+  const newWsResp = await fetch(`${BASE}/api/v1/workspaces`, {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: `qa-members-test-${Date.now()}`, linked_doc_permission: 'viewer' })
+  });
+  const newWsData = await newWsResp.json();
+  const freshWsId = newWsData.workspace_id || newWsData.id;
+
+  const line0 = document.createElement('div');
+  line0.innerHTML = `<span class="log-ts">[${ts()}]</span><span class="log-info">WS temporal: ${freshWsId ? freshWsId : '✗ no creado'}</span>`;
+  logEl.appendChild(line0);
+
   const combos = [
-    // /share con métodos distintos (ruta existe, POST → 405)
-    { _note: 'GET /share',              _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'GET',   _empty: true },
-    { _note: 'PUT /share viewer',       _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT',   share_with: [ldap], add_as_editors: false },
-    { _note: 'PUT /share editor',       _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PUT',   share_with: [ldap], add_as_editors: true },
-    { _note: 'PATCH /share',            _overridePath: `/api/v1/workspaces/${wsId}/share`, _method: 'PATCH', share_with: [ldap] },
-    // /members con métodos distintos
-    { _note: 'GET /members',            _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'GET', _empty: true },
-    { _note: 'PUT /members user_id',    _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PUT',  user_id: ldap, role: 'member' },
-    { _note: 'PUT /members user_id editor', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PUT', user_id: ldap, role: 'editor' },
-    { _note: 'PATCH /members user_id', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'PATCH', user_id: ldap, role: 'member' },
-    // rutas alternativas que podrían existir
-    { _note: 'POST /invite',            _overridePath: `/api/v1/workspaces/${wsId}/invite`, _method: 'POST', user_id: ldap, role: 'member' },
-    { _note: 'POST /add-member',        _overridePath: `/api/v1/workspaces/${wsId}/add-member`, _method: 'POST', user_id: ldap, role: 'member' },
-    { _note: 'POST /members email fmt', _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'POST', user_id: `${ldap}@mercadolibre.com`, role: 'member' },
-    { _note: 'POST /members email mx',  _overridePath: `/api/v1/workspaces/${wsId}/members`, _method: 'POST', user_id: `${ldap}@mercadolibre.com.mx`, role: 'member' },
+    // Verificación en WS nuevo (descartar que sea workspace-específico)
+    ...(freshWsId ? [
+      { _note: `GET /members WS-NUEVO`, _overridePath: `/api/v1/workspaces/${freshWsId}/members`, _method: 'GET', _empty: true },
+      { _note: `POST /members WS-NUEVO user_id+member`, _overridePath: `/api/v1/workspaces/${freshWsId}/members`, _method: 'POST', user_id: ldap, role: 'member' },
+    ] : []),
+    // Variantes no probadas aún: DELETE /members/{ldap} (para ver si la ruta responde diferente)
+    { _note: 'DELETE /members/ldap', _overridePath: `/api/v1/workspaces/${wsId}/members/${ldap}`, _method: 'DELETE', _empty: true },
+    // PATCH sobre el workspace raíz con members en el body
+    { _note: 'PATCH /workspaces members[]', _overridePath: `/api/v1/workspaces/${wsId}`, _method: 'PATCH', members: [{ user_id: ldap, role: 'member' }] },
+    { _note: 'PATCH /workspaces shared_with', _overridePath: `/api/v1/workspaces/${wsId}`, _method: 'PATCH', shared_with: [ldap] },
   ];
 
   let found = false;
