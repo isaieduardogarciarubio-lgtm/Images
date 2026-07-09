@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device Badge - Emisor</title>
+  <style>
+    :root {
+      --bg: #090C0E;
+      --surface: #11161A;
+      --surface-2: #161D22;
+      --border: #1F2830;
+      --border-soft: #161C21;
+      --accent: #FFD100;
+      --accent-strong: #E6BC00;
+      --accent-dim: #6E5E00;
+      --accent-glow: rgba(255,209,0,.14);
+      --on-accent: #1A1A1A;
+      --text: #F4F6F8;
+      --text-sub: #AAB4BC;
+      --text-mut: #6B757D;
+      --c-green: #00D689;
+      --c-red: #FF5C6C;
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 18px;
+      --r-pill: 999px;
+      --shadow: 0 18px 40px -20px rgba(0,0,0,.7);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      background-image:
+        radial-gradient(1000px 640px at 100% -8%, rgba(255,209,0,.09), transparent 55%),
+        radial-gradient(760px 520px at -12% 108%, rgba(255,209,0,.04), transparent 60%);
+      background-attachment: fixed;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px 40px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: linear-gradient(180deg, rgba(9,12,14,.85), rgba(9,12,14,0));
+      backdrop-filter: blur(10px);
+      flex-shrink: 0;
+    }
+    nav .brand { flex: 1; display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 700; color: var(--text); }
+    nav .brand b { color: var(--accent); }
+    .menubar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      padding: 5px;
+    }
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      text-decoration: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 18px;
+      border-radius: var(--r-pill);
+      cursor: pointer;
+      transition: all .16s;
+    }
+    .tab-btn:hover { color: var(--text); background: rgba(255,255,255,.04); }
+    .tab-btn.active {
+      color: var(--on-accent);
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+      font-weight: 600;
+    }
+    nav .nav-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    nav .user-info {
+      font-size: 13px;
+      color: var(--text-sub);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      padding: 8px 16px;
+    }
+    nav .user-info b { color: var(--text); font-weight: 600; }
+    .tab-content {
+      display: none;
+      flex: 1;
+      overflow: hidden;
+      padding: 20px 40px;
+    }
+    .tab-content.active { display: flex; }
+    #tab-onboarding { justify-content: center; }
+    #tab-emit { flex-direction: column; }
+    .panel {
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      padding: 8px 4px 24px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-group label .required { color: var(--c-red); }
+    .input, .select {
+      width: 100%;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 11px 14px;
+      transition: all .16s;
+    }
+    .input:focus, .select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .input:disabled { opacity: 0.5; cursor: not-allowed; }
+    .input-hint {
+      font-size: 12px;
+      color: var(--text-mut);
+      margin-top: 4px;
+    }
+    .alert {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--r-md);
+      font-size: 13px;
+      border: 1px solid;
+      margin-bottom: 12px;
+    }
+    .alert.success {
+      border-color: rgba(0, 214, 137, .35);
+      background: rgba(0, 214, 137, .08);
+      color: #7FE9C2;
+    }
+    .alert.error {
+      border-color: rgba(255, 92, 108, .35);
+      background: rgba(255, 92, 108, .08);
+      color: #FFB3BB;
+    }
+    .alert.warning {
+      border-color: rgba(255, 193, 7, .35);
+      background: rgba(255, 193, 7, .08);
+      color: #FFE082;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: var(--r-pill);
+      padding: 11px 22px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all .16s;
+    }
+    .btn svg { flex-shrink: 0; }
+    .btn-primary {
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+      color: var(--on-accent);
+      box-shadow: 0 8px 22px -12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.3);
+    }
+    .btn-primary:hover:not(:disabled) {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-secondary {
+      background: var(--surface-2);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      border-color: var(--accent-dim);
+    }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .btn-group .btn { flex: 1; }
+    .modal-bg {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-bg.active { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 24px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: var(--shadow);
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .modal-head h2 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      background: var(--surface-2);
+      color: var(--text-sub);
+      cursor: pointer;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .modal-close:hover {
+      color: var(--text);
+      border-color: var(--accent-dim);
+    }
+    .modal-text {
+      margin: 0 0 20px 0;
+      font-size: 14px;
+      color: var(--text-sub);
+      line-height: 1.5;
+    }
+    .modal-foot {
+      display: flex;
+      gap: 10px;
+    }
+    .modal-foot .btn { flex: 1; }
+    .passphrase-box {
+      background: var(--surface-2);
+      border: 2px solid var(--accent);
+      border-radius: var(--r-md);
+      padding: 16px;
+      margin: 12px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: center;
+      word-break: break-all;
+    }
+  </style>
+<script>(function(){function _ok(r,onOk){return r.json().then(function(b){if(!r.ok)throw b;onOk(b);return b;});}window.GRID=window.GRID||{};window.GRID._stateUpdatedAtByName=window.GRID._stateUpdatedAtByName||{};window.GRID.states={get:function(name){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/states/'+encodeURIComponent(n)).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},set:function(name,data,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/states/'+encodeURIComponent(n),{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},patch:function(name,patchData,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/states/'+encodeURIComponent(n),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});}};window.GRID.state={get:function(){return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/state',{credentials:'include'}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},set:function(data,ifUpdatedAt){return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/state',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},patch:function(patchData,ifUpdatedAt){return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/state',{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});}};}());</script></head>
+<body>
+  <nav>
+    <div class="brand">
+      <span>Device<b>Badge</b> — Emisor</span>
+    </div>
+    <div class="menubar">
+      <button class="tab-btn active" data-tab="tab-onboarding">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Mi Llave
+      </button>
+      <button class="tab-btn" data-tab="tab-emit">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        Emitir / Renovar
+      </button>
+    </div>
+    <div class="nav-right">
+      <div class="user-info">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <b id="user-display">Cargando...</b>
+      </div>
+    </div>
+  </nav>
+
+  <!-- TAB 1: ONBOARDING / GESTIÓN DE LLAVE -->
+  <div id="tab-onboarding" class="tab-content active">
+    <div class="panel">
+      <div id="alert-onboarding"></div>
+      <h2 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Estado de mi llave</h2>
+      <div id="key-status" style="display: none;">
+        <div class="alert success">
+          ✓ Tienes una llave activa. Puedes emitir y firmar badges.
+        </div>
+        <div class="form-group">
+          <label>Key ID (identificador de tu llave):</label>
+          <input type="text" id="key-id-display" class="input" disabled />
+        </div>
+        <div class="form-group">
+          <label>Estado:</label>
+          <input type="text" id="key-status-display" class="input" disabled />
+        </div>
+      </div>
+      <div id="onboarding-pending" style="display: none;">
+        <div class="alert warning">
+          ⚠ Tu onboarding está en espera. Un admin debe aprobarlo.
+        </div>
+      </div>
+      <div id="onboarding-form" style="display: none;">
+        <div class="alert warning">
+          Este es tu primer acceso. Genera tu passphrase y llave. Guarda la passphrase — no se puede recuperar.
+        </div>
+        <div class="form-group">
+          <label>Passphrase (se genera automáticamente):</label>
+          <div id="passphrase-display" class="passphrase-box" style="display: none;"></div>
+          <div id="passphrase-buttons" class="btn-group">
+            <button id="btn-generate-passphrase" class="btn btn-primary">Generar Passphrase</button>
+          </div>
+        </div>
+        <div class="form-group" id="confirm-passphrase-group" style="display: none;">
+          <label for="confirm-passphrase">Confirmación: escribe tu passphrase aquí</label>
+          <input type="text" id="confirm-passphrase" class="input" placeholder="MELI-XXXX-XXXX-XXXX-XXXX" />
+          <div class="input-hint">Valida que la copiaste correctamente</div>
+        </div>
+        <div class="btn-group">
+          <button id="btn-onboard" class="btn btn-primary" disabled>Completar Onboarding</button>
+          <button id="btn-reset-passphrase" class="btn btn-secondary">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: EMITIR / RENOVAR -->
+  <div id="tab-emit" class="tab-content">
+    <div class="panel">
+      <div id="alert-emit"></div>
+      <h2 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Emitir o Renovar Badge</h2>
+
+      <!-- NUEVA BADGE -->
+      <fieldset>
+        <legend style="font-weight: 700; color: var(--text-sub); margin-bottom: 12px;">Dispositivo</legend>
+
+        <div class="form-group">
+          <label for="field-owner">Dueño del Dispositivo <span class="required">*</span></label>
+          <input type="text" id="field-owner" class="input" placeholder="Ej. Juan Perez" autocomplete="off" required />
+        </div>
+
+        <div class="form-group">
+          <label for="field-tipo">Tipo de Dispositivo <span class="required">*</span></label>
+          <select id="field-tipo" class="select" required>
+            <option value="">-- Seleccionar --</option>
+            <option value="smartphone">Smartphone</option>
+            <option value="laptop">Laptop</option>
+            <option value="tablet">Tablet</option>
+            <option value="scanner">Scanner</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="field-marca">Marca <span class="required">*</span></label>
+          <input type="text" id="field-marca" class="input" placeholder="Ej. Apple, Samsung" autocomplete="off" required />
+        </div>
+
+        <div class="form-group">
+          <label for="field-modelo">Modelo <span class="required">*</span></label>
+          <input type="text" id="field-modelo" class="input" placeholder="Ej. iPhone 15" autocomplete="off" required />
+        </div>
+
+        <div class="form-group">
+          <label for="field-imei">IMEI o Número Único (últimos 4 dígitos) <span class="required">*</span></label>
+          <input type="text" id="field-imei" class="input" placeholder="Ej. 2345 (últimos 4 dígitos)" maxlength="4" inputmode="numeric" autocomplete="off" required />
+          <div class="input-hint">Solo los últimos 4 dígitos para privacidad. Se hashea en la firma.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="field-device-id">Device ID (ID interno del dispositivo) <span class="required">*</span></label>
+          <input type="text" id="field-device-id" class="input" placeholder="Ej. DEV-001" autocomplete="off" required />
+          <div class="input-hint">ID único dentro de tu sistema</div>
+        </div>
+
+        <div class="form-group">
+          <label for="field-expires">Vence en (días desde hoy) <span class="required">*</span></label>
+          <input type="number" id="field-expires" class="input" value="30" min="1" max="365" required />
+        </div>
+      </fieldset>
+
+      <!-- RENOVAR EXISTENTE -->
+      <fieldset style="margin-top: 24px;">
+        <legend style="font-weight: 700; color: var(--text-sub); margin-bottom: 12px;">O renovar badge existente</legend>
+        <div class="form-group">
+          <label for="field-previous-badge-id">Badge ID anterior (para renovar):</label>
+          <input type="text" id="field-previous-badge-id" class="input" placeholder="Ej. BGE-20260708-8K2P4M" autocomplete="off" />
+          <div class="input-hint">Si dejas vacío, es una badge nueva. Si lo llenas, es renovación.</div>
+        </div>
+      </fieldset>
+
+      <!-- PASSPHRASE PARA FIRMAR -->
+      <fieldset style="margin-top: 24px;">
+        <legend style="font-weight: 700; color: var(--text-sub); margin-bottom: 12px;">Firma</legend>
+        <div class="form-group">
+          <label for="field-sign-passphrase">Tu Passphrase <span class="required">*</span></label>
+          <input type="password" id="field-sign-passphrase" class="input" placeholder="MELI-XXXX-XXXX-XXXX-XXXX" autocomplete="off" required />
+          <div class="input-hint">Se usa solo en memoria para desbloquear tu llave y firmar.</div>
+        </div>
+      </fieldset>
+
+      <!-- BOTONES -->
+      <div class="btn-group">
+        <button id="btn-emit" class="btn btn-primary" disabled>Emitir / Renovar</button>
+        <button id="btn-reset-emit" class="btn btn-secondary">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: BADGE EMITIDA -->
+  <div class="modal-bg" id="modal-badge-emitted">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Badge Emitida ✓</h2>
+        <button class="modal-close" id="btn-close-badge-modal">✕</button>
+      </div>
+      <p class="modal-text" id="badge-emitted-text"></p>
+      <div class="form-group">
+        <label>Badge ID:</label>
+        <input type="text" id="badge-id-output" class="input" disabled />
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="btn-view-qr">Ver QR y Datos</button>
+        <button class="btn btn-secondary" id="btn-close-badge-modal2">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: VER QR Y DATOS DE BADGE -->
+  <div class="modal-bg" id="modal-badge-details">
+    <div class="modal" style="max-width: 500px;">
+      <div class="modal-head">
+        <h2>Detalles de Badge</h2>
+        <button class="modal-close" id="btn-close-details-modal">✕</button>
+      </div>
+      <div id="badge-details-content"></div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" id="btn-close-details-modal2">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="meli-crypt.js"></script>
+  <script src="meli-grid.js"></script>
+  <script>
+/* ──────────────────────────────────────────────────────────────── */
+/* CONFIGURACIÓN Y ESTADO                                           */
+/* ──────────────────────────────────────────────────────────────── */
+window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK"; // Reemplazar con doc actual
+
+var currentUser = null;
+var issuerKeyData = null;
+var currentPassphrase = null;
+
+/* ──────────────────────────────────────────────────────────────── */
+/* INICIALIZACIÓN                                                   */
+/* ──────────────────────────────────────────────────────────────── */
+async function init() {
+  try {
+    const me = await GridAPI.getMe();
+    currentUser = me.ldap;
+    document.getElementById('user-display').textContent = currentUser;
+
+    await loadIssuerKey();
+    setupEventListeners();
+  } catch (err) {
+    showAlert('alert-onboarding', 'Error al inicializar: ' + err.message, 'error');
+  }
+}
+
+async function loadIssuerKey() {
+  try {
+    const issuerKeys = await GridAPI.readState('issuer_keys');
+    issuerKeyData = issuerKeys.find(k => k.ldap === currentUser);
+
+    if (issuerKeyData) {
+      document.getElementById('onboarding-form').style.display = 'none';
+      document.getElementById('onboarding-pending').style.display = 'none';
+      document.getElementById('key-status').style.display = 'block';
+      document.getElementById('key-id-display').value = issuerKeyData.key_id;
+      document.getElementById('key-status-display').value = issuerKeyData.status;
+      document.getElementById('tab-emit').style.pointerEvents = issuerKeyData.status === 'active' ? 'auto' : 'none';
+      document.getElementById('tab-emit').style.opacity = issuerKeyData.status === 'active' ? '1' : '0.5';
+    } else {
+      const pendingIssuers = await GridAPI.readState('pending_issuers');
+      if (pendingIssuers[currentUser]) {
+        document.getElementById('onboarding-form').style.display = 'none';
+        document.getElementById('key-status').style.display = 'none';
+        document.getElementById('onboarding-pending').style.display = 'block';
+      } else {
+        document.getElementById('key-status').style.display = 'none';
+        document.getElementById('onboarding-pending').style.display = 'none';
+        document.getElementById('onboarding-form').style.display = 'block';
+      }
+    }
+  } catch (err) {
+    console.error('Error loading issuer key:', err);
+    document.getElementById('onboarding-form').style.display = 'block';
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* TABS                                                             */
+/* ──────────────────────────────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tabId = btn.dataset.tab;
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────── */
+/* ONBOARDING                                                       */
+/* ──────────────────────────────────────────────────────────────── */
+document.getElementById('btn-generate-passphrase').addEventListener('click', async () => {
+  currentPassphrase = CryptoLib.generatePassphrase();
+  document.getElementById('passphrase-display').textContent = currentPassphrase;
+  document.getElementById('passphrase-display').style.display = 'block';
+  document.getElementById('passphrase-buttons').style.display = 'none';
+  document.getElementById('confirm-passphrase-group').style.display = 'block';
+});
+
+document.getElementById('confirm-passphrase').addEventListener('input', () => {
+  const confirmed = document.getElementById('confirm-passphrase').value === currentPassphrase;
+  document.getElementById('btn-onboard').disabled = !confirmed;
+});
+
+document.getElementById('btn-onboard').addEventListener('click', async () => {
+  if (!currentPassphrase) return;
+  try {
+    document.getElementById('btn-onboard').disabled = true;
+    const keyPair = await CryptoLib.generateKeyPair();
+    const encrypted = await CryptoLib.encryptPrivateKey(keyPair.privateKey, currentPassphrase);
+    const keyId = `issuer-${currentUser}-${new Date().toISOString().split('T')[0]}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
+    const newKey = {
+      ldap: currentUser,
+      key_id: keyId,
+      algorithm: "ECDSA-P256-SHA256",
+      public_key_jwk: await CryptoLib.exportPublicKey(keyPair.publicKey),
+      encrypted_private_key_jwk: encrypted.ciphertext,
+      salt: encrypted.salt,
+      iv: encrypted.iv,
+      kdf: "PBKDF2-SHA256",
+      iterations: 310000,
+      encryption: "AES-256-GCM",
+      status: "pending_approval",
+      created_at: new Date().toISOString()
+    };
+
+    const issuerKeys = await GridAPI.readState('issuer_keys');
+    issuerKeys.push(newKey);
+    await GridAPI.setState('issuer_keys', issuerKeys);
+
+    issuerKeyData = newKey;
+    currentPassphrase = null;
+    document.getElementById('confirm-passphrase').value = '';
+    document.getElementById('confirm-passphrase-group').style.display = 'none';
+    document.getElementById('passphrase-display').style.display = 'none';
+
+    await loadIssuerKey();
+    showAlert('alert-onboarding', 'Llave generada. El admin debe aprobarla.', 'success');
+  } catch (err) {
+    showAlert('alert-onboarding', 'Error: ' + err.message, 'error');
+    document.getElementById('btn-onboard').disabled = false;
+  }
+});
+
+document.getElementById('btn-reset-passphrase').addEventListener('click', () => {
+  currentPassphrase = null;
+  document.getElementById('confirm-passphrase').value = '';
+  document.getElementById('passphrase-display').textContent = '';
+  document.getElementById('passphrase-display').style.display = 'none';
+  document.getElementById('passphrase-buttons').style.display = 'block';
+  document.getElementById('confirm-passphrase-group').style.display = 'none';
+  document.getElementById('btn-onboard').disabled = true;
+});
+
+/* ──────────────────────────────────────────────────────────────── */
+/* EMITIR / RENOVAR                                                 */
+/* ──────────────────────────────────────────────────────────────── */
+document.getElementById('btn-emit').addEventListener('click', async () => {
+  if (!issuerKeyData || issuerKeyData.status !== 'active') {
+    showAlert('alert-emit', 'Tu llave no está activa.', 'error');
+    return;
+  }
+
+  const owner = document.getElementById('field-owner').value.trim().toUpperCase();
+  const tipo = document.getElementById('field-tipo').value;
+  const marca = document.getElementById('field-marca').value.trim().toUpperCase();
+  const modelo = document.getElementById('field-modelo').value.trim().toUpperCase();
+  const imeiLast4 = document.getElementById('field-imei').value.trim();
+  const deviceId = document.getElementById('field-device-id').value.trim().toUpperCase();
+  const expiresInDays = parseInt(document.getElementById('field-expires').value);
+  const previousBadgeId = document.getElementById('field-previous-badge-id').value.trim() || null;
+  const signPassphrase = document.getElementById('field-sign-passphrase').value;
+
+  if (!owner || !tipo || !marca || !modelo || !imeiLast4 || !deviceId || !signPassphrase) {
+    showAlert('alert-emit', 'Todos los campos son obligatorios.', 'error');
+    return;
+  }
+
+  try {
+    document.getElementById('btn-emit').disabled = true;
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + expiresInDays * 24 * 60 * 60 * 1000);
+    const badgeId = `BGE-${now.toISOString().split('T')[0].replace(/-/g, '')}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+    const imeiHash = await CryptoLib.sha256(imeiLast4);
+
+    const eventType = previousBadgeId ? 'renewed' : 'issued';
+    const payload = {
+      schema: "meli-device-badge-v1",
+      event_type: eventType,
+      badge_id: badgeId,
+      device_id: deviceId,
+      device_type: tipo,
+      brand: marca,
+      model: modelo,
+      imei_last4: imeiLast4,
+      imei_hash: "sha256:" + imeiHash,
+      owner_name: owner,
+      issued_by_ldap: currentUser,
+      issued_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      badge_version: previousBadgeId ? 2 : 1,
+      previous_badge_id: previousBadgeId,
+      key_id: issuerKeyData.key_id
+    };
+
+    const decrypted = await CryptoLib.decryptPrivateKey(
+      issuerKeyData.encrypted_private_key_jwk,
+      signPassphrase,
+      issuerKeyData.salt,
+      issuerKeyData.iv
+    );
+
+    const privateKey = await CryptoLib.importPrivateKey(decrypted);
+    const signature = await CryptoLib.signPayload(payload, privateKey);
+
+    const event = {
+      payload,
+      signature,
+      event_hash: await CryptoLib.sha256(JSON.stringify({ payload, signature }))
+    };
+
+    const ledgerName = `badge_ledger_${issuerKeyData.key_id}`;
+    let ledger = [];
+    try {
+      ledger = await GridAPI.readState(ledgerName);
+    } catch {}
+
+    event.previous_event_hash = ledger.length > 0 ? ledger[ledger.length - 1].event_hash : null;
+    ledger.push(event);
+    await GridAPI.setState(ledgerName, ledger);
+
+    const registry = await GridAPI.readState('badge_registry');
+    registry[badgeId] = {
+      badge_id: badgeId,
+      device_id: deviceId,
+      owner_name: owner,
+      device_type: tipo,
+      issued_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      status: 'active',
+      issued_by_ldap: currentUser,
+      key_id: issuerKeyData.key_id,
+      issuer_signature_valid: true
+    };
+
+    if (previousBadgeId) {
+      registry[previousBadgeId].status = 'superseded';
+      registry[previousBadgeId].superseded_by = badgeId;
+    }
+
+    await GridAPI.setState('badge_registry', registry);
+
+    document.getElementById('badge-id-output').value = badgeId;
+    document.getElementById('badge-emitted-text').textContent =
+      `Badge emitida exitosamente para ${deviceId} (${modelo}). Vence en ${expiresInDays} días.`;
+
+    showAlert('alert-emit', 'Badge emitida y firmada ✓', 'success');
+    document.getElementById('modal-badge-emitted').classList.add('active');
+
+    document.getElementById('field-owner').value = '';
+    document.getElementById('field-tipo').value = '';
+    document.getElementById('field-marca').value = '';
+    document.getElementById('field-modelo').value = '';
+    document.getElementById('field-imei').value = '';
+    document.getElementById('field-device-id').value = '';
+    document.getElementById('field-sign-passphrase').value = '';
+    document.getElementById('field-previous-badge-id').value = '';
+  } catch (err) {
+    showAlert('alert-emit', 'Error al emitir: ' + err.message, 'error');
+  } finally {
+    document.getElementById('btn-emit').disabled = false;
+  }
+});
+
+document.getElementById('btn-reset-emit').addEventListener('click', () => {
+  document.getElementById('field-owner').value = '';
+  document.getElementById('field-tipo').value = '';
+  document.getElementById('field-marca').value = '';
+  document.getElementById('field-modelo').value = '';
+  document.getElementById('field-imei').value = '';
+  document.getElementById('field-device-id').value = '';
+  document.getElementById('field-sign-passphrase').value = '';
+  document.getElementById('field-previous-badge-id').value = '';
+  showAlert('alert-emit', '', '');
+});
+
+/* ──────────────────────────────────────────────────────────────── */
+/* MODALES                                                          */
+/* ──────────────────────────────────────────────────────────────── */
+document.getElementById('btn-close-badge-modal').addEventListener('click', () => {
+  document.getElementById('modal-badge-emitted').classList.remove('active');
+});
+document.getElementById('btn-close-badge-modal2').addEventListener('click', () => {
+  document.getElementById('modal-badge-emitted').classList.remove('active');
+});
+document.getElementById('btn-close-details-modal').addEventListener('click', () => {
+  document.getElementById('modal-badge-details').classList.remove('active');
+});
+document.getElementById('btn-close-details-modal2').addEventListener('click', () => {
+  document.getElementById('modal-badge-details').classList.remove('active');
+});
+
+document.getElementById('btn-view-qr').addEventListener('click', () => {
+  const badgeId = document.getElementById('badge-id-output').value;
+  document.getElementById('modal-badge-emitted').classList.remove('active');
+
+  const qrCanvas = document.createElement('canvas');
+  qrCanvas.width = 200;
+  qrCanvas.height = 200;
+  const qrText = `meli-device-badge://${badgeId}`;
+  QRCodeGen.draw(qrCanvas, qrText);
+
+  const qrImg = qrCanvas.toDataURL('image/png');
+  document.getElementById('badge-details-content').innerHTML = `
+    <div style="text-align: center;">
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: var(--text-sub);">Escanea para verificar:</p>
+      <img src="${qrImg}" style="width: 200px; height: 200px; border: 2px solid var(--accent); border-radius: var(--r-md); margin-bottom: 12px;" />
+      <p style="margin: 12px 0; font-size: 12px; color: var(--text-mut); font-family: monospace;">${qrText}</p>
+    </div>
+  `;
+  document.getElementById('modal-badge-details').classList.add('active');
+});
+
+/* ──────────────────────────────────────────────────────────────── */
+/* HELPERS                                                          */
+/* ──────────────────────────────────────────────────────────────── */
+function showAlert(containerId, message, type) {
+  const container = document.getElementById(containerId);
+  if (!message) {
+    container.innerHTML = '';
+    return;
+  }
+  const icon = type === 'success' ? '✓' : type === 'warning' ? '⚠' : '✕';
+  container.innerHTML = `<div class="alert ${type}">${icon} ${message}</div>`;
+}
+
+function setupEventListeners() {
+  const emitInputs = ['field-owner', 'field-tipo', 'field-marca', 'field-modelo', 'field-imei', 'field-device-id', 'field-sign-passphrase'];
+  emitInputs.forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      const allFilled = emitInputs.every(i => document.getElementById(i).value.trim());
+      document.getElementById('btn-emit').disabled = !allFilled;
+    });
+  });
+}
+
+init();
+  </script>
+</body>
+</html>

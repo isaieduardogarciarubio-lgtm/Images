@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device Badge - Admin</title>
+  <style>
+    :root {
+      --bg: #090C0E;
+      --surface: #11161A;
+      --surface-2: #161D22;
+      --border: #1F2830;
+      --border-soft: #161C21;
+      --accent: #FFD100;
+      --accent-strong: #E6BC00;
+      --accent-dim: #6E5E00;
+      --accent-glow: rgba(255,209,0,.14);
+      --on-accent: #1A1A1A;
+      --text: #F4F6F8;
+      --text-sub: #AAB4BC;
+      --text-mut: #6B757D;
+      --c-green: #00D689;
+      --c-red: #FF5C6C;
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 18px;
+      --r-pill: 999px;
+      --shadow: 0 18px 40px -20px rgba(0,0,0,.7);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      background-image:
+        radial-gradient(1000px 640px at 100% -8%, rgba(255,209,0,.09), transparent 55%),
+        radial-gradient(760px 520px at -12% 108%, rgba(255,209,0,.04), transparent 60%);
+      background-attachment: fixed;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px 40px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: linear-gradient(180deg, rgba(9,12,14,.85), rgba(9,12,14,0));
+      backdrop-filter: blur(10px);
+      flex-shrink: 0;
+    }
+    nav .brand { flex: 1; display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 700; color: var(--text); }
+    nav .brand b { color: var(--accent); }
+    .menubar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      padding: 5px;
+    }
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      text-decoration: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 18px;
+      border-radius: var(--r-pill);
+      cursor: pointer;
+      transition: all .16s;
+    }
+    .tab-btn:hover { color: var(--text); background: rgba(255,255,255,.04); }
+    .tab-btn.active {
+      color: var(--on-accent);
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+      font-weight: 600;
+    }
+    nav .nav-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    nav .user-info {
+      font-size: 13px;
+      color: var(--text-sub);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      padding: 8px 16px;
+    }
+    nav .user-info b { color: var(--text); font-weight: 600; }
+    .tab-content {
+      display: none;
+      flex: 1;
+      overflow: hidden;
+      padding: 20px 40px;
+    }
+    .tab-content.active { display: flex; }
+    .panel { width: 100%; max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding: 8px 4px 24px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .input {
+      width: 100%;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 11px 14px;
+      transition: all .16s;
+    }
+    .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .input:disabled { opacity: 0.5; cursor: not-allowed; }
+    .input-hint { font-size: 12px; color: var(--text-mut); margin-top: 4px; }
+    .alert {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--r-md);
+      font-size: 13px;
+      border: 1px solid;
+      margin-bottom: 12px;
+    }
+    .alert.success {
+      border-color: rgba(0, 214, 137, .35);
+      background: rgba(0, 214, 137, .08);
+      color: #7FE9C2;
+    }
+    .alert.error {
+      border-color: rgba(255, 92, 108, .35);
+      background: rgba(255, 92, 108, .08);
+      color: #FFB3BB;
+    }
+    .alert.warning {
+      border-color: rgba(255, 193, 7, .35);
+      background: rgba(255, 193, 7, .08);
+      color: #FFE082;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: var(--r-pill);
+      padding: 11px 22px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all .16s;
+    }
+    .btn-primary {
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+      color: var(--on-accent);
+      box-shadow: 0 8px 22px -12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.3);
+    }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: var(--surface-2);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--accent-dim); }
+    .btn-danger {
+      background: rgba(255, 92, 108, .12);
+      border-color: rgba(255, 92, 108, .35);
+      color: var(--c-red);
+    }
+    .btn-danger:hover:not(:disabled) { background: rgba(255, 92, 108, .2); }
+    .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+    .btn-group .btn { flex: 1; }
+    .table-wrapper { flex: 1; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { position: sticky; top: 0; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+    th { padding: 12px 16px; text-align: left; color: var(--text-sub); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border-soft); color: var(--text); }
+    tbody tr:hover { background: var(--surface-2); }
+    .passphrase-box {
+      background: var(--surface-2);
+      border: 2px solid var(--accent);
+      border-radius: var(--r-md);
+      padding: 16px;
+      margin: 12px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: center;
+      word-break: break-all;
+    }
+    .modal-bg {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-bg.active { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 24px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: var(--shadow);
+    }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .modal-head h2 { margin: 0; font-size: 17px; font-weight: 700; color: var(--text); }
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      background: var(--surface-2);
+      color: var(--text-sub);
+      cursor: pointer;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .modal-close:hover { color: var(--text); border-color: var(--accent-dim); }
+    .modal-text { margin: 0 0 20px 0; font-size: 14px; color: var(--text-sub); line-height: 1.5; }
+    .modal-foot { display: flex; gap: 10px; }
+    .modal-foot .btn { flex: 1; }
+  </style>
+<script>(function(){function _ok(r,onOk){return r.json().then(function(b){if(!r.ok)throw b;onOk(b);return b;});}window.GRID=window.GRID||{};window.GRID._stateUpdatedAtByName=window.GRID._stateUpdatedAtByName||{};window.GRID.states={get:function(name){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/states/'+encodeURIComponent(n)).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},set:function(name,data,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/states/'+encodeURIComponent(n),{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},patch:function(name,patchData,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/states/'+encodeURIComponent(n),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});}};window.GRID.state={get:function(){return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/state',{credentials:'include'}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},set:function(data,ifUpdatedAt){return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/state',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},patch:function(patchData,ifUpdatedAt){return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/state',{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});}};}());</script></head>
+<body>
+  <nav>
+    <div class="brand">
+      <span>Device<b>Badge</b> — Admin</span>
+    </div>
+    <div class="menubar">
+      <button class="tab-btn active" data-tab="tab-root-key">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2H3a1 1 0 00-1 1v18a1 1 0 001 1h18a1 1 0 001-1V3a1 1 0 00-1-1z"/><path d="M17 2v20"/><path d="M9 9h.01"/><path d="M9 15h.01"/></svg>
+        Root Key
+      </button>
+      <button class="tab-btn" data-tab="tab-pending">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Pendientes
+      </button>
+      <button class="tab-btn" data-tab="tab-issuers">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        Emisores
+      </button>
+      <button class="tab-btn" data-tab="tab-checkpoints">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Checkpoints
+      </button>
+    </div>
+    <div class="nav-right">
+      <div class="user-info">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <b id="user-display">Cargando...</b>
+      </div>
+    </div>
+  </nav>
+
+  <!-- TAB 1: ROOT KEY -->
+  <div id="tab-root-key" class="tab-content active">
+    <div class="panel">
+      <div id="alert-root"></div>
+      <h2 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Root Key (Admin)</h2>
+      <p style="color: var(--text-sub); font-size: 13px; margin: 0 0 16px 0;">La root key firma la lista de emisores autorizados. No se recupera ni exporta.</p>
+
+      <div id="root-key-status">
+        <div class="alert success">
+          ✓ Root key generada. Guarda tu passphrase en un lugar seguro.
+        </div>
+        <div class="form-group">
+          <label>Key ID:</label>
+          <input type="text" id="root-key-id" class="input" disabled />
+        </div>
+        <div class="form-group">
+          <label>Creada:</label>
+          <input type="text" id="root-key-created" class="input" disabled />
+        </div>
+      </div>
+
+      <div id="root-key-generate" style="display: none;">
+        <div class="alert warning">
+          ⚠ Esta es tu primera vez. Genera la root key. La passphrase no se puede recuperar.
+        </div>
+        <div class="form-group">
+          <label>Passphrase (generada):</label>
+          <div id="root-passphrase-display" class="passphrase-box" style="display: none;"></div>
+          <div class="btn-group">
+            <button id="btn-gen-root" class="btn btn-primary">Generar Root Key</button>
+          </div>
+        </div>
+        <div class="form-group" id="confirm-root-group" style="display: none;">
+          <label for="confirm-root">Confirmación: escribe tu passphrase</label>
+          <input type="text" id="confirm-root" class="input" placeholder="MELI-XXXX-XXXX-XXXX-XXXX" />
+        </div>
+        <div class="btn-group">
+          <button id="btn-confirm-root" class="btn btn-primary" disabled>Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: PENDING ISSUERS -->
+  <div id="tab-pending" class="tab-content">
+    <div class="panel">
+      <div id="alert-pending"></div>
+      <h2 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Pre-autorizar Emisor</h2>
+
+      <div class="form-group">
+        <label for="pending-ldap">LDAP del emisor <span style="color: var(--c-red);">*</span></label>
+        <input type="text" id="pending-ldap" class="input" placeholder="Ej. igarciarubio" autocomplete="off" />
+      </div>
+
+      <div class="btn-group">
+        <button id="btn-add-pending" class="btn btn-primary">Agregar a Pendientes</button>
+      </div>
+
+      <h3 style="margin-top: 24px; color: var(--text); font-size: 16px;">LDAPs Pendientes</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>LDAP</th>
+              <th>Aprobado Por</th>
+              <th>Fecha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="pending-list-tbody">
+            <tr><td colspan="4" style="text-align: center; color: var(--text-mut);">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: EMISORES -->
+  <div id="tab-issuers" class="tab-content">
+    <div class="panel">
+      <div id="alert-issuers"></div>
+      <h2 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Gestión de Emisores</h2>
+
+      <h3 style="margin-top: 0; color: var(--text); font-size: 16px;">Emisores Activos</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>LDAP</th>
+              <th>Key ID</th>
+              <th>Estado</th>
+              <th>Creada</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="issuers-list-tbody">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-mut);">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: CHECKPOINTS -->
+  <div id="tab-checkpoints" class="tab-content">
+    <div class="panel">
+      <div id="alert-checkpoints"></div>
+      <h2 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Signed Checkpoints</h2>
+      <p style="color: var(--text-sub); font-size: 13px; margin: 0 0 16px 0;">Anclajes del estado de cada emisor. Permite detectar reescrituras del historial después del checkpoint.</p>
+
+      <fieldset>
+        <legend style="font-weight: 700; color: var(--text-sub); margin-bottom: 12px;">Generar Checkpoint</legend>
+        <div class="form-group">
+          <label for="checkpoint-passphrase">Root Passphrase</label>
+          <input type="password" id="checkpoint-passphrase" class="input" placeholder="Para firmar checkpoint" autocomplete="off" />
+          <div class="input-hint">Solo en memoria. Se borra al terminar.</div>
+        </div>
+        <div class="btn-group">
+          <button id="btn-generate-checkpoint" class="btn btn-primary">Generar Checkpoint Firmado</button>
+        </div>
+      </fieldset>
+
+      <h3 style="margin-top: 24px; color: var(--text); font-size: 16px;">Últimos Checkpoints</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Emisor (Key ID)</th>
+              <th>Último Hash</th>
+              <th>Firmado Por Admin</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="checkpoints-list-tbody">
+            <tr><td colspan="4" style="text-align: center; color: var(--text-mut);">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REVOKE ISSUER KEY -->
+  <div class="modal-bg" id="modal-revoke">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Revocar Key</h2>
+        <button class="modal-close" id="btn-close-revoke">✕</button>
+      </div>
+      <p class="modal-text">¿Revocas la key <b id="revoke-key-id"></b>?</p>
+      <div class="form-group">
+        <label for="revoke-reason">Motivo:</label>
+        <select id="revoke-reason" class="input" style="display: block; margin-top: 4px;">
+          <option value="">-- Seleccionar --</option>
+          <option value="forgotten_passphrase">Passphrase olvidada</option>
+          <option value="suspected_compromise">Compromiso sospechado</option>
+          <option value="admin_revoke">Decisión administrativa</option>
+        </select>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" id="btn-cancel-revoke">Cancelar</button>
+        <button class="btn btn-danger" id="btn-confirm-revoke">Revocar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="meli-crypt.js"></script>
+  <script src="meli-grid.js"></script>
+  <script>
+window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";
+
+var currentUser = null;
+var rootKeyData = null;
+var currentRootPassphrase = null;
+var revokeTargetKeyId = null;
+
+async function init() {
+  try {
+    const me = await GridAPI.getMe();
+    currentUser = me.ldap;
+    document.getElementById('user-display').textContent = currentUser;
+
+    await GridAPI.initDefaultBuckets();
+    await loadRootKey();
+    setupEventListeners();
+    loadPending();
+    loadIssuers();
+    loadCheckpoints();
+  } catch (err) {
+    showAlert('alert-root', 'Error: ' + err.message, 'error');
+  }
+}
+
+async function loadRootKey() {
+  try {
+    const state = await GridAPI.readState('public_config');
+    if (state.root_key_id) {
+      rootKeyData = { key_id: state.root_key_id, created_at: state.root_key_created_at };
+      document.getElementById('root-key-status').style.display = 'block';
+      document.getElementById('root-key-generate').style.display = 'none';
+      document.getElementById('root-key-id').value = rootKeyData.key_id;
+      document.getElementById('root-key-created').value = new Date(rootKeyData.created_at).toLocaleString();
+    } else {
+      document.getElementById('root-key-status').style.display = 'none';
+      document.getElementById('root-key-generate').style.display = 'block';
+    }
+  } catch (err) {
+    console.error(err);
+    document.getElementById('root-key-generate').style.display = 'block';
+  }
+}
+
+/* TABS */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tabId = btn.dataset.tab;
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
+  });
+});
+
+/* ROOT KEY */
+document.getElementById('btn-gen-root').addEventListener('click', async () => {
+  currentRootPassphrase = CryptoLib.generatePassphrase();
+  document.getElementById('root-passphrase-display').textContent = currentRootPassphrase;
+  document.getElementById('root-passphrase-display').style.display = 'block';
+  document.getElementById('btn-gen-root').parentElement.style.display = 'none';
+  document.getElementById('confirm-root-group').style.display = 'block';
+});
+
+document.getElementById('confirm-root').addEventListener('input', () => {
+  const match = document.getElementById('confirm-root').value === currentRootPassphrase;
+  document.getElementById('btn-confirm-root').disabled = !match;
+});
+
+document.getElementById('btn-confirm-root').addEventListener('click', async () => {
+  try {
+    document.getElementById('btn-confirm-root').disabled = true;
+    const keyPair = await CryptoLib.generateKeyPair();
+    const keyId = `root-${new Date().toISOString().split('T')[0]}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
+    const encrypted = await CryptoLib.encryptPrivateKey(keyPair.privateKey, currentRootPassphrase);
+    const publicJwk = await CryptoLib.exportPublicKey(keyPair.publicKey);
+
+    const config = await GridAPI.readState('public_config');
+    config.root_key_id = keyId;
+    config.root_key_created_at = new Date().toISOString();
+    config.root_public_key = publicJwk;
+    config.root_encrypted_private_key = encrypted.ciphertext;
+    config.root_salt = encrypted.salt;
+    config.root_iv = encrypted.iv;
+
+    await GridAPI.setState('public_config', config);
+
+    rootKeyData = { key_id: keyId, created_at: config.root_key_created_at };
+    currentRootPassphrase = null;
+    await loadRootKey();
+    showAlert('alert-root', 'Root key generada ✓', 'success');
+  } catch (err) {
+    showAlert('alert-root', 'Error: ' + err.message, 'error');
+    document.getElementById('btn-confirm-root').disabled = false;
+  }
+});
+
+/* PENDING ISSUERS */
+document.getElementById('btn-add-pending').addEventListener('click', async () => {
+  const ldap = document.getElementById('pending-ldap').value.trim().toLowerCase();
+  if (!ldap) {
+    showAlert('alert-pending', 'Ingresa un LDAP válido', 'error');
+    return;
+  }
+  try {
+    const pending = await GridAPI.readState('pending_issuers');
+    pending[ldap] = {
+      status: 'pending_onboarding',
+      approved_by_ldap: currentUser,
+      approved_at: new Date().toISOString(),
+      role: 'device_badge_issuer'
+    };
+    await GridAPI.setState('pending_issuers', pending);
+    document.getElementById('pending-ldap').value = '';
+    showAlert('alert-pending', `LDAP ${ldap} agregado ✓`, 'success');
+    loadPending();
+  } catch (err) {
+    showAlert('alert-pending', 'Error: ' + err.message, 'error');
+  }
+});
+
+async function loadPending() {
+  try {
+    const pending = await GridAPI.readState('pending_issuers');
+    const tbody = document.getElementById('pending-list-tbody');
+    if (!Object.keys(pending).length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';
+      return;
+    }
+    tbody.innerHTML = Object.entries(pending).map(([ldap, data]) => `
+      <tr>
+        <td>${ldap}</td>
+        <td>${data.approved_by_ldap}</td>
+        <td>${new Date(data.approved_at).toLocaleString()}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="removePending('${ldap}')">Remover</button></td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+window.removePending = async (ldap) => {
+  try {
+    const pending = await GridAPI.readState('pending_issuers');
+    delete pending[ldap];
+    await GridAPI.setState('pending_issuers', pending);
+    loadPending();
+  } catch (err) {
+    showAlert('alert-pending', 'Error: ' + err.message, 'error');
+  }
+};
+
+async function loadIssuers() {
+  try {
+    const keys = await GridAPI.readState('issuer_keys');
+    const tbody = document.getElementById('issuers-list-tbody');
+    if (!keys.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';
+      return;
+    }
+    tbody.innerHTML = keys.map(k => `
+      <tr>
+        <td>${k.ldap}</td>
+        <td style="font-family: monospace; font-size: 11px;">${k.key_id}</td>
+        <td><span style="background: ${k.status === 'active' ? 'rgba(0,214,137,.2)' : 'rgba(255,92,108,.2)'}; color: ${k.status === 'active' ? '#7FE9C2' : '#FFB3BB'}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${k.status}</span></td>
+        <td>${new Date(k.created_at).toLocaleDateString()}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="openRevokeModal('${k.key_id}')">Revocar</button></td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+window.openRevokeModal = (keyId) => {
+  revokeTargetKeyId = keyId;
+  document.getElementById('revoke-key-id').textContent = keyId;
+  document.getElementById('revoke-reason').value = '';
+  document.getElementById('modal-revoke').classList.add('active');
+};
+
+document.getElementById('btn-close-revoke').addEventListener('click', () => {
+  document.getElementById('modal-revoke').classList.remove('active');
+});
+
+document.getElementById('btn-cancel-revoke').addEventListener('click', () => {
+  document.getElementById('modal-revoke').classList.remove('active');
+});
+
+document.getElementById('btn-confirm-revoke').addEventListener('click', async () => {
+  const reason = document.getElementById('revoke-reason').value;
+  if (!reason) {
+    showAlert('alert-issuers', 'Selecciona un motivo', 'error');
+    return;
+  }
+  try {
+    const keys = await GridAPI.readState('issuer_keys');
+    const key = keys.find(k => k.key_id === revokeTargetKeyId);
+    if (key) {
+      key.status = 'revoked';
+      key.revoked_at = new Date().toISOString();
+      key.revocation_reason = reason;
+      key.revoked_by = currentUser;
+    }
+    await GridAPI.setState('issuer_keys', keys);
+
+    if (reason === 'suspected_compromise') {
+      const registry = await GridAPI.readState('badge_registry');
+      for (const badgeId in registry) {
+        if (registry[badgeId].key_id === revokeTargetKeyId) {
+          registry[badgeId].status = 'invalid_key_revoked';
+        }
+      }
+      await GridAPI.setState('badge_registry', registry);
+    }
+
+    document.getElementById('modal-revoke').classList.remove('active');
+    showAlert('alert-issuers', 'Key revocada ✓', 'success');
+    loadIssuers();
+  } catch (err) {
+    showAlert('alert-issuers', 'Error: ' + err.message, 'error');
+  }
+});
+
+/* CHECKPOINTS */
+document.getElementById('btn-generate-checkpoint').addEventListener('click', async () => {
+  const passphrase = document.getElementById('checkpoint-passphrase').value;
+  if (!passphrase) {
+    showAlert('alert-checkpoints', 'Ingresa tu root passphrase', 'error');
+    return;
+  }
+  try {
+    const config = await GridAPI.readState('public_config');
+    if (!config.root_key_id) {
+      showAlert('alert-checkpoints', 'No hay root key', 'error');
+      return;
+    }
+
+    const privateJwk = await CryptoLib.decryptPrivateKey(
+      config.root_encrypted_private_key,
+      passphrase,
+      config.root_salt,
+      config.root_iv
+    );
+    const privateKey = await CryptoLib.importPrivateKey(privateJwk);
+
+    const keys = await GridAPI.readState('issuer_keys');
+    const checkpoints = await GridAPI.readState('checkpoints');
+
+    for (const key of keys) {
+      if (key.status === 'active') {
+        const ledgerName = `badge_ledger_${key.key_id}`;
+        const ledger = await GridAPI.readState(ledgerName);
+        const lastHash = ledger.length > 0 ? ledger[ledger.length - 1].event_hash : null;
+
+        const checkpoint = {
+          key_id: key.key_id,
+          latest_event_hash: lastHash,
+          created_at: new Date().toISOString(),
+          signed_by_root: true
+        };
+
+        const signature = await CryptoLib.signPayload(checkpoint, privateKey);
+        checkpoint.signature = signature;
+
+        checkpoints[key.key_id] = checkpoint;
+      }
+    }
+
+    await GridAPI.setState('checkpoints', checkpoints);
+    document.getElementById('checkpoint-passphrase').value = '';
+    showAlert('alert-checkpoints', 'Checkpoints generados y firmados ✓', 'success');
+    loadCheckpoints();
+  } catch (err) {
+    showAlert('alert-checkpoints', 'Error: ' + err.message, 'error');
+  }
+});
+
+async function loadCheckpoints() {
+  try {
+    const checkpoints = await GridAPI.readState('checkpoints');
+    const tbody = document.getElementById('checkpoints-list-tbody');
+    if (!Object.keys(checkpoints).length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';
+      return;
+    }
+    tbody.innerHTML = Object.entries(checkpoints).map(([keyId, cp]) => `
+      <tr>
+        <td style="font-family: monospace; font-size: 11px;">${keyId}</td>
+        <td style="font-family: monospace; font-size: 11px;">${(cp.latest_event_hash || 'null').substr(0, 16)}...</td>
+        <td>✓ Root</td>
+        <td>${new Date(cp.created_at).toLocaleString()}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function showAlert(containerId, message, type) {
+  const container = document.getElementById(containerId);
+  if (!message) {
+    container.innerHTML = '';
+    return;
+  }
+  const icon = type === 'success' ? '✓' : type === 'warning' ? '⚠' : '✕';
+  container.innerHTML = `<div class="alert ${type}">${icon} ${message}</div>`;
+}
+
+function setupEventListeners() {
+  // Additional setup if needed
+}
+
+init();
+  </script>
+</body>
+</html>
