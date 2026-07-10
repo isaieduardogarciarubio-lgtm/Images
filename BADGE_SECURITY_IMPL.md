@@ -158,6 +158,14 @@ Si es suspected_compromise, todas las badges de esa llave quedan invalid_key_rev
 
 5. **Initialize en admin:** Abre admin app, genera root key.
 
+6. **Fija la root public key en el verificador (crítico):** copia el JWK que aparece en el tab "Root Key" de admin (campo "Root Public Key (JWK)") y pégalo en `device-badge-verifier.html`, constante `PINNED_ROOT_PUBLIC_KEY_JWK`, cerca del inicio del script de la app:
+   ```javascript
+   const PINNED_ROOT_PUBLIC_KEY_JWK = {"kty":"EC","crv":"P-256","x":"...","y":"..."};
+   ```
+   Sin este paso, el verificador confía en lo que diga `public_config` en vivo — cualquiera con permiso de editor sobre ese bucket podría sustituir la root key y fabricar un `trusted_issuers` falso. Con el pin, el verificador rechaza cualquier `public_config.root_public_key` que no coincida (resultado `ROOT KEY ALTERADA`). Vuelve a subir `device-badge-verifier.html` después de pegar el valor.
+
+   **Rotación de root key** (ej. passphrase olvidada, compromiso sospechado): genera una nueva root key en admin, re-firma `trusted_issuers`, actualiza `PINNED_ROOT_PUBLIC_KEY_JWK` en el verificador con el nuevo valor, y vuelve a desplegarlo. Esto **no aplica** a reset de llaves de emisor — esas se re-aprueban re-firmando `trusted_issuers` con la misma root key, sin tocar el verificador.
+
 ## Next steps (no incluidos en v0)
 
 - [ ] Integración con QR scanner (Zxing.js u otro).

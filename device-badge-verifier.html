@@ -677,10 +677,41 @@ const GridAPI = (() => {
   <script>
 window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";
 
+/* ──────────────────────────────────────────────────────────────── */
+/* ROOT PUBLIC KEY PIN                                              */
+/* Trusting whatever public_config.root_public_key says at read-time */
+/* means anyone with editor access to that bucket could swap in their */
+/* own root key and mint a fake trusted_issuers list. Pin the real   */
+/* root public key here (copy the JWK from the admin app's "Root Key" */
+/* tab after generating it) so this file itself is the source of    */
+/* trust, not a mutable Grid bucket.                                 */
+/*                                                                    */
+/* Rotating the root key (e.g. after a forgotten root passphrase)    */
+/* requires updating this constant and redeploying this file. This   */
+/* does NOT apply to issuer key resets — those are re-approved by    */
+/* the admin re-signing trusted_issuers with the same root key, no   */
+/* redeploy needed.                                                  */
+/* ──────────────────────────────────────────────────────────────── */
+const PINNED_ROOT_PUBLIC_KEY_JWK = null; // e.g. {"kty":"EC","crv":"P-256","x":"...","y":"..."}
+
+function jwkKeysMatch(a, b) {
+  if (!a || !b) return false;
+  return a.kty === b.kty && a.crv === b.crv && a.x === b.x && a.y === b.y;
+}
+
 async function init() {
   try {
     await GridAPI.initDefaultBuckets();
     setupEventListeners();
+    if (!PINNED_ROOT_PUBLIC_KEY_JWK) {
+      showAlert(
+        'alert-verify',
+        'Este verificador aún no tiene la root key fijada en el código (PINNED_ROOT_PUBLIC_KEY_JWK). ' +
+        'Copia la root public key desde la app de Admin y pégala en este archivo, o la verificación ' +
+        'confía en public_config sin protección contra alteraciones.',
+        'warning'
+      );
+    }
   } catch (err) {
     showAlert('alert-verify', 'Error al inicializar: ' + err.message, 'error');
   }
@@ -728,9 +759,32 @@ async function verifyBadge() {
     const config = await GridAPI.readState('public_config', {});
     const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
 
-    // Validar timestamp de root signature en trusted_issuers
+    // Root of trust: prefer the key pinned in this file over whatever
+    // public_config says live, since public_config is a mutable Grid
+    // bucket that anyone with editor access could tamper with. If the
+    // live key doesn't match the pinned one, treat it as compromised
+    // rather than silently falling back to trusting it.
     let rootValid = false;
-    if (config.root_public_key && trustedIssuers.signature && trustedIssuers.signed_by_root_at) {
+    if (PINNED_ROOT_PUBLIC_KEY_JWK) {
+      if (config.root_public_key && !jwkKeysMatch(config.root_public_key, PINNED_ROOT_PUBLIC_KEY_JWK)) {
+        showResult('ROOT KEY ALTERADA', 'invalid', {
+          'Badge ID': badgeId,
+          'Error': 'public_config.root_public_key no coincide con la root key fijada en este verificador'
+        });
+        return;
+      }
+      if (trustedIssuers.signature && trustedIssuers.signed_by_root_at) {
+        const rootPubKey = await CryptoLib.importPublicKey(PINNED_ROOT_PUBLIC_KEY_JWK);
+        const trustedPayload = {
+          issuers: trustedIssuers.issuers,
+          signed_by_root_at: trustedIssuers.signed_by_root_at
+        };
+        rootValid = await CryptoLib.verifySignature(trustedPayload, trustedIssuers.signature, rootPubKey);
+      }
+    } else if (config.root_public_key && trustedIssuers.signature && trustedIssuers.signed_by_root_at) {
+      // No pinned key configured yet (fresh deployment before the operator
+      // has copied it in) — fall back to trusting public_config live.
+      // This is weaker; see the PINNED_ROOT_PUBLIC_KEY_JWK comment above.
       const rootPubKey = await CryptoLib.importPublicKey(config.root_public_key);
       const trustedPayload = {
         issuers: trustedIssuers.issuers,

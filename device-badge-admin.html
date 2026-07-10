@@ -319,6 +319,11 @@
           <label>Creada:</label>
           <input type="text" id="root-key-created" class="input" disabled />
         </div>
+        <div class="form-group">
+          <label>Root Public Key (JWK) — pégala en PINNED_ROOT_PUBLIC_KEY_JWK dentro de device-badge-verifier.html:</label>
+          <textarea id="root-public-key-jwk" class="input" rows="4" readonly style="font-family: 'Courier New', monospace; font-size: 12px; resize: vertical;"></textarea>
+          <div class="input-hint">Cada vez que rotes la root key (ej. passphrase olvidada), actualiza este valor en el verificador y vuelve a desplegarlo.</div>
+        </div>
       </div>
 
       <div id="root-key-generate" style="display: none;">
@@ -914,6 +919,7 @@ async function loadRootKey() {
       document.getElementById('root-key-generate').style.display = 'none';
       document.getElementById('root-key-id').value = rootKeyData.key_id;
       document.getElementById('root-key-created').value = new Date(rootKeyData.created_at).toLocaleString();
+      document.getElementById('root-public-key-jwk').value = state.root_public_key ? JSON.stringify(state.root_public_key) : '';
     } else {
       document.getElementById('root-key-status').style.display = 'none';
       document.getElementById('root-key-generate').style.display = 'block';
