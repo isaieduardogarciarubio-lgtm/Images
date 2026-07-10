@@ -701,7 +701,7 @@ window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";
 /* the admin re-signing trusted_issuers with the same root key, no   */
 /* redeploy needed.                                                  */
 /* ──────────────────────────────────────────────────────────────── */
-const PINNED_ROOT_PUBLIC_KEY_JWK = null; // e.g. {"kty":"EC","crv":"P-256","x":"...","y":"..."}
+const PINNED_ROOT_PUBLIC_KEY_JWK = {"crv":"P-256","ext":true,"key_ops":["verify"],"kty":"EC","x":"VT97x_sY3SeGIwL4szRk7fW1lvi38h7H3kcZ1IgZ_ZE","y":"7GyfpJvaUkTlCKcqWbFNMAbnDQ_BozLraTPGhpS2DmI"};
 
 function jwkKeysMatch(a, b) {
   if (!a || !b) return false;
