@@ -870,7 +870,7 @@ async function verifyBadge() {
     if (issuerInTrusted.status === 'revoked') {
       badge.status = 'invalid_key_revoked';
     } else {
-      // Check if there's a newer renewed event with this badge as previous
+      // Check if there's a revocation event for this badge
       const ledgerName = `badge_ledger_${issuerInTrusted.key_id}`;
       const ledgerDocId = issuerInTrusted.ledger_doc_id || null;
       let ledger = [];
@@ -878,15 +878,30 @@ async function verifyBadge() {
         ledger = await GridAPI.readList(ledgerName, ledgerDocId);
       } catch {}
 
-      const supersedingEvent = ledger.find(e =>
+      // Check for revocation event (signed by the same issuer)
+      const revocationEvent = ledger.find(e =>
         e.payload &&
-        e.payload.event_type === 'renewed' &&
-        e.payload.previous_badge_id === badgeId
+        e.payload.event_type === 'revoked' &&
+        e.payload.badge_id === badgeId &&
+        e.payload.key_id === issuerInTrusted.key_id
       );
 
-      if (supersedingEvent) {
-        badge.status = 'superseded';
-        badge.superseded_by = supersedingEvent.payload.badge_id;
+      if (revocationEvent) {
+        badge.status = 'revoked';
+        badge.revoked_at = revocationEvent.payload.revoked_at;
+        badge.revocation_reason = revocationEvent.payload.revocation_reason;
+      } else {
+        // Check if there's a newer renewed event with this badge as previous
+        const supersedingEvent = ledger.find(e =>
+          e.payload &&
+          e.payload.event_type === 'renewed' &&
+          e.payload.previous_badge_id === badgeId
+        );
+
+        if (supersedingEvent) {
+          badge.status = 'superseded';
+          badge.superseded_by = supersedingEvent.payload.badge_id;
+        }
       }
     }
 
@@ -897,6 +912,17 @@ async function verifyBadge() {
         'Dispositivo': badge.device_id || 'N/A',
         'Emisor': badge.issued_by_ldap,
         'Nota': 'Este registro se migró del sistema anterior y no tiene firma criptográfica.'
+      });
+      return;
+    }
+
+    if (badge.status === 'revoked') {
+      showResult('REVOCADA', 'invalid', {
+        'Badge ID': badgeId,
+        'Dispositivo': badge.device_id,
+        'Revocada': new Date(badge.revoked_at).toLocaleString(),
+        'Razón': badge.revocation_reason || 'No especificada',
+        'Estado': 'Badge revocada por el emisor'
       });
       return;
     }
