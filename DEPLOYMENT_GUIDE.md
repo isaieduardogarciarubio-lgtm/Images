@@ -22,17 +22,24 @@ fallback; this was deliberately removed so isolation can't be silently skipped.
 
 - [ ] Create Grid document for main data (all governance buckets: `trusted_issuers`,
       `public_config`, `checkpoints`, `pending_issuers`, `issuer_keys`, `badge_registry`)
-- [ ] **Do this before onboarding any issuer:** in the admin app's "Emisores" tab, click
-      **"Crear Workspace de Ledgers"** (one-time setup). This creates a Grid Workspace with
-      `linked_doc_permission: viewer` and saves its ID to `public_config.ledger_workspace_id`.
-- [ ] Add every admin and anyone who needs to open the verifier as a member of this workspace
-      (viewer role) using the "Agregar como lector" field in the same tab.
+- [ ] **No manual step required here.** The Ledger Workspace (a Grid Workspace with
+      `linked_doc_permission: viewer`, saved to `public_config.ledger_workspace_id`) is
+      created automatically the first time an admin adds someone in the "Pendientes" tab —
+      that's the actual moment isolation becomes necessary, so creation is tied to that
+      action instead of firing on every admin page load. Every existing admin (from
+      `root_key_wraps`) is added as a viewer member at creation time automatically; any admin
+      added later via "Agregar administrador" is auto-added as a member too.
+- [ ] (Optional) If you want to add non-admin verifier readers to the workspace ahead of time,
+      or the automatic creation failed for some reason, use the "Emisores" tab: it shows the
+      current workspace status and has a manual "Crear ahora" fallback button plus an
+      "Agregar como lector" field for arbitrary LDAPs.
 - [ ] From this point on, **every issuer's ledger document is created and linked automatically**
       when they generate their key in the issuer app — no manual doc creation or docId entry
       is required. The issuer becomes the owner of their own ledger doc (full write access,
       isolated from other issuers); workspace members get automatic read-only access.
-      If the workspace isn't set up yet, the issuer app shows a blocking message instead of
-      the onboarding form and refuses to create a key.
+      If the workspace isn't set up yet (e.g. root key doesn't exist, or auto-creation failed),
+      the issuer app shows a blocking message instead of the onboarding form and refuses to
+      create a key — there is no shared-document fallback.
 - [ ] Verify Grid ACLs on the main document:
   - `trusted_issuers`, `public_config`, `checkpoints`, `pending_issuers`, `issuer_keys`:
     Editor: admins only. Reader: verifier + issuer apps as needed.

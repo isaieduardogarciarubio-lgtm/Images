@@ -469,8 +469,9 @@
 
       <div id="workspace-setup-missing" style="display: none;">
         <div class="alert warning" style="flex-direction: column; align-items: flex-start;">
-          <div>⚠ Aún no existe un Workspace de Ledgers. Sin esto, cada nuevo emisor crea su ledger en el documento compartido (menos aislado, pero funcional).</div>
-          <button id="btn-create-ledger-workspace" class="btn btn-primary" style="margin-top: 8px;">Crear Workspace de Ledgers</button>
+          <div>⚠ Aún no existe un Workspace de Ledgers. Se crea solo, automáticamente, la primera vez que agregues un emisor en la pestaña "Pendientes" — no hay documento compartido de respaldo por diseño.</div>
+          <div>Si necesitas forzarlo ahora (por ejemplo, para agregar lectores antes de tener emisores), créalo manualmente:</div>
+          <button id="btn-create-ledger-workspace" class="btn btn-primary" style="margin-top: 8px;">Crear ahora</button>
         </div>
       </div>
 
@@ -1244,6 +1245,17 @@ document.getElementById('btn-add-admin').addEventListener('click', async () => {
     config.root_key_wraps = wraps;
     await GridAPI.setState('public_config', config);
 
+    // Auto-add the new admin as a viewer member of the Ledger Workspace
+    // (if it exists yet) so they get automatic read access to every
+    // issuer's ledger without anyone sharing documents by hand.
+    if (config.ledger_workspace_id) {
+      try {
+        await GridAPI.addWorkspaceMember(config.ledger_workspace_id, newAdminLdap, 'member');
+      } catch (err) {
+        console.debug(`No se pudo agregar a ${newAdminLdap} al workspace de ledgers`, err.message);
+      }
+    }
+
     document.getElementById('new-admin-passphrase-box').textContent = newAdminPassphrase;
     document.getElementById('new-admin-passphrase-result').style.display = 'block';
     document.getElementById('new-admin-ldap').value = '';
@@ -1301,6 +1313,16 @@ document.getElementById('btn-add-pending').addEventListener('click', async () =>
     return;
   }
   try {
+    // Adding the first issuer is the actual trigger point for needing
+    // per-issuer ledger isolation — ensure the Ledger Workspace exists
+    // here instead of only on page load, so it's tied to the real need
+    // instead of firing on every admin session regardless of activity.
+    const workspaceId = await ensureLedgerWorkspace();
+    if (!workspaceId) {
+      showAlert('alert-pending', 'No se pudo preparar el Workspace de Ledgers (¿ya generaste la root key?). El emisor no podrá generar su llave hasta que esto se resuelva — revisa la pestaña Emisores.', 'error');
+      return;
+    }
+
     const pending = await GridAPI.readState('pending_issuers', {});
     pending[ldap] = {
       status: 'pending_onboarding',
@@ -1312,6 +1334,7 @@ document.getElementById('btn-add-pending').addEventListener('click', async () =>
     document.getElementById('pending-ldap').value = '';
     showAlert('alert-pending', `LDAP ${ldap} agregado ✓`, 'success');
     loadPending();
+    loadLedgerWorkspaceStatus();
   } catch (err) {
     showAlert('alert-pending', 'Error: ' + err.message, 'error');
   }
@@ -1440,6 +1463,58 @@ window.approveIssuer = async (keyId) => {
   }
 };
 
+/* Auto-create the Ledger Workspace — called from the "Agregar a Pendientes"
+   flow, since adding the first issuer is the actual moment this becomes
+   necessary, not just any admin page load. Every existing admin (from
+   root_key_wraps) is added as a viewer member at creation time, so they
+   all get automatic read access to every issuer's ledger the moment it's
+   linked, without anyone sharing documents by hand. */
+async function ensureLedgerWorkspace() {
+  try {
+    let config = await GridAPI.readState('public_config', {});
+    if (config.ledger_workspace_id) return config.ledger_workspace_id;
+    if (!config.root_key_id) return null; // nothing to protect yet
+
+    const wraps = config.root_key_wraps || [];
+    const myWrap = wraps.find(w => w.admin_ldap === currentUser);
+    if (!myWrap) return null; // only an approved admin should trigger creation
+
+    const ws = await GridAPI.createWorkspace('Device Badge - Ledgers', 'viewer');
+    const workspaceId = ws.workspace_id || ws.id;
+    if (!workspaceId) {
+      throw new Error('La respuesta de Grid no incluyó un ID de workspace reconocible');
+    }
+
+    for (const wrap of wraps) {
+      try {
+        await GridAPI.addWorkspaceMember(workspaceId, wrap.admin_ldap, 'member');
+      } catch (err) {
+        console.debug(`No se pudo agregar a ${wrap.admin_ldap} como miembro del workspace`, err.message);
+      }
+    }
+
+    try {
+      config = await GridAPI.readState('public_config', {});
+      if (config.ledger_workspace_id) return config.ledger_workspace_id; // another admin's tab won the race
+      config.ledger_workspace_id = workspaceId;
+      await GridAPI.setState('public_config', config);
+      return workspaceId;
+    } catch (err) {
+      // Lost a concurrent write race — adopt whichever workspace_id won
+      // instead of failing; the extra workspace we created is orphaned
+      // but harmless (nothing points to it).
+      const latest = await GridAPI.readState('public_config', {});
+      return latest.ledger_workspace_id || null;
+    }
+  } catch (err) {
+    console.error('Error asegurando Ledger Workspace:', err);
+    return null;
+  }
+}
+
+/* Read-only status check for the UI — does NOT trigger creation. Creation
+   only happens from the "Agregar a Pendientes" flow (or the manual retry
+   button below), tied to the actual moment it becomes necessary. */
 async function loadLedgerWorkspaceStatus() {
   try {
     const config = await GridAPI.readState('public_config', {});
@@ -1459,18 +1534,12 @@ async function loadLedgerWorkspaceStatus() {
 document.getElementById('btn-create-ledger-workspace').addEventListener('click', async () => {
   try {
     document.getElementById('btn-create-ledger-workspace').disabled = true;
-    const ws = await GridAPI.createWorkspace('Device Badge - Ledgers', 'viewer');
-    const workspaceId = ws.workspace_id || ws.id;
+    const workspaceId = await ensureLedgerWorkspace();
     if (!workspaceId) {
-      throw new Error('La respuesta de Grid no incluyó un ID de workspace reconocible');
+      showAlert('alert-issuers', 'No se pudo crear el workspace todavía (¿ya generaste la root key y tienes acceso a ella?)', 'error');
     }
-    const config = await GridAPI.readState('public_config', {});
-    config.ledger_workspace_id = workspaceId;
-    await GridAPI.setState('public_config', config);
-    showAlert('alert-issuers', 'Workspace de Ledgers creado ✓. Agrega a los demás admins/verificadores como lectores abajo.', 'success');
-    loadLedgerWorkspaceStatus();
-  } catch (err) {
-    showAlert('alert-issuers', 'Error al crear workspace: ' + err.message, 'error');
+    await loadLedgerWorkspaceStatus();
+  } finally {
     document.getElementById('btn-create-ledger-workspace').disabled = false;
   }
 });
