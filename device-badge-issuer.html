@@ -816,7 +816,12 @@ const GridAPI = (() => {
       try {
         return await fn();
       } catch (err) {
-        if (attempt < MAX_RETRIES - 1 && err.status === 409) {
+        // 409 = optimistic concurrency conflict on named state buckets.
+        // 502/503/504 = transient upstream/gateway errors (seen in practice
+        // as quick failures, not the ~100-180s hangs Grid has on some other
+        // write paths) — worth a short retry before surfacing to the user.
+        const transient = err.status === 409 || (err.status >= 502 && err.status <= 504);
+        if (attempt < MAX_RETRIES - 1 && transient) {
           await new Promise(r => setTimeout(r, RETRY_DELAY * Math.pow(2, attempt)));
         } else {
           throw err;
@@ -985,24 +990,34 @@ const GridAPI = (() => {
        this issuer their own isolated ledger document — Grid's ACLs are
        granted at the whole-document level, so a dedicated doc per issuer
        is the only way to stop one issuer from being able to touch
-       another issuer's ledger even if they share the same "editor" role. */
+       another issuer's ledger even if they share the same "editor" role.
+       Reuses the same idempotency_key across retries so a transient
+       failure that actually succeeded server-side doesn't create a
+       duplicate document. */
     async createDocument(title, htmlContent) {
-      const blob = new Blob([htmlContent], { type: 'text/html' });
-      const formData = new FormData();
-      formData.append('file', blob, 'ledger.html');
-      formData.append('title', title);
-      formData.append('visibility', 'private');
-      const res = await fetch('/api/v1/documents', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
-      });
-      if (!res.ok) {
-        let detail = '';
-        try { detail = await res.text(); } catch {}
-        throw new Error(`HTTP ${res.status}${detail ? ': ' + detail : ''}`);
-      }
-      return res.json();
+      const idempotencyKey = (crypto.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const fn = async () => {
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const formData = new FormData();
+        formData.append('file', blob, 'ledger.html');
+        formData.append('title', title);
+        formData.append('visibility', 'private');
+        formData.append('idempotency_key', idempotencyKey);
+        const res = await fetch('/api/v1/documents', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData
+        });
+        if (!res.ok) {
+          let detail = '';
+          try { detail = await res.text(); } catch {}
+          const err = new Error(`HTTP ${res.status}${detail ? ': ' + detail : ''}`);
+          err.status = res.status;
+          throw err;
+        }
+        return res.json();
+      };
+      return retry(fn);
     },
 
     /* Link a document into a workspace so all workspace members instantly
@@ -1010,10 +1025,11 @@ const GridAPI = (() => {
        how admins/verifier get read access to this issuer's ledger without
        anyone having to manually share the document. */
     async linkDocumentToWorkspace(workspaceId, docId) {
-      return fetchJson(`/api/v1/workspaces/${workspaceId}/documents`, {
+      const fn = () => fetchJson(`/api/v1/workspaces/${workspaceId}/documents`, {
         method: 'POST',
         body: { doc_id: docId }
       });
+      return retry(fn);
     }
   };
 })();
