@@ -142,12 +142,24 @@
         }
 
         const data = await res.json();
+        let codeContent = null;
+
         if (data.state) {
-          document.getElementById('code-textarea').value = data.state;
+          // Handle both string and object states
+          if (typeof data.state === 'string') {
+            codeContent = data.state;
+          } else if (typeof data.state === 'object') {
+            // If it's an object, convert to string
+            codeContent = JSON.stringify(data.state, null, 2);
+          } else {
+            codeContent = String(data.state);
+          }
+
+          document.getElementById('code-textarea').value = codeContent;
           currentUpdatedAt = data.updated_at;
           showStatus('✓ Código cargado desde Grid', 'success');
         } else {
-          showStatus('⚠ El bucket aún no contiene código', 'info');
+          showStatus('⚠ El bucket aún no contiene código. Usa init-shared-libs.html para inicializar.', 'info');
         }
       } catch (err) {
         showStatus(`Error al cargar: ${err.message}`, 'error');
