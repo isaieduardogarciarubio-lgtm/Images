@@ -735,8 +735,9 @@ const GridAPI = (() => {
       return fetchJson('/api/v1/me');
     },
 
-    /* Read state bucket by name */
-    async readState(name) {
+    /* Read state bucket by name. defaultValue is returned when the bucket
+       has never been written (Grid returns 200 with state: null, not 404). */
+    async readState(name, defaultValue = null) {
       if (!window.GRID || !window.GRID.docId) {
         throw new Error('GRID.docId not set');
       }
@@ -745,7 +746,7 @@ const GridAPI = (() => {
       if (window.GRID._stateUpdatedAtByName) {
         window.GRID._stateUpdatedAtByName[name] = res.updated_at;
       }
-      return res.state || {};
+      return (res.state !== undefined && res.state !== null) ? res.state : defaultValue;
     },
 
     /* Write state bucket (PUT with control optimistic) */
@@ -758,12 +759,11 @@ const GridAPI = (() => {
       const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[name];
 
       const fn = async () => {
+        const body = { state };
+        if (ifUpdatedAt) body.if_updated_at = ifUpdatedAt;
         const res = await fetchJson(url, {
           method: 'PUT',
-          body: {
-            state,
-            if_updated_at: ifUpdatedAt || ''
-          }
+          body
         });
         if (window.GRID._stateUpdatedAtByName) {
           window.GRID._stateUpdatedAtByName[name] = res.updated_at;
@@ -784,12 +784,11 @@ const GridAPI = (() => {
       const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[name];
 
       const fn = async () => {
+        const body = { patch };
+        if (ifUpdatedAt) body.if_updated_at = ifUpdatedAt;
         const res = await fetchJson(url, {
           method: 'PATCH',
-          body: {
-            patch,
-            if_updated_at: ifUpdatedAt || ''
-          }
+          body
         });
         if (window.GRID._stateUpdatedAtByName) {
           window.GRID._stateUpdatedAtByName[name] = res.updated_at;
@@ -800,24 +799,24 @@ const GridAPI = (() => {
       return retry(fn);
     },
 
+    /* Default shapes for each named bucket (used both for reads before the
+       bucket has ever been written, and for lazy initialization). */
+    BUCKET_DEFAULTS: {
+      trusted_issuers: { issuers: [], signature: null, signed_by_root_at: null },
+      issuer_keys: [],
+      pending_issuers: {},
+      badge_registry: {},
+      checkpoints: {},
+      public_config: {}
+    },
+
     /* Initialize default state buckets if needed */
     async initDefaultBuckets() {
       const buckets = ['trusted_issuers', 'issuer_keys', 'pending_issuers', 'badge_registry', 'checkpoints', 'public_config'];
       for (const bucket of buckets) {
-        try {
-          await this.readState(bucket);
-        } catch {
-          const defaults = {
-            trusted_issuers: { issuers: [], signature: null, signed_by_root_at: null },
-            issuer_keys: [],
-            pending_issuers: {},
-            badge_registry: {},
-            checkpoints: {},
-            public_config: { version: '1.0', created_at: new Date().toISOString() }
-          };
-          if (defaults[bucket]) {
-            await this.setState(bucket, defaults[bucket]);
-          }
+        const existing = await this.readState(bucket, undefined);
+        if (existing === undefined) {
+          await this.setState(bucket, this.BUCKET_DEFAULTS[bucket]);
         }
       }
     }
@@ -852,7 +851,7 @@ async function init() {
 
 async function loadRootKey() {
   try {
-    const state = await GridAPI.readState('public_config');
+    const state = await GridAPI.readState('public_config', {});
     if (state.root_key_id) {
       rootKeyData = { key_id: state.root_key_id, created_at: state.root_key_created_at };
       document.getElementById('root-key-status').style.display = 'block';
@@ -903,7 +902,7 @@ document.getElementById('btn-confirm-root').addEventListener('click', async () =
     const encrypted = await CryptoLib.encryptPrivateKey(keyPair.privateKey, currentRootPassphrase);
     const publicJwk = await CryptoLib.exportPublicKey(keyPair.publicKey);
 
-    const config = await GridAPI.readState('public_config');
+    const config = await GridAPI.readState('public_config', {});
     config.root_key_id = keyId;
     config.root_key_created_at = new Date().toISOString();
     config.root_public_key = publicJwk;
@@ -931,7 +930,7 @@ document.getElementById('btn-add-pending').addEventListener('click', async () =>
     return;
   }
   try {
-    const pending = await GridAPI.readState('pending_issuers');
+    const pending = await GridAPI.readState('pending_issuers', {});
     pending[ldap] = {
       status: 'pending_onboarding',
       approved_by_ldap: currentUser,
@@ -949,7 +948,7 @@ document.getElementById('btn-add-pending').addEventListener('click', async () =>
 
 async function loadPending() {
   try {
-    const pending = await GridAPI.readState('pending_issuers');
+    const pending = await GridAPI.readState('pending_issuers', {});
     const tbody = document.getElementById('pending-list-tbody');
     if (!Object.keys(pending).length) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';
@@ -970,7 +969,7 @@ async function loadPending() {
 
 window.removePending = async (ldap) => {
   try {
-    const pending = await GridAPI.readState('pending_issuers');
+    const pending = await GridAPI.readState('pending_issuers', {});
     delete pending[ldap];
     await GridAPI.setState('pending_issuers', pending);
     loadPending();
@@ -981,7 +980,7 @@ window.removePending = async (ldap) => {
 
 async function loadIssuers() {
   try {
-    const keys = await GridAPI.readState('issuer_keys');
+    const keys = await GridAPI.readState('issuer_keys', []);
     const tbody = document.getElementById('issuers-list-tbody');
     if (!keys.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';
@@ -1023,7 +1022,7 @@ document.getElementById('btn-confirm-revoke').addEventListener('click', async ()
     return;
   }
   try {
-    const keys = await GridAPI.readState('issuer_keys');
+    const keys = await GridAPI.readState('issuer_keys', []);
     const key = keys.find(k => k.key_id === revokeTargetKeyId);
     if (key) {
       key.status = 'revoked';
@@ -1034,7 +1033,7 @@ document.getElementById('btn-confirm-revoke').addEventListener('click', async ()
     await GridAPI.setState('issuer_keys', keys);
 
     if (reason === 'suspected_compromise') {
-      const registry = await GridAPI.readState('badge_registry');
+      const registry = await GridAPI.readState('badge_registry', {});
       for (const badgeId in registry) {
         if (registry[badgeId].key_id === revokeTargetKeyId) {
           registry[badgeId].status = 'invalid_key_revoked';
@@ -1059,7 +1058,7 @@ document.getElementById('btn-generate-checkpoint').addEventListener('click', asy
     return;
   }
   try {
-    const config = await GridAPI.readState('public_config');
+    const config = await GridAPI.readState('public_config', {});
     if (!config.root_key_id) {
       showAlert('alert-checkpoints', 'No hay root key', 'error');
       return;
@@ -1073,13 +1072,13 @@ document.getElementById('btn-generate-checkpoint').addEventListener('click', asy
     );
     const privateKey = await CryptoLib.importPrivateKey(privateJwk);
 
-    const keys = await GridAPI.readState('issuer_keys');
-    const checkpoints = await GridAPI.readState('checkpoints');
+    const keys = await GridAPI.readState('issuer_keys', []);
+    const checkpoints = await GridAPI.readState('checkpoints', {});
 
     for (const key of keys) {
       if (key.status === 'active') {
         const ledgerName = `badge_ledger_${key.key_id}`;
-        const ledger = await GridAPI.readState(ledgerName);
+        const ledger = await GridAPI.readState(ledgerName, []);
         const lastHash = ledger.length > 0 ? ledger[ledger.length - 1].event_hash : null;
 
         const checkpoint = {
@@ -1107,7 +1106,7 @@ document.getElementById('btn-generate-checkpoint').addEventListener('click', asy
 
 async function loadCheckpoints() {
   try {
-    const checkpoints = await GridAPI.readState('checkpoints');
+    const checkpoints = await GridAPI.readState('checkpoints', {});
     const tbody = document.getElementById('checkpoints-list-tbody');
     if (!Object.keys(checkpoints).length) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';

@@ -540,8 +540,9 @@ const GridAPI = (() => {
       return fetchJson('/api/v1/me');
     },
 
-    /* Read state bucket by name */
-    async readState(name) {
+    /* Read state bucket by name. defaultValue is returned when the bucket
+       has never been written (Grid returns 200 with state: null, not 404). */
+    async readState(name, defaultValue = null) {
       if (!window.GRID || !window.GRID.docId) {
         throw new Error('GRID.docId not set');
       }
@@ -550,7 +551,7 @@ const GridAPI = (() => {
       if (window.GRID._stateUpdatedAtByName) {
         window.GRID._stateUpdatedAtByName[name] = res.updated_at;
       }
-      return res.state || {};
+      return (res.state !== undefined && res.state !== null) ? res.state : defaultValue;
     },
 
     /* Write state bucket (PUT with control optimistic) */
@@ -563,12 +564,11 @@ const GridAPI = (() => {
       const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[name];
 
       const fn = async () => {
+        const body = { state };
+        if (ifUpdatedAt) body.if_updated_at = ifUpdatedAt;
         const res = await fetchJson(url, {
           method: 'PUT',
-          body: {
-            state,
-            if_updated_at: ifUpdatedAt || ''
-          }
+          body
         });
         if (window.GRID._stateUpdatedAtByName) {
           window.GRID._stateUpdatedAtByName[name] = res.updated_at;
@@ -589,12 +589,11 @@ const GridAPI = (() => {
       const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[name];
 
       const fn = async () => {
+        const body = { patch };
+        if (ifUpdatedAt) body.if_updated_at = ifUpdatedAt;
         const res = await fetchJson(url, {
           method: 'PATCH',
-          body: {
-            patch,
-            if_updated_at: ifUpdatedAt || ''
-          }
+          body
         });
         if (window.GRID._stateUpdatedAtByName) {
           window.GRID._stateUpdatedAtByName[name] = res.updated_at;
@@ -605,24 +604,24 @@ const GridAPI = (() => {
       return retry(fn);
     },
 
+    /* Default shapes for each named bucket (used both for reads before the
+       bucket has ever been written, and for lazy initialization). */
+    BUCKET_DEFAULTS: {
+      trusted_issuers: { issuers: [], signature: null, signed_by_root_at: null },
+      issuer_keys: [],
+      pending_issuers: {},
+      badge_registry: {},
+      checkpoints: {},
+      public_config: {}
+    },
+
     /* Initialize default state buckets if needed */
     async initDefaultBuckets() {
       const buckets = ['trusted_issuers', 'issuer_keys', 'pending_issuers', 'badge_registry', 'checkpoints', 'public_config'];
       for (const bucket of buckets) {
-        try {
-          await this.readState(bucket);
-        } catch {
-          const defaults = {
-            trusted_issuers: { issuers: [], signature: null, signed_by_root_at: null },
-            issuer_keys: [],
-            pending_issuers: {},
-            badge_registry: {},
-            checkpoints: {},
-            public_config: { version: '1.0', created_at: new Date().toISOString() }
-          };
-          if (defaults[bucket]) {
-            await this.setState(bucket, defaults[bucket]);
-          }
+        const existing = await this.readState(bucket, undefined);
+        if (existing === undefined) {
+          await this.setState(bucket, this.BUCKET_DEFAULTS[bucket]);
         }
       }
     }
@@ -670,7 +669,7 @@ async function verifyBadge() {
   try {
     document.getElementById('btn-verify').disabled = true;
 
-    const registry = await GridAPI.readState('badge_registry');
+    const registry = await GridAPI.readState('badge_registry', {});
     const badge = registry[badgeId];
 
     if (!badge) {
@@ -681,8 +680,8 @@ async function verifyBadge() {
       return;
     }
 
-    const config = await GridAPI.readState('public_config');
-    const trustedIssuers = await GridAPI.readState('trusted_issuers');
+    const config = await GridAPI.readState('public_config', {});
+    const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
 
     // Validar timestamp de root signature en trusted_issuers
     let rootValid = false;
@@ -718,7 +717,7 @@ async function verifyBadge() {
     const ledgerName = `badge_ledger_${badge.key_id}`;
     let ledger = [];
     try {
-      ledger = await GridAPI.readState(ledgerName);
+      ledger = await GridAPI.readState(ledgerName, []);
     } catch {}
 
     const event = ledger.find(e => e.payload && e.payload.badge_id === badgeId);
@@ -798,7 +797,7 @@ async function verifyBadge() {
     }
 
     // Validar hash chain si existe checkpoint
-    const checkpoints = await GridAPI.readState('checkpoints');
+    const checkpoints = await GridAPI.readState('checkpoints', {});
     const checkpoint = checkpoints[badge.key_id];
     if (checkpoint && event.previous_event_hash) {
       if (checkpoint.latest_event_hash && event.event_hash !== checkpoint.latest_event_hash) {
