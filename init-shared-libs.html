@@ -108,7 +108,7 @@
 
         showStatus('💾 Guardando en Grid...', 'loading');
 
-        // Guardar en Grid
+        // Guardar en Grid (state debe ser un objeto, no una string)
         const gridRes = await fetch(`/api/v1/documents/${DOC_ID}/states/${encodeURIComponent(STATE_NAME)}`, {
           method: 'PUT',
           credentials: 'include',
@@ -116,7 +116,9 @@
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            state: libCode,
+            state: {
+              code: libCode
+            },
             if_updated_at: ''
           })
         });

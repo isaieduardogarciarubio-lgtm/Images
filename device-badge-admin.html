@@ -986,8 +986,8 @@ async function loadSharedLibraries() {
     const res = await fetch(url, { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
-      if (data.state && typeof data.state === 'string') {
-        eval(data.state);
+      if (data.state && data.state.code && typeof data.state.code === 'string') {
+        eval(data.state.code);
         console.log('[Device Badge] Shared libraries (CryptoLib, GridAPI) loaded from Grid');
       }
     }
