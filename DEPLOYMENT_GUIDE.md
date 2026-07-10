@@ -16,17 +16,23 @@ access to the main document can write to *any* state bucket inside it, including
 that belong to other issuers or to admin governance (`trusted_issuers`, `checkpoints`).
 To isolate each issuer from the others, each issuer needs their own dedicated Grid document.
 
+**This is enforced, not optional.** The issuer app refuses to generate a key — the onboarding
+form doesn't even render — until the Ledger Workspace exists. There is no shared-document
+fallback; this was deliberately removed so isolation can't be silently skipped.
+
 - [ ] Create Grid document for main data (all governance buckets: `trusted_issuers`,
       `public_config`, `checkpoints`, `pending_issuers`, `issuer_keys`, `badge_registry`)
-- [ ] In the admin app's "Emisores" tab, click **"Crear Workspace de Ledgers"** (one-time setup).
-      This creates a Grid Workspace with `linked_doc_permission: viewer` and saves its ID to
-      `public_config.ledger_workspace_id`.
+- [ ] **Do this before onboarding any issuer:** in the admin app's "Emisores" tab, click
+      **"Crear Workspace de Ledgers"** (one-time setup). This creates a Grid Workspace with
+      `linked_doc_permission: viewer` and saves its ID to `public_config.ledger_workspace_id`.
 - [ ] Add every admin and anyone who needs to open the verifier as a member of this workspace
       (viewer role) using the "Agregar como lector" field in the same tab.
 - [ ] From this point on, **every issuer's ledger document is created and linked automatically**
       when they generate their key in the issuer app — no manual doc creation or docId entry
       is required. The issuer becomes the owner of their own ledger doc (full write access,
       isolated from other issuers); workspace members get automatic read-only access.
+      If the workspace isn't set up yet, the issuer app shows a blocking message instead of
+      the onboarding form and refuses to create a key.
 - [ ] Verify Grid ACLs on the main document:
   - `trusted_issuers`, `public_config`, `checkpoints`, `pending_issuers`, `issuer_keys`:
     Editor: admins only. Reader: verifier + issuer apps as needed.
@@ -35,8 +41,8 @@ To isolate each issuer from the others, each issuer needs their own dedicated Gr
 ### 3. Issuer Onboarding
 - [ ] For each issuer:
   1. Issuer generates key in issuer app — this automatically creates and links their
-     dedicated ledger document (if the Ledger Workspace is set up; falls back to the shared
-     document otherwise, with a console note)
+     dedicated ledger document. Blocked entirely if the Ledger Workspace isn't configured yet
+     (no key is created, no shared-document fallback).
   2. Admin reviews pending key in admin app
   3. Admin approves key → issuer added to `trusted_issuers` (their `ledger_doc_id` is
      mirrored in automatically)

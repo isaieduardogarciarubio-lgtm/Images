@@ -111,19 +111,24 @@ with Editor access to a document can write to *every* bucket inside it. This mea
 - Misconfigured ACLs are an operational risk, not a crypto risk
 - Registry tampering (badge → key_id mapping) is only mitigated by signature validation;
   registry structure itself is not signed
-- If the Ledger Workspace isn't set up before an issuer onboards, that issuer's ledger falls
-  back to the shared main document, re-introducing the cross-issuer write risk for that
-  specific issuer until the workspace is configured and they regenerate their key
+- There is deliberately no shared-document fallback: if the Ledger Workspace isn't set up,
+  the issuer app refuses to generate a key at all (onboarding form doesn't render, and the
+  key-creation handler hard-fails even if somehow triggered). This trades onboarding
+  convenience for guaranteeing isolation can't be silently skipped.
 
 **Mitigation Timeline**:
 - ✅ Automatic per-issuer document creation and Workspace linking (Phase 2c)
-- Pre-deployment: Set up the Ledger Workspace *before* onboarding any issuers
+- ✅ Made mandatory: issuer app blocks key generation entirely until the Ledger Workspace
+  exists, no shared-document fallback path remains in the code (Phase 2d)
+- Pre-deployment: Set up the Ledger Workspace *before* onboarding any issuers (it's the first
+  thing an admin must do — issuers literally cannot onboard otherwise)
 - Post-deployment: Monthly ACL review — confirm no issuer has Editor on the main document
 - Automation: Script to validate expected permissions (reader: verifier app, writer: issuer app, etc.)
 
 **Recommendation**: Set up the Ledger Workspace as the very first admin action after root key
-generation, before any issuer is onboarded. Grid buckets on the main document should use
-"Editor" role narrowly (admins only) and rely on signature validation as defense-in-depth.
+generation, before any issuer is onboarded — this is now enforced by the app itself, not just
+a checklist item. Grid buckets on the main document should use "Editor" role narrowly (admins
+only) and rely on signature validation as defense-in-depth.
 
 ---
 
