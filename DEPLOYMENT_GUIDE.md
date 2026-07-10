@@ -45,6 +45,15 @@ fallback; this was deliberately removed so isolation can't be silently skipped.
     Editor: admins only. Reader: verifier + issuer apps as needed.
   - `badge_registry`: Editor: issuer app (writes badge index), Reader: verifier app
 
+**Migrating issuers who onboarded before the Ledger Workspace existed:** their `ledger_doc_id`
+stays `null` (shown as "compartido" in the Emisores table) and they keep using the shared main
+document until migrated — this is not automatic. In the "Emisores" tab, each such issuer's row
+shows a **"Migrar a documento propio"** button. Clicking it (with the root passphrase entered):
+creates a dedicated document, copies their existing ledger events into it as-is (signatures
+stay valid — they're over the event payload, not over which document holds it), links the new
+document to the workspace, and re-signs `trusted_issuers` with the new `ledger_doc_id`. The old
+events remain in the shared document but become inert (nothing reads them there anymore).
+
 ### 3. Issuer Onboarding
 - [ ] For each issuer:
   1. Issuer generates key in issuer app — this automatically creates and links their
