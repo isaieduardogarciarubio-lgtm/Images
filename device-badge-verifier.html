@@ -686,6 +686,23 @@ const GridAPI = (() => {
   <script>
 window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";
 
+async function loadSharedLibraries() {
+  try {
+    const sharedLibsDoc = "01KWJ24WNJEXCH6CE59ZW152EK";
+    const url = `/api/v1/documents/${sharedLibsDoc}/states/shared_libs_code`;
+    const res = await fetch(url, { credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.state && typeof data.state === 'string') {
+        eval(data.state);
+        console.log('[Device Badge] Shared libraries (CryptoLib, GridAPI) loaded from Grid');
+      }
+    }
+  } catch (err) {
+    console.debug('[Device Badge] Could not load shared libraries from Grid (using built-in)', err.message);
+  }
+}
+
 /* ──────────────────────────────────────────────────────────────── */
 /* ROOT PUBLIC KEY PIN                                              */
 /* Trusting whatever public_config.root_public_key says at read-time */
@@ -710,6 +727,7 @@ function jwkKeysMatch(a, b) {
 
 async function init() {
   try {
+    await loadSharedLibraries();
     await GridAPI.initDefaultBuckets();
     setupEventListeners();
     if (!PINNED_ROOT_PUBLIC_KEY_JWK) {
@@ -753,17 +771,6 @@ async function verifyBadge() {
 
   try {
     document.getElementById('btn-verify').disabled = true;
-
-    const registry = await GridAPI.readState('badge_registry', {});
-    const badge = registry[badgeId];
-
-    if (!badge) {
-      showResult('BADGE NO ENCONTRADA', 'invalid', {
-        'Badge ID': badgeId,
-        'Estado': 'No existe en el registro'
-      });
-      return;
-    }
 
     const config = await GridAPI.readState('public_config', {});
     const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
@@ -810,37 +817,37 @@ async function verifyBadge() {
       return;
     }
 
-    // Validar que el issuer esté en trusted_issuers
-    const issuerInTrusted = trustedIssuers.issuers && trustedIssuers.issuers.find(i => i.key_id === badge.key_id && i.status === 'active');
-    if (!issuerInTrusted) {
-      showResult('EMISOR NO CONFIABLE', 'invalid', {
-        'Badge ID': badgeId,
-        'Key ID': badge.key_id,
-        'Error': 'Emisor no está en la lista de confianza'
-      });
-      return;
+    // Search all issuer ledgers to find the badge event (source of truth).
+    // Don't trust badge_registry for badge existence or status; reconstruct
+    // from signed ledger events instead. This prevents tampering via registry.
+    let event = null;
+    let issuerInTrusted = null;
+
+    for (const issuer of (trustedIssuers.issuers || [])) {
+      const ledgerName = `badge_ledger_${issuer.key_id}`;
+      const ledgerDocId = issuer.ledger_doc_id || null;
+      let ledger = [];
+      try {
+        ledger = await GridAPI.readList(ledgerName, ledgerDocId);
+      } catch {}
+
+      const foundEvent = ledger.find(e => e.payload && e.payload.badge_id === badgeId);
+      if (foundEvent) {
+        event = foundEvent;
+        issuerInTrusted = issuer;
+        break;
+      }
     }
 
-    // Cargar el evento de la badge desde el ledger del issuer. Si el admin
-    // aisló el ledger de este issuer en un documento Grid dedicado, la
-    // referencia viaja en trusted_issuers (ledger_doc_id), no en badge_registry.
-    const ledgerName = `badge_ledger_${badge.key_id}`;
-    const ledgerDocId = issuerInTrusted.ledger_doc_id || null;
-    let ledger = [];
-    try {
-      ledger = await GridAPI.readList(ledgerName, ledgerDocId);
-    } catch {}
-
-    const event = ledger.find(e => e.payload && e.payload.badge_id === badgeId);
     if (!event) {
       showResult('EVENTO NO ENCONTRADO', 'invalid', {
         'Badge ID': badgeId,
-        'Error': 'El evento de emisión no está en el ledger'
+        'Error': 'El evento de emisión no está en ningún ledger de confianza'
       });
       return;
     }
 
-    // Validar firma del evento
+    // Validar firma del evento contra la llave pública del emisor
     const issuerPubJwk = issuerInTrusted.public_key_jwk;
     const issuerPubKey = await CryptoLib.importPublicKey(issuerPubJwk);
     const signatureValid = await CryptoLib.verifySignature(event.payload, event.signature, issuerPubKey);
@@ -854,7 +861,49 @@ async function verifyBadge() {
       return;
     }
 
-    // Validar estado en registry
+    // Reconstruct badge state from signed event + issuer trust status.
+    // Don't read badge_registry status field directly (tampering vector).
+    const badge = {
+      badge_id: event.payload.badge_id,
+      device_id: event.payload.device_id,
+      device_type: event.payload.device_type,
+      brand: event.payload.brand,
+      model: event.payload.model,
+      owner_name: event.payload.owner_name,
+      issued_by_ldap: event.payload.issued_by_ldap,
+      issued_at: event.payload.issued_at,
+      expires_at: event.payload.expires_at,
+      key_id: event.payload.key_id,
+      event_hash: event.event_hash,
+      previous_event_hash: event.previous_event_hash,
+      status: 'active'
+    };
+
+    // Determine status based on trusted sources
+    if (issuerInTrusted.status === 'revoked') {
+      badge.status = 'invalid_key_revoked';
+    } else {
+      // Check if there's a newer renewed event with this badge as previous
+      const ledgerName = `badge_ledger_${issuerInTrusted.key_id}`;
+      const ledgerDocId = issuerInTrusted.ledger_doc_id || null;
+      let ledger = [];
+      try {
+        ledger = await GridAPI.readList(ledgerName, ledgerDocId);
+      } catch {}
+
+      const supersedingEvent = ledger.find(e =>
+        e.payload &&
+        e.payload.event_type === 'renewed' &&
+        e.payload.previous_badge_id === badgeId
+      );
+
+      if (supersedingEvent) {
+        badge.status = 'superseded';
+        badge.superseded_by = supersedingEvent.payload.badge_id;
+      }
+    }
+
+    // Handle legacy_unsigned badge status (if present in registry, but not in ledger)
     if (badge.status === 'legacy_unsigned') {
       showResult('REGISTRO LEGACY SIN FIRMA', 'warning', {
         'Badge ID': badgeId,
@@ -871,15 +920,6 @@ async function verifyBadge() {
         'Nueva Badge': badge.superseded_by,
         'Dispositivo': badge.device_id,
         'Reemplazada Por': badge.superseded_by
-      });
-      return;
-    }
-
-    if (badge.status === 'revoked') {
-      showResult('REVOCADA', 'invalid', {
-        'Badge ID': badgeId,
-        'Dispositivo': badge.device_id,
-        'Motivo': 'La badge fue revocada'
       });
       return;
     }
@@ -912,6 +952,13 @@ async function verifyBadge() {
     const checkpoint = checkpoints[badge.key_id];
     if (checkpoint && event.previous_event_hash) {
       if (checkpoint.latest_event_hash && event.event_hash !== checkpoint.latest_event_hash) {
+        const ledgerName = `badge_ledger_${issuerInTrusted.key_id}`;
+        const ledgerDocId = issuerInTrusted.ledger_doc_id || null;
+        let ledger = [];
+        try {
+          ledger = await GridAPI.readList(ledgerName, ledgerDocId);
+        } catch {}
+
         const possibleAlteration = ledger.filter(e => e.event_hash === checkpoint.latest_event_hash);
         if (!possibleAlteration.length && event.previous_event_hash !== checkpoint.latest_event_hash) {
           showResult('REGISTRY ALTERADO', 'invalid', {

@@ -932,6 +932,23 @@ const GridAPI = (() => {
 /* ──────────────────────────────────────────────────────────────── */
 window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK"; // Reemplazar con doc actual
 
+async function loadSharedLibraries() {
+  try {
+    const sharedLibsDoc = "01KWJ24WNJEXCH6CE59ZW152EK";
+    const url = `/api/v1/documents/${sharedLibsDoc}/states/shared_libs_code`;
+    const res = await fetch(url, { credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.state && typeof data.state === 'string') {
+        eval(data.state);
+        console.log('[Device Badge] Shared libraries (CryptoLib, GridAPI) loaded from Grid');
+      }
+    }
+  } catch (err) {
+    console.debug('[Device Badge] Could not load shared libraries from Grid (using built-in)', err.message);
+  }
+}
+
 var currentUser = null;
 var issuerKeyData = null;
 var currentPassphrase = null;
@@ -941,6 +958,7 @@ var currentPassphrase = null;
 /* ──────────────────────────────────────────────────────────────── */
 async function init() {
   try {
+    await loadSharedLibraries();
     const me = await GridAPI.getMe();
     currentUser = me.ldap;
     document.getElementById('user-display').textContent = currentUser;

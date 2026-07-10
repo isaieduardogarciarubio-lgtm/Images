@@ -979,6 +979,23 @@ const GridAPI = (() => {
   <script>
 window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";
 
+async function loadSharedLibraries() {
+  try {
+    const sharedLibsDoc = "01KWJ24WNJEXCH6CE59ZW152EK";
+    const url = `/api/v1/documents/${sharedLibsDoc}/states/shared_libs_code`;
+    const res = await fetch(url, { credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.state && typeof data.state === 'string') {
+        eval(data.state);
+        console.log('[Device Badge] Shared libraries (CryptoLib, GridAPI) loaded from Grid');
+      }
+    }
+  } catch (err) {
+    console.debug('[Device Badge] Could not load shared libraries from Grid (using built-in)', err.message);
+  }
+}
+
 var currentUser = null;
 var rootKeyData = null;
 var currentRootPassphrase = null;
@@ -986,6 +1003,7 @@ var revokeTargetKeyId = null;
 
 async function init() {
   try {
+    await loadSharedLibraries();
     const me = await GridAPI.getMe();
     currentUser = me.ldap;
     document.getElementById('user-display').textContent = currentUser;
@@ -996,6 +1014,7 @@ async function init() {
     loadPending();
     loadIssuers();
     loadCheckpoints();
+    checkAndAutoGenerateCheckpoint();
   } catch (err) {
     showAlert('alert-root', 'Error: ' + err.message, 'error');
   }
@@ -1481,6 +1500,130 @@ document.getElementById('btn-confirm-revoke').addEventListener('click', async ()
 });
 
 /* CHECKPOINTS */
+async function performCheckpointGeneration(privateKey, showAlerts = true) {
+  const keys = await GridAPI.readList('issuer_keys');
+  const checkpoints = await GridAPI.readState('checkpoints', {});
+  let alertCount = 0;
+
+  for (const key of keys) {
+    if (key.status !== 'active') continue;
+
+    const ledgerName = `badge_ledger_${key.key_id}`;
+    const ledgerDocId = key.ledger_doc_id || null;
+    const ledger = await GridAPI.readList(ledgerName, ledgerDocId);
+    const lastHash = ledger.length > 0 ? ledger[ledger.length - 1].event_hash : null;
+    const previousCheckpoint = checkpoints[key.key_id];
+
+    let status, newEventsCount = null, anchorFoundAtIndex = null;
+    if (!previousCheckpoint) {
+      status = 'first';
+    } else if (!previousCheckpoint.latest_event_hash) {
+      status = 'first';
+    } else {
+      anchorFoundAtIndex = ledger.findIndex(e => e.event_hash === previousCheckpoint.latest_event_hash);
+      if (anchorFoundAtIndex === -1) {
+        status = 'alert';
+        alertCount++;
+      } else {
+        status = 'ok';
+        newEventsCount = ledger.length - 1 - anchorFoundAtIndex;
+      }
+    }
+
+    const checkpoint = {
+      key_id: key.key_id,
+      ldap: key.ldap,
+      ledger_doc_id: ledgerDocId,
+      latest_event_hash: lastHash,
+      event_count: ledger.length,
+      created_at: new Date().toISOString(),
+      signed_by_root: true,
+      status,
+      new_events_count: newEventsCount,
+      previous_checkpoint: previousCheckpoint ? {
+        created_at: previousCheckpoint.created_at,
+        latest_event_hash: previousCheckpoint.latest_event_hash
+      } : null,
+      ledger_snapshot: ledger.map(e => ({
+        event_hash: e.event_hash,
+        previous_event_hash: e.previous_event_hash,
+        event_type: e.payload && e.payload.event_type,
+        badge_id: e.payload && e.payload.badge_id,
+        issued_at: e.payload && (e.payload.issued_at || e.payload.revoked_at)
+      }))
+    };
+
+    const signature = await CryptoLib.signPayload({
+      key_id: checkpoint.key_id,
+      latest_event_hash: checkpoint.latest_event_hash,
+      created_at: checkpoint.created_at,
+      signed_by_root: true
+    }, privateKey);
+    checkpoint.signature = signature;
+
+    const history = (previousCheckpoint && previousCheckpoint.history) || [];
+    history.push({ created_at: checkpoint.created_at, status, new_events_count: newEventsCount, event_count: checkpoint.event_count });
+    checkpoint.history = history.slice(-20);
+
+    checkpoints[key.key_id] = checkpoint;
+  }
+
+  await GridAPI.setState('checkpoints', checkpoints);
+
+  if (showAlerts) {
+    if (alertCount > 0) {
+      showAlert('alert-checkpoints', `Checkpoints generados. ⚠ ${alertCount} emisor(es) con posible historial alterado — revisa las tarjetas en rojo.`, 'warning');
+    } else {
+      showAlert('alert-checkpoints', 'Checkpoints generados y firmados ✓. Sin alertas.', 'success');
+    }
+    loadCheckpoints();
+  }
+}
+
+async function checkAndAutoGenerateCheckpoint() {
+  const checkpoints = await GridAPI.readState('checkpoints', {});
+  const now = new Date();
+  const staleThreshold = 24 * 60 * 60 * 1000;
+  let needsAutoCheckpoint = false;
+
+  for (const [keyId, checkpoint] of Object.entries(checkpoints)) {
+    if (checkpoint.created_at) {
+      const checkpointTime = new Date(checkpoint.created_at);
+      if (now - checkpointTime > staleThreshold) {
+        needsAutoCheckpoint = true;
+        break;
+      }
+    }
+  }
+
+  if (!needsAutoCheckpoint || Object.keys(checkpoints).length === 0) return;
+
+  const passphrase = document.getElementById('checkpoint-passphrase').value;
+  if (!passphrase) return;
+
+  try {
+    const config = await GridAPI.readState('public_config', {});
+    if (!config.root_key_id) return;
+
+    const wraps = config.root_key_wraps || [];
+    const myWrap = wraps.find(w => w.admin_ldap === currentUser);
+    if (!myWrap) return;
+
+    const privateJwk = await CryptoLib.decryptPrivateKey(
+      myWrap.encrypted_private_key,
+      passphrase,
+      myWrap.salt,
+      myWrap.iv
+    );
+    const privateKey = await CryptoLib.importPrivateKey(privateJwk);
+
+    await performCheckpointGeneration(privateKey, false);
+    loadCheckpoints();
+  } catch (err) {
+    console.debug('Auto-checkpoint failed (expected if no passphrase in form)', err.message);
+  }
+}
+
 document.getElementById('btn-generate-checkpoint').addEventListener('click', async () => {
   const passphrase = document.getElementById('checkpoint-passphrase').value;
   if (!passphrase) {
@@ -1509,85 +1652,8 @@ document.getElementById('btn-generate-checkpoint').addEventListener('click', asy
     );
     const privateKey = await CryptoLib.importPrivateKey(privateJwk);
 
-    const keys = await GridAPI.readList('issuer_keys');
-    const checkpoints = await GridAPI.readState('checkpoints', {});
-    let alertCount = 0;
-
-    for (const key of keys) {
-      if (key.status !== 'active') continue;
-
-      const ledgerName = `badge_ledger_${key.key_id}`;
-      const ledgerDocId = key.ledger_doc_id || null;
-      const ledger = await GridAPI.readList(ledgerName, ledgerDocId);
-      const lastHash = ledger.length > 0 ? ledger[ledger.length - 1].event_hash : null;
-      const previousCheckpoint = checkpoints[key.key_id];
-
-      // Compara contra el checkpoint anterior: si su hash-ancla ya no
-      // aparece en la cadena actual, alguien reescribió historia pasada.
-      let status, newEventsCount = null, anchorFoundAtIndex = null;
-      if (!previousCheckpoint) {
-        status = 'first';
-      } else if (!previousCheckpoint.latest_event_hash) {
-        status = 'first';
-      } else {
-        anchorFoundAtIndex = ledger.findIndex(e => e.event_hash === previousCheckpoint.latest_event_hash);
-        if (anchorFoundAtIndex === -1) {
-          status = 'alert';
-          alertCount++;
-        } else {
-          status = 'ok';
-          newEventsCount = ledger.length - 1 - anchorFoundAtIndex;
-        }
-      }
-
-      const checkpoint = {
-        key_id: key.key_id,
-        ldap: key.ldap,
-        ledger_doc_id: ledgerDocId,
-        latest_event_hash: lastHash,
-        event_count: ledger.length,
-        created_at: new Date().toISOString(),
-        signed_by_root: true,
-        status,
-        new_events_count: newEventsCount,
-        previous_checkpoint: previousCheckpoint ? {
-          created_at: previousCheckpoint.created_at,
-          latest_event_hash: previousCheckpoint.latest_event_hash
-        } : null,
-        ledger_snapshot: ledger.map(e => ({
-          event_hash: e.event_hash,
-          previous_event_hash: e.previous_event_hash,
-          event_type: e.payload && e.payload.event_type,
-          badge_id: e.payload && e.payload.badge_id,
-          issued_at: e.payload && (e.payload.issued_at || e.payload.revoked_at)
-        }))
-      };
-
-      const signature = await CryptoLib.signPayload({
-        key_id: checkpoint.key_id,
-        latest_event_hash: checkpoint.latest_event_hash,
-        created_at: checkpoint.created_at,
-        signed_by_root: true
-      }, privateKey);
-      checkpoint.signature = signature;
-
-      // Guarda un historial acotado (últimos 20) para poder ver la línea de
-      // tiempo, no solo el estado más reciente.
-      const history = (previousCheckpoint && previousCheckpoint.history) || [];
-      history.push({ created_at: checkpoint.created_at, status, new_events_count: newEventsCount, event_count: checkpoint.event_count });
-      checkpoint.history = history.slice(-20);
-
-      checkpoints[key.key_id] = checkpoint;
-    }
-
-    await GridAPI.setState('checkpoints', checkpoints);
+    await performCheckpointGeneration(privateKey, true);
     document.getElementById('checkpoint-passphrase').value = '';
-    if (alertCount > 0) {
-      showAlert('alert-checkpoints', `Checkpoints generados. ⚠ ${alertCount} emisor(es) con posible historial alterado — revisa las tarjetas en rojo.`, 'warning');
-    } else {
-      showAlert('alert-checkpoints', 'Checkpoints generados y firmados ✓. Sin alertas.', 'success');
-    }
-    loadCheckpoints();
   } catch (err) {
     showAlert('alert-checkpoints', 'Error: ' + err.message, 'error');
   }
