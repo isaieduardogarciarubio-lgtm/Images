@@ -362,7 +362,7 @@
         const getOrigin = () => document.getElementById('gridOrigin').value;
         const getDocId = () => document.getElementById('docId').value;
 
-        async function apiCall(method, path, body = null) {
+        async function apiCall(method, path, body = null, elementId = null) {
             const url = getOrigin() + path;
             const options = {
                 method,
@@ -378,38 +378,91 @@
 
             console.log(`[${method}] ${url}`, body);
 
-            const res = await fetch(url, options);
-            const data = await res.json().catch(() => res.text());
+            let timerHandle = null;
+            const startedAt = Date.now();
 
-            return {
-                status: res.status,
-                ok: res.ok,
-                data
-            };
+            if (elementId) {
+                showPending(elementId, method, url);
+                timerHandle = setInterval(() => updatePendingElapsed(elementId, startedAt), 1000);
+            }
+
+            try {
+                const res = await fetch(url, options);
+                const data = await res.json().catch(() => res.text());
+
+                return {
+                    status: res.status,
+                    ok: res.ok,
+                    data,
+                    elapsedMs: Date.now() - startedAt
+                };
+            } catch (err) {
+                // fetch throws on network errors / CORS blocks — these never reach res.status
+                console.error('Fetch failed:', err);
+                return {
+                    status: 0,
+                    ok: false,
+                    data: { fetchError: err.message || String(err), hint: 'Esto NO es un error del API — el request nunca llegó a completarse (posible CORS, origen incorrecto, o red caída). Revisa la consola del navegador (F12) para el error exacto.' },
+                    elapsedMs: Date.now() - startedAt
+                };
+            } finally {
+                if (timerHandle) clearInterval(timerHandle);
+            }
+        }
+
+        function showPending(elementId, method, url) {
+            const el = document.getElementById(elementId);
+            el.className = 'response pending';
+            el.style.display = 'block';
+            el.innerHTML = `
+                <div style="margin-bottom: 10px;">
+                    <strong>⏳ Esperando respuesta...</strong>
+                    <span class="status-badge pending">PENDING</span>
+                </div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">[${method}] ${url}</div>
+                <div id="${elementId}-elapsed">Transcurrido: 0s</div>
+                <div style="font-size:11px; color:#666; margin-top:8px;">Si esto sigue así por más de 100-180s, coincide con el bug conocido de V11.2 (cuelgue → 504).</div>
+            `;
+        }
+
+        function updatePendingElapsed(elementId, startedAt) {
+            const elapsedEl = document.getElementById(`${elementId}-elapsed`);
+            if (elapsedEl) {
+                const secs = Math.round((Date.now() - startedAt) / 1000);
+                elapsedEl.textContent = `Transcurrido: ${secs}s`;
+            }
         }
 
         function showResponse(elementId, result, type = 'default') {
             const el = document.getElementById(elementId);
-            const statusType = result.ok ? 'success' : (result.status >= 500 ? 'error' : 'pending');
+            let statusType;
+            if (result.status === 0) {
+                statusType = 'error';
+            } else {
+                statusType = result.ok ? 'success' : (result.status >= 500 ? 'error' : 'pending');
+            }
+
+            const elapsedSecs = result.elapsedMs ? (result.elapsedMs / 1000).toFixed(1) : '?';
 
             el.className = 'response ' + statusType;
             el.style.display = 'block';
             el.innerHTML = `
                 <div style="margin-bottom: 10px;">
-                    <strong>Status:</strong> ${result.status}
+                    <strong>Status:</strong> ${result.status === 0 ? 'FETCH FAILED (sin respuesta HTTP)' : result.status}
                     <span class="status-badge ${statusType}">${statusType.toUpperCase()}</span>
+                    <span style="margin-left:10px; color:#666; font-size:12px;">⏱ ${elapsedSecs}s</span>
                 </div>
                 <pre>${JSON.stringify(result.data, null, 2)}</pre>
             `;
         }
 
         async function testAuth() {
-            const result = await apiCall('GET', '/api/v1/me');
+            const result = await apiCall('GET', '/api/v1/me', null, 'authResponse');
             showResponse('authResponse', result);
         }
 
         async function getMe() {
-            const result = await apiCall('GET', '/api/v1/me');
+            const result = await apiCall('GET', '/api/v1/me', null, 'authResponse');
             showResponse('authResponse', result);
         }
 
@@ -429,7 +482,7 @@
                 }
             ];
 
-            const result = await apiCall('POST', `/api/v1/documents/${docId}/sections/bulk`, { sections });
+            const result = await apiCall('POST', `/api/v1/documents/${docId}/sections/bulk`, { sections }, 'createResponse');
             showResponse('createResponse', result);
         }
 
@@ -440,7 +493,7 @@
                 return;
             }
 
-            const result = await apiCall('GET', `/api/v1/documents/${docId}/sections`);
+            const result = await apiCall('GET', `/api/v1/documents/${docId}/sections`, null, 'listResponse');
             showResponse('listResponse', result);
 
             if (result.ok && result.data.sections) {
@@ -474,7 +527,7 @@
                 body.if_checksum = checksum;
             }
 
-            const result = await apiCall('PUT', `/api/v1/documents/${docId}/sections/${sectionName}`, body);
+            const result = await apiCall('PUT', `/api/v1/documents/${docId}/sections/${sectionName}`, body, 'editResponse');
             showResponse('editResponse', result);
         }
 
@@ -485,7 +538,7 @@
                 return;
             }
 
-            const result = await apiCall('POST', `/api/v1/documents/${docId}/sections/assemble`);
+            const result = await apiCall('POST', `/api/v1/documents/${docId}/sections/assemble`, null, 'editResponse');
             showResponse('editResponse', result);
         }
 
@@ -496,7 +549,7 @@
                 return;
             }
 
-            const result = await apiCall('GET', `/api/v1/documents/${docId}`);
+            const result = await apiCall('GET', `/api/v1/documents/${docId}`, null, 'editorsResponse');
             showResponse('editorsResponse', result);
         }
 
@@ -523,7 +576,7 @@
             if (toAdd.length) body.add = toAdd;
             if (toRemove.length) body.remove = toRemove;
 
-            const result = await apiCall('PUT', `/api/v1/documents/${docId}/sections/${sectionName}/editors`, body);
+            const result = await apiCall('PUT', `/api/v1/documents/${docId}/sections/${sectionName}/editors`, body, 'editorsResponse');
             showResponse('editorsResponse', result);
         }
 
