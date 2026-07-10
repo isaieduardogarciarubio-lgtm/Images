@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Badge - Inicializar Shared Libraries v2</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; margin-bottom: 10px; }
+    p { color: #666; margin: 8px 0; }
+    .step { margin: 20px 0; padding: 15px; background: #f9f9f9; border-left: 4px solid #FFD100; }
+    button {
+      padding: 12px 24px;
+      background: #FFD100;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    button:hover { background: #E6BC00; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    textarea {
+      width: 100%;
+      height: 150px;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .status {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 4px;
+      display: none;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+    .status.loading {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+      display: block;
+    }
+    .info { font-size: 12px; color: #666; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚙️ Inicializar Shared Libraries v2</h1>
+
+    <div class="step">
+      <strong>Paso 1: Cargar archivo</strong>
+      <p>Lee device-badge-shared-lib.js del servidor</p>
+      <button onclick="loadFile()">📥 Cargar archivo</button>
+      <div id="status-load" class="status"></div>
+    </div>
+
+    <div class="step">
+      <strong>Paso 2: Revisar código</strong>
+      <p>El código se mostrará aquí. Verifica que esté completo:</p>
+      <textarea id="code-preview" readonly></textarea>
+      <div class="info" id="code-info"></div>
+    </div>
+
+    <div class="step">
+      <strong>Paso 3: Guardar en Grid</strong>
+      <p>Guarda el código en Grid bucket shared_libs_code</p>
+      <button onclick="saveToGrid()">💾 Guardar en Grid</button>
+      <div id="status-save" class="status"></div>
+    </div>
+
+    <div class="step">
+      <strong>Paso 4: Verificar</strong>
+      <p>Lee el código de nuevo desde Grid para verificar que se guardó</p>
+      <button onclick="verifyFromGrid()">✓ Verificar desde Grid</button>
+      <div id="status-verify" class="status"></div>
+    </div>
+  </div>
+
+  <script>
+    const DOC_ID = "01KWJ24WNJEXCH6CE59ZW152EK";
+    const STATE_NAME = "shared_libs_code";
+    let loadedCode = null;
+    let currentUpdatedAt = null;
+
+    function showStatus(elementId, message, type) {
+      const el = document.getElementById(elementId);
+      el.textContent = message;
+      el.className = `status ${type}`;
+    }
+
+    async function loadFile() {
+      try {
+        showStatus('status-load', '⏳ Cargando archivo...', 'loading');
+
+        const res = await fetch('/device-badge-shared-lib.js');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        loadedCode = await res.text();
+
+        document.getElementById('code-preview').value = loadedCode;
+        document.getElementById('code-info').textContent =
+          `✓ Archivo cargado: ${(loadedCode.length / 1024).toFixed(2)} KB`;
+
+        showStatus('status-load', '✅ Archivo cargado correctamente', 'success');
+      } catch (err) {
+        showStatus('status-load', `❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function saveToGrid() {
+      if (!loadedCode) {
+        showStatus('status-save', '⚠️ Primero carga el archivo (Paso 1)', 'error');
+        return;
+      }
+
+      try {
+        showStatus('status-save', '⏳ Guardando en Grid...', 'loading');
+
+        const payload = {
+          state: {
+            code: loadedCode
+          },
+          if_updated_at: currentUpdatedAt || ''
+        };
+
+        const res = await fetch(
+          `/api/v1/documents/${DOC_ID}/states/${encodeURIComponent(STATE_NAME)}`,
+          {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          const detail = data.detail || data.message || JSON.stringify(data);
+          throw new Error(detail);
+        }
+
+        currentUpdatedAt = data.updated_at;
+        showStatus('status-save', `✅ Guardado en Grid (${(loadedCode.length / 1024).toFixed(2)} KB)`, 'success');
+      } catch (err) {
+        showStatus('status-save', `❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function verifyFromGrid() {
+      try {
+        showStatus('status-verify', '⏳ Leyendo desde Grid...', 'loading');
+
+        const res = await fetch(
+          `/api/v1/documents/${DOC_ID}/states/${encodeURIComponent(STATE_NAME)}`,
+          { credentials: 'include' }
+        );
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+
+        if (!data.state || !data.state.code) {
+          throw new Error('El bucket no contiene código válido');
+        }
+
+        const savedCode = data.state.code;
+        const match = loadedCode === savedCode;
+
+        if (match) {
+          showStatus('status-verify',
+            `✅ ¡Verificado! El código en Grid coincide exactamente (${(savedCode.length / 1024).toFixed(2)} KB)`,
+            'success');
+        } else {
+          showStatus('status-verify',
+            `⚠️ El código se guardó pero parece diferente (Grid: ${(savedCode.length / 1024).toFixed(2)} KB vs Original: ${(loadedCode.length / 1024).toFixed(2)} KB)`,
+            'error');
+        }
+      } catch (err) {
+        showStatus('status-verify', `❌ Error: ${err.message}`, 'error');
+      }
+    }
+  </script>
+</body>
+</html>
