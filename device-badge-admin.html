@@ -385,9 +385,9 @@
 
       <!-- Estado: root existe, pero yo no tengo wrap -->
       <div id="root-key-no-access" style="display: none;">
-        <div class="alert warning">
-          <div style="margin: 0 0 8px 0;">⚠ Ya existe una root key, pero tu usuario no tiene acceso a ella todavía.</div>
-          <div style="font-family: monospace; background: rgba(0,0,0,.2); padding: 8px; border-radius: 4px; margin-bottom: 8px;" id="no-access-ldap-display"></div>
+        <div class="alert warning" style="flex-direction: column; align-items: flex-start;">
+          <div>⚠ Ya existe una root key, pero tu usuario no tiene acceso a ella todavía.</div>
+          <div style="font-family: monospace; background: rgba(0,0,0,.2); padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box;" id="no-access-ldap-display"></div>
           <div>Pide a un admin que ya tenga acceso que entre a esta misma pantalla y te agregue desde "Agregar administrador".</div>
         </div>
       </div>
