@@ -41,9 +41,10 @@ This threat model identifies residual security risks in the Device Badge cryptog
 **Residual Risk**: If no checkpoint has been created since the fraudulent badges were issued, verification cannot detect tampering. Checkpoints are created on-demand; stale or missing checkpoints mean no integrity anchor.
 
 **Mitigation Timeline**:
-- Auto-checkpoint on admin app open (checks 24h staleness)
-- Manual checkpoint trigger available in admin UI
-- Operator should establish cadence: e.g., daily checkpoints or per-change
+- ✅ Auto-checkpoint on admin app open (checks 24h staleness)
+- ✅ Periodic checkpoint check every 1 hour during session (if passphrase is entered)
+- ✅ Manual checkpoint trigger available in admin UI
+- Operator should establish cadence: e.g., daily checkpoints or per-issuer-change
 
 **Recommendation**: For high-assurance deployments, enable automated daily checkpoints and require operator sign-off on checkpoint integrity before accepting badges issued since the last checkpoint.
 
@@ -69,7 +70,10 @@ This threat model identifies residual security risks in the Device Badge cryptog
 - Between key compromise and key rotation, all new signatures are trusted maliciously
 
 **Mitigation Timeline**:
-- Immediate: Use strong passphrase (20+ random characters)
+- ✅ Immediate: Passphrases cleared from DOM immediately after use
+- ✅ Immediate: No localStorage/sessionStorage usage for secrets
+- ✅ Immediate: Memory-only decryption and usage pattern
+- Recommended: Use strong passphrase (20+ random characters)
 - Medium: Implement secure passphrase storage (1Password, Bitwarden, etc.)
 - Long: Two-admin multi-signature requirement for root key operations (future enhancement)
 
@@ -212,14 +216,20 @@ This threat model identifies residual security risks in the Device Badge cryptog
 
 ---
 
-## Phase 2 Enhancements (Post-Production)
+## Phase 2 Enhancements
 
-- [ ] Badge revocation via signed ledger event (not just key revocation)
-- [ ] Automated daily checkpoint generation
+**Completed**:
+- ✅ Badge revocation via signed ledger event (not just key revocation)
+- ✅ Periodic checkpoint reminder (hourly check during session)
+- ✅ Passphrase memory-only handling verification
+
+**Recommended for Post-Production**:
+- [ ] Automated daily checkpoint generation (scheduled external job)
 - [ ] Centralized badge acceptance log (replay detection)
 - [ ] Two-admin multi-signature for sensitive root operations
 - [ ] Shamir's Secret Sharing for root key recovery
 - [ ] CSP headers on verifier if Grid deployment allows
+- [ ] Badge presentation nonce/challenge for high-assurance deployments
 
 ---
 

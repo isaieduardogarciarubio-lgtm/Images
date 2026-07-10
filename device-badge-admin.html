@@ -997,6 +997,9 @@ async function init() {
     loadIssuers();
     loadCheckpoints();
     checkAndAutoGenerateCheckpoint();
+
+    // Check for stale checkpoints every hour to encourage regular signing
+    setInterval(checkAndAutoGenerateCheckpoint, 60 * 60 * 1000);
   } catch (err) {
     showAlert('alert-root', 'Error: ' + err.message, 'error');
   }
