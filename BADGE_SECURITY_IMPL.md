@@ -10,10 +10,14 @@ Implementación completa de seguridad de badges de dispositivos según especific
 - **device-badge-issuer.html**: Generación de passphrase, onboarding (una sola vez), emisión de badges, renovación, y revocación de badges.
 - **device-badge-verifier.html**: Validación criptográfica completa de badges vía QR o Badge ID manual.
 
-### Librerías compartidas (JavaScript)
+### Librerías (inline en cada HTML)
 
-- **meli-crypt.js**: Criptografía WebCrypto (ECDSA P-256, AES-256-GCM, PBKDF2-SHA256, SHA-256, JSON canonical).
-- **meli-grid.js**: Wrapper unificado para Grid state buckets (lectura/escritura con control optimista).
+Grid sirve cada documento como un archivo autónomo — no resuelve `<script src="archivo.js">` a otros documentos. Por eso `CryptoLib` y `GridAPI` están **inline** dentro de cada uno de los 3 HTMLs (duplicados, no importados):
+
+- **CryptoLib**: Criptografía WebCrypto (ECDSA P-256, AES-256-GCM, PBKDF2-SHA256, SHA-256, JSON canonical).
+- **GridAPI**: Wrapper unificado para Grid state buckets y `/api/v1/me` (lectura/escritura con control optimista).
+
+Si necesitas modificar la lógica de alguna, debes replicar el cambio en los 3 archivos.
 
 ## Almacenamiento (Grid State Buckets)
 
@@ -144,7 +148,7 @@ Si es suspected_compromise, todas las badges de esa llave quedan invalid_key_rev
    window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";  // ← cambiar a tu doc ID
    ```
 
-3. **Sube los 5 archivos** (3 apps + 2 librerías) a Grid como documentos HTML/JS.
+3. **Sube los 3 archivos HTML** a Grid como documentos (cada uno es autónomo, con `CryptoLib`/`GridAPI` inline — no hay archivos JS separados que subir).
 
 4. **Permisos recomendados:**
    - **device-badge-admin.html**: editor = admins solo.
