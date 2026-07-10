@@ -808,12 +808,17 @@ const GridAPI = (() => {
     },
 
     /* Read state bucket by name. defaultValue is returned when the bucket
-       has never been written (Grid returns 200 with state: null, not 404). */
-    async readState(name, defaultValue = null) {
-      if (!window.GRID || !window.GRID.docId) {
+       has never been written (Grid returns 200 with state: null, not 404).
+       docId defaults to window.GRID.docId, but callers can target a
+       different document (e.g. a per-issuer ledger document) by passing
+       one explicitly. */
+    async readState(name, defaultValue = null, docId = null) {
+      const targetDocId = docId || (window.GRID && window.GRID.docId);
+      if (!targetDocId) {
         throw new Error('GRID.docId not set');
       }
-      const url = `/api/v1/documents/${window.GRID.docId}/states/${encodeURIComponent(name)}`;
+      const cacheKey = `${targetDocId}::${name}`;
+      const url = `/api/v1/documents/${targetDocId}/states/${encodeURIComponent(name)}`;
       let res;
       try {
         res = await fetchJson(url);
@@ -823,7 +828,7 @@ const GridAPI = (() => {
         throw err;
       }
       if (window.GRID._stateUpdatedAtByName) {
-        window.GRID._stateUpdatedAtByName[name] = res.updated_at;
+        window.GRID._stateUpdatedAtByName[cacheKey] = res.updated_at;
       }
       const state = res.state;
       if (state === undefined || state === null) return defaultValue;
@@ -837,23 +842,25 @@ const GridAPI = (() => {
        whose meaningful content is an array (issuer_keys, badge_ledger_*)
        is stored wrapped as { list: [...] } and unwrapped here so callers
        can keep treating it as a plain array. */
-    async readList(name) {
-      const wrapped = await this.readState(name, { list: [] });
+    async readList(name, docId = null) {
+      const wrapped = await this.readState(name, { list: [] }, docId);
       return Array.isArray(wrapped.list) ? wrapped.list : [];
     },
 
-    async writeList(name, arr) {
-      return this.setState(name, { list: arr });
+    async writeList(name, arr, docId = null) {
+      return this.setState(name, { list: arr }, docId);
     },
 
     /* Write state bucket (PUT with control optimistic) */
-    async setState(name, state) {
-      if (!window.GRID || !window.GRID.docId) {
+    async setState(name, state, docId = null) {
+      const targetDocId = docId || (window.GRID && window.GRID.docId);
+      if (!targetDocId) {
         throw new Error('GRID.docId not set');
       }
 
-      const url = `/api/v1/documents/${window.GRID.docId}/states/${encodeURIComponent(name)}`;
-      const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[name];
+      const cacheKey = `${targetDocId}::${name}`;
+      const url = `/api/v1/documents/${targetDocId}/states/${encodeURIComponent(name)}`;
+      const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[cacheKey];
 
       const fn = async () => {
         const res = await fetchJson(url, {
@@ -861,7 +868,7 @@ const GridAPI = (() => {
           body: { state, if_updated_at: ifUpdatedAt || '' }
         });
         if (window.GRID._stateUpdatedAtByName) {
-          window.GRID._stateUpdatedAtByName[name] = res.updated_at;
+          window.GRID._stateUpdatedAtByName[cacheKey] = res.updated_at;
         }
         return res;
       };
@@ -870,13 +877,15 @@ const GridAPI = (() => {
     },
 
     /* Patch state bucket */
-    async patchState(name, patch) {
-      if (!window.GRID || !window.GRID.docId) {
+    async patchState(name, patch, docId = null) {
+      const targetDocId = docId || (window.GRID && window.GRID.docId);
+      if (!targetDocId) {
         throw new Error('GRID.docId not set');
       }
 
-      const url = `/api/v1/documents/${window.GRID.docId}/states/${encodeURIComponent(name)}`;
-      const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[name];
+      const cacheKey = `${targetDocId}::${name}`;
+      const url = `/api/v1/documents/${targetDocId}/states/${encodeURIComponent(name)}`;
+      const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[cacheKey];
 
       const fn = async () => {
         const res = await fetchJson(url, {
@@ -884,7 +893,7 @@ const GridAPI = (() => {
           body: { patch, if_updated_at: ifUpdatedAt || '' }
         });
         if (window.GRID._stateUpdatedAtByName) {
-          window.GRID._stateUpdatedAtByName[name] = res.updated_at;
+          window.GRID._stateUpdatedAtByName[cacheKey] = res.updated_at;
         }
         return res;
       };
@@ -1132,14 +1141,19 @@ document.getElementById('btn-emit').addEventListener('click', async () => {
     };
 
     const ledgerName = `badge_ledger_${issuerKeyData.key_id}`;
+    // If the admin set up a dedicated Grid document for this issuer's
+    // ledger (see ledger_doc_id in issuer_keys), write there instead of the
+    // shared document — that's what actually keeps one issuer from being
+    // able to edit another issuer's history.
+    const ledgerDocId = issuerKeyData.ledger_doc_id || null;
     let ledger = [];
     try {
-      ledger = await GridAPI.readList(ledgerName);
+      ledger = await GridAPI.readList(ledgerName, ledgerDocId);
     } catch {}
 
     event.previous_event_hash = ledger.length > 0 ? ledger[ledger.length - 1].event_hash : null;
     ledger.push(event);
-    await GridAPI.writeList(ledgerName, ledger);
+    await GridAPI.writeList(ledgerName, ledger, ledgerDocId);
 
     const registry = await GridAPI.readState('badge_registry', {});
     registry[badgeId] = {

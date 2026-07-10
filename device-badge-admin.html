@@ -224,6 +224,26 @@
       text-align: center;
       word-break: break-all;
     }
+    .checkpoint-card {
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 16px;
+      background: var(--surface-2);
+    }
+    .checkpoint-card.ok { border-color: rgba(0,214,137,.4); background: rgba(0,214,137,.06); }
+    .checkpoint-card.alert { border-color: rgba(255,92,108,.5); background: rgba(255,92,108,.08); }
+    .checkpoint-card.first { border-color: var(--border); }
+    .checkpoint-card-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .checkpoint-card-title .status-ok { color: var(--c-green); }
+    .checkpoint-card-title .status-alert { color: var(--c-red); }
+    .checkpoint-card-desc { font-size: 13px; color: var(--text-sub); line-height: 1.5; }
+    .checkpoint-card-actions { margin-top: 10px; display: flex; gap: 8px; }
     .modal-bg {
       display: none;
       position: fixed;
@@ -305,11 +325,17 @@
     <div class="panel">
       <div id="alert-root"></div>
       <h2 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Root Key (Admin)</h2>
-      <p style="color: var(--text-sub); font-size: 13px; margin: 0 0 16px 0;">La root key firma la lista de emisores autorizados. No se recupera ni exporta.</p>
+      <p style="color: var(--text-sub); font-size: 13px; margin: 0 0 16px 0;">
+        La root key firma la lista de emisores autorizados. Es UNA sola llave, pero cada admin la
+        desbloquea con SU PROPIA passphrase (como una caja fuerte con varias combinaciones). Si un
+        admin olvida la suya, otro admin activo puede darle una nueva sin rotar la llave ni redesplegar
+        el verificador.
+      </p>
 
-      <div id="root-key-status">
+      <!-- Estado: ya tengo acceso -->
+      <div id="root-key-status" style="display: none;">
         <div class="alert success">
-          ✓ Root key generada. Guarda tu passphrase en un lugar seguro.
+          ✓ Tienes acceso a la root key.
         </div>
         <div class="form-group">
           <label>Key ID:</label>
@@ -322,13 +348,54 @@
         <div class="form-group">
           <label>Root Public Key (JWK) — pégala en PINNED_ROOT_PUBLIC_KEY_JWK dentro de device-badge-verifier.html:</label>
           <textarea id="root-public-key-jwk" class="input" rows="4" readonly style="font-family: 'Courier New', monospace; font-size: 12px; resize: vertical;"></textarea>
-          <div class="input-hint">Cada vez que rotes la root key (ej. passphrase olvidada), actualiza este valor en el verificador y vuelve a desplegarlo.</div>
+          <div class="input-hint">Este valor NO cambia al agregar/quitar admins — solo cambia si rotas la root key por completo (ver abajo).</div>
+        </div>
+
+        <fieldset style="margin-top: 16px;">
+          <legend>Administradores con acceso</legend>
+          <div class="table-wrapper" style="min-height: 120px;">
+            <table>
+              <thead>
+                <tr><th>LDAP</th><th>Desde</th><th>Acciones</th></tr>
+              </thead>
+              <tbody id="root-admins-tbody"></tbody>
+            </table>
+          </div>
+        </fieldset>
+
+        <fieldset style="margin-top: 16px;">
+          <legend>Agregar administrador</legend>
+          <div class="form-group">
+            <label for="new-admin-ldap">LDAP del nuevo admin</label>
+            <input type="text" id="new-admin-ldap" class="input" placeholder="Ej. jperez" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="add-admin-my-passphrase">Tu passphrase (para desbloquear la root key)</label>
+            <input type="password" id="add-admin-my-passphrase" class="input" autocomplete="off" />
+          </div>
+          <div class="btn-group">
+            <button id="btn-add-admin" class="btn btn-primary">Generar Acceso Para Nuevo Admin</button>
+          </div>
+          <div id="new-admin-passphrase-result" style="display: none; margin-top: 12px;">
+            <div class="alert warning">⚠ Comparte esta passphrase con el nuevo admin por un canal seguro. No se vuelve a mostrar.</div>
+            <div id="new-admin-passphrase-box" class="passphrase-box"></div>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- Estado: root existe, pero yo no tengo wrap -->
+      <div id="root-key-no-access" style="display: none;">
+        <div class="alert warning">
+          ⚠ Ya existe una root key, pero tu usuario (<b id="no-access-ldap"></b>) no tiene acceso a ella todavía.
+          Pide a un admin que ya tenga acceso que entre a esta misma pantalla y te agregue desde
+          "Agregar administrador".
         </div>
       </div>
 
+      <!-- Estado: primera vez, no existe root key -->
       <div id="root-key-generate" style="display: none;">
         <div class="alert warning">
-          ⚠ Esta es tu primera vez. Genera la root key. La passphrase no se puede recuperar.
+          ⚠ Todavía no existe una root key. Genera la primera. La passphrase no se puede recuperar.
         </div>
         <div class="form-group">
           <label>Passphrase (generada):</label>
@@ -345,6 +412,18 @@
           <button id="btn-confirm-root" class="btn btn-primary" disabled>Confirmar</button>
         </div>
       </div>
+
+      <!-- Rotación total: solo para pérdida catastrófica o compromiso -->
+      <fieldset id="root-key-rotate-section" style="margin-top: 24px; display: none; border-color: rgba(255,92,108,.4);">
+        <legend style="color: var(--c-red);">Zona de peligro: Rotar Root Key</legend>
+        <p style="color: var(--text-sub); font-size: 13px; margin: 0 0 12px 0;">
+          Solo usa esto si TODOS los admins perdieron su passphrase a la vez, o si sospechas que la
+          root key está comprometida. Esto genera una llave nueva, invalida trusted_issuers actual
+          (hay que volver a aprobar emisores) y requiere actualizar PINNED_ROOT_PUBLIC_KEY_JWK en
+          device-badge-verifier.html y volver a desplegarlo.
+        </p>
+        <button id="btn-rotate-root" class="btn btn-danger">Rotar Root Key (acción destructiva)</button>
+      </fieldset>
     </div>
   </div>
 
@@ -387,8 +466,18 @@
     <div class="panel">
       <div id="alert-issuers"></div>
       <h2 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Gestión de Emisores</h2>
+      <p style="color: var(--text-sub); font-size: 13px; margin: 0 0 16px 0;">
+        Para aislar el historial de cada emisor, crea un documento Grid nuevo para su ledger, compártelo
+        con ese emisor + los admins, y pega aquí el docId. Si lo dejas vacío, su ledger vive en este
+        mismo documento compartido (menos aislado, pero funcional).
+      </p>
 
-      <h3 style="margin-top: 0; color: var(--text); font-size: 16px;">Emisores Activos</h3>
+      <div class="form-group" style="max-width: 360px;">
+        <label for="issuers-root-passphrase">Tu Root Passphrase (para aprobar emisores)</label>
+        <input type="password" id="issuers-root-passphrase" class="input" autocomplete="off" placeholder="Necesaria solo al presionar Aprobar" />
+      </div>
+
+      <h3 style="margin-top: 16px; color: var(--text); font-size: 16px;">Emisores</h3>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -397,11 +486,12 @@
               <th>Key ID</th>
               <th>Estado</th>
               <th>Creada</th>
+              <th>Ledger Doc ID</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody id="issuers-list-tbody">
-            <tr><td colspan="5" style="text-align: center; color: var(--text-mut);">Cargando...</td></tr>
+            <tr><td colspan="6" style="text-align: center; color: var(--text-mut);">Cargando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -427,21 +517,9 @@
         </div>
       </fieldset>
 
-      <h3 style="margin-top: 24px; color: var(--text); font-size: 16px;">Últimos Checkpoints</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Emisor (Key ID)</th>
-              <th>Último Hash</th>
-              <th>Firmado Por Admin</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody id="checkpoints-list-tbody">
-            <tr><td colspan="4" style="text-align: center; color: var(--text-mut);">Cargando...</td></tr>
-          </tbody>
-        </table>
+      <h3 style="margin-top: 24px; color: var(--text); font-size: 16px;">Estado por emisor</h3>
+      <div id="checkpoints-cards" style="flex: 1; min-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+        <p style="color: var(--text-mut); text-align: center;">Cargando...</p>
       </div>
     </div>
   </div>
@@ -462,6 +540,10 @@
           <option value="suspected_compromise">Compromiso sospechado</option>
           <option value="admin_revoke">Decisión administrativa</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label for="revoke-root-passphrase">Tu Root Passphrase (para re-firmar trusted_issuers)</label>
+        <input type="password" id="revoke-root-passphrase" class="input" autocomplete="off" />
       </div>
       <div class="modal-foot">
         <button class="btn btn-secondary" id="btn-cancel-revoke">Cancelar</button>
@@ -776,12 +858,17 @@ const GridAPI = (() => {
     },
 
     /* Read state bucket by name. defaultValue is returned when the bucket
-       has never been written (Grid returns 200 with state: null, not 404). */
-    async readState(name, defaultValue = null) {
-      if (!window.GRID || !window.GRID.docId) {
+       has never been written (Grid returns 200 with state: null, not 404).
+       docId defaults to window.GRID.docId, but callers can target a
+       different document (e.g. a per-issuer ledger document) by passing
+       one explicitly. */
+    async readState(name, defaultValue = null, docId = null) {
+      const targetDocId = docId || (window.GRID && window.GRID.docId);
+      if (!targetDocId) {
         throw new Error('GRID.docId not set');
       }
-      const url = `/api/v1/documents/${window.GRID.docId}/states/${encodeURIComponent(name)}`;
+      const cacheKey = `${targetDocId}::${name}`;
+      const url = `/api/v1/documents/${targetDocId}/states/${encodeURIComponent(name)}`;
       let res;
       try {
         res = await fetchJson(url);
@@ -791,7 +878,7 @@ const GridAPI = (() => {
         throw err;
       }
       if (window.GRID._stateUpdatedAtByName) {
-        window.GRID._stateUpdatedAtByName[name] = res.updated_at;
+        window.GRID._stateUpdatedAtByName[cacheKey] = res.updated_at;
       }
       const state = res.state;
       if (state === undefined || state === null) return defaultValue;
@@ -805,23 +892,25 @@ const GridAPI = (() => {
        whose meaningful content is an array (issuer_keys, badge_ledger_*)
        is stored wrapped as { list: [...] } and unwrapped here so callers
        can keep treating it as a plain array. */
-    async readList(name) {
-      const wrapped = await this.readState(name, { list: [] });
+    async readList(name, docId = null) {
+      const wrapped = await this.readState(name, { list: [] }, docId);
       return Array.isArray(wrapped.list) ? wrapped.list : [];
     },
 
-    async writeList(name, arr) {
-      return this.setState(name, { list: arr });
+    async writeList(name, arr, docId = null) {
+      return this.setState(name, { list: arr }, docId);
     },
 
     /* Write state bucket (PUT with control optimistic) */
-    async setState(name, state) {
-      if (!window.GRID || !window.GRID.docId) {
+    async setState(name, state, docId = null) {
+      const targetDocId = docId || (window.GRID && window.GRID.docId);
+      if (!targetDocId) {
         throw new Error('GRID.docId not set');
       }
 
-      const url = `/api/v1/documents/${window.GRID.docId}/states/${encodeURIComponent(name)}`;
-      const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[name];
+      const cacheKey = `${targetDocId}::${name}`;
+      const url = `/api/v1/documents/${targetDocId}/states/${encodeURIComponent(name)}`;
+      const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[cacheKey];
 
       const fn = async () => {
         const res = await fetchJson(url, {
@@ -829,7 +918,7 @@ const GridAPI = (() => {
           body: { state, if_updated_at: ifUpdatedAt || '' }
         });
         if (window.GRID._stateUpdatedAtByName) {
-          window.GRID._stateUpdatedAtByName[name] = res.updated_at;
+          window.GRID._stateUpdatedAtByName[cacheKey] = res.updated_at;
         }
         return res;
       };
@@ -838,13 +927,15 @@ const GridAPI = (() => {
     },
 
     /* Patch state bucket */
-    async patchState(name, patch) {
-      if (!window.GRID || !window.GRID.docId) {
+    async patchState(name, patch, docId = null) {
+      const targetDocId = docId || (window.GRID && window.GRID.docId);
+      if (!targetDocId) {
         throw new Error('GRID.docId not set');
       }
 
-      const url = `/api/v1/documents/${window.GRID.docId}/states/${encodeURIComponent(name)}`;
-      const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[name];
+      const cacheKey = `${targetDocId}::${name}`;
+      const url = `/api/v1/documents/${targetDocId}/states/${encodeURIComponent(name)}`;
+      const ifUpdatedAt = window.GRID._stateUpdatedAtByName && window.GRID._stateUpdatedAtByName[cacheKey];
 
       const fn = async () => {
         const res = await fetchJson(url, {
@@ -852,7 +943,7 @@ const GridAPI = (() => {
           body: { patch, if_updated_at: ifUpdatedAt || '' }
         });
         if (window.GRID._stateUpdatedAtByName) {
-          window.GRID._stateUpdatedAtByName[name] = res.updated_at;
+          window.GRID._stateUpdatedAtByName[cacheKey] = res.updated_at;
         }
         return res;
       };
@@ -913,22 +1004,63 @@ async function init() {
 async function loadRootKey() {
   try {
     const state = await GridAPI.readState('public_config', {});
-    if (state.root_key_id) {
-      rootKeyData = { key_id: state.root_key_id, created_at: state.root_key_created_at };
-      document.getElementById('root-key-status').style.display = 'block';
-      document.getElementById('root-key-generate').style.display = 'none';
-      document.getElementById('root-key-id').value = rootKeyData.key_id;
-      document.getElementById('root-key-created').value = new Date(rootKeyData.created_at).toLocaleString();
-      document.getElementById('root-public-key-jwk').value = state.root_public_key ? JSON.stringify(state.root_public_key) : '';
-    } else {
-      document.getElementById('root-key-status').style.display = 'none';
+    document.getElementById('root-key-status').style.display = 'none';
+    document.getElementById('root-key-no-access').style.display = 'none';
+    document.getElementById('root-key-generate').style.display = 'none';
+    document.getElementById('root-key-rotate-section').style.display = 'none';
+
+    if (!state.root_key_id) {
       document.getElementById('root-key-generate').style.display = 'block';
+      return;
     }
+
+    const wraps = state.root_key_wraps || [];
+    const myWrap = wraps.find(w => w.admin_ldap === currentUser);
+
+    rootKeyData = { key_id: state.root_key_id, created_at: state.root_key_created_at };
+    document.getElementById('root-key-rotate-section').style.display = 'block';
+
+    if (!myWrap) {
+      document.getElementById('root-key-no-access').style.display = 'block';
+      document.getElementById('no-access-ldap').textContent = currentUser;
+      return;
+    }
+
+    document.getElementById('root-key-status').style.display = 'block';
+    document.getElementById('root-key-id').value = rootKeyData.key_id;
+    document.getElementById('root-key-created').value = new Date(rootKeyData.created_at).toLocaleString();
+    document.getElementById('root-public-key-jwk').value = state.root_public_key ? JSON.stringify(state.root_public_key) : '';
+
+    const tbody = document.getElementById('root-admins-tbody');
+    tbody.innerHTML = wraps.map(w => `
+      <tr>
+        <td>${w.admin_ldap}</td>
+        <td>${w.created_at ? new Date(w.created_at).toLocaleDateString() : '—'}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="revokeAdminAccess('${w.admin_ldap}')" ${wraps.length <= 1 ? 'disabled title="No puedes quitar el único acceso restante"' : ''}>Quitar acceso</button></td>
+      </tr>
+    `).join('');
   } catch (err) {
     console.error(err);
     document.getElementById('root-key-generate').style.display = 'block';
   }
 }
+
+window.revokeAdminAccess = async (ldap) => {
+  try {
+    const config = await GridAPI.readState('public_config', {});
+    const wraps = config.root_key_wraps || [];
+    if (wraps.length <= 1) {
+      showAlert('alert-root', 'No puedes quitar el único acceso restante a la root key.', 'error');
+      return;
+    }
+    config.root_key_wraps = wraps.filter(w => w.admin_ldap !== ldap);
+    await GridAPI.setState('public_config', config);
+    showAlert('alert-root', `Acceso de ${ldap} removido ✓`, 'success');
+    loadRootKey();
+  } catch (err) {
+    showAlert('alert-root', 'Error: ' + err.message, 'error');
+  }
+};
 
 /* TABS */
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -976,19 +1108,118 @@ document.getElementById('btn-confirm-root').addEventListener('click', async () =
     config.root_key_id = keyId;
     config.root_key_created_at = new Date().toISOString();
     config.root_public_key = publicJwk;
-    config.root_encrypted_private_key = encrypted.ciphertext;
-    config.root_salt = encrypted.salt;
-    config.root_iv = encrypted.iv;
+    config.root_key_wraps = [{
+      admin_ldap: currentUser,
+      encrypted_private_key: encrypted.ciphertext,
+      salt: encrypted.salt,
+      iv: encrypted.iv,
+      created_at: new Date().toISOString()
+    }];
 
     await GridAPI.setState('public_config', config);
 
     rootKeyData = { key_id: keyId, created_at: config.root_key_created_at };
     currentRootPassphrase = null;
     await loadRootKey();
-    showAlert('alert-root', 'Root key generada ✓', 'success');
+    showAlert('alert-root', 'Root key generada ✓. Ya tienes acceso.', 'success');
   } catch (err) {
     showAlert('alert-root', 'Error: ' + err.message, 'error');
     document.getElementById('btn-confirm-root').disabled = false;
+  }
+});
+
+/* AGREGAR ADMIN — re-envuelve la MISMA root private key con una passphrase
+   nueva para otro admin. No cambia la key pair, no requiere redeploy. */
+document.getElementById('btn-add-admin').addEventListener('click', async () => {
+  const newAdminLdap = document.getElementById('new-admin-ldap').value.trim().toLowerCase();
+  const myPassphrase = document.getElementById('add-admin-my-passphrase').value;
+
+  if (!newAdminLdap || !myPassphrase) {
+    showAlert('alert-root', 'Ingresa el LDAP del nuevo admin y tu propia passphrase', 'error');
+    return;
+  }
+
+  try {
+    document.getElementById('btn-add-admin').disabled = true;
+    const config = await GridAPI.readState('public_config', {});
+    const wraps = config.root_key_wraps || [];
+    const myWrap = wraps.find(w => w.admin_ldap === currentUser);
+    if (!myWrap) {
+      showAlert('alert-root', 'Tu usuario no tiene acceso a la root key todavía.', 'error');
+      return;
+    }
+    if (wraps.some(w => w.admin_ldap === newAdminLdap)) {
+      showAlert('alert-root', `${newAdminLdap} ya tiene acceso.`, 'error');
+      return;
+    }
+
+    const privateJwk = await CryptoLib.decryptPrivateKey(
+      myWrap.encrypted_private_key,
+      myPassphrase,
+      myWrap.salt,
+      myWrap.iv
+    );
+    const privateKey = await CryptoLib.importPrivateKey(privateJwk);
+
+    const newAdminPassphrase = CryptoLib.generatePassphrase();
+    const encrypted = await CryptoLib.encryptPrivateKey(privateKey, newAdminPassphrase);
+
+    wraps.push({
+      admin_ldap: newAdminLdap,
+      encrypted_private_key: encrypted.ciphertext,
+      salt: encrypted.salt,
+      iv: encrypted.iv,
+      created_at: new Date().toISOString()
+    });
+    config.root_key_wraps = wraps;
+    await GridAPI.setState('public_config', config);
+
+    document.getElementById('new-admin-passphrase-box').textContent = newAdminPassphrase;
+    document.getElementById('new-admin-passphrase-result').style.display = 'block';
+    document.getElementById('new-admin-ldap').value = '';
+    document.getElementById('add-admin-my-passphrase').value = '';
+    showAlert('alert-root', `Acceso generado para ${newAdminLdap} ✓`, 'success');
+    loadRootKey();
+  } catch (err) {
+    showAlert('alert-root', 'Error: ' + err.message, 'error');
+  } finally {
+    document.getElementById('btn-add-admin').disabled = false;
+  }
+});
+
+/* ROTACIÓN TOTAL — solo para pérdida catastrófica o compromiso sospechado */
+document.getElementById('btn-rotate-root').addEventListener('click', async () => {
+  const confirmed = confirm(
+    'Esto genera una root key COMPLETAMENTE NUEVA. Todos los accesos de admin actuales se pierden, ' +
+    'trusted_issuers deja de ser válido hasta que la vuelvas a firmar, y tendrás que actualizar ' +
+    'PINNED_ROOT_PUBLIC_KEY_JWK en el verificador y redesplegarlo. ¿Continuar?'
+  );
+  if (!confirmed) return;
+
+  try {
+    const keyPair = await CryptoLib.generateKeyPair();
+    const keyId = `root-${new Date().toISOString().split('T')[0]}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+    const newPassphrase = CryptoLib.generatePassphrase();
+    const encrypted = await CryptoLib.encryptPrivateKey(keyPair.privateKey, newPassphrase);
+    const publicJwk = await CryptoLib.exportPublicKey(keyPair.publicKey);
+
+    const config = await GridAPI.readState('public_config', {});
+    config.root_key_id = keyId;
+    config.root_key_created_at = new Date().toISOString();
+    config.root_public_key = publicJwk;
+    config.root_key_wraps = [{
+      admin_ldap: currentUser,
+      encrypted_private_key: encrypted.ciphertext,
+      salt: encrypted.salt,
+      iv: encrypted.iv,
+      created_at: new Date().toISOString()
+    }];
+    await GridAPI.setState('public_config', config);
+
+    showAlert('alert-root', `Root key rotada ✓. Tu nueva passphrase: ${newPassphrase} — guárdala ahora, re-firma trusted_issuers y actualiza el verificador.`, 'warning');
+    loadRootKey();
+  } catch (err) {
+    showAlert('alert-root', 'Error: ' + err.message, 'error');
   }
 });
 
@@ -1053,7 +1284,7 @@ async function loadIssuers() {
     const keys = await GridAPI.readList('issuer_keys');
     const tbody = document.getElementById('issuers-list-tbody');
     if (!keys.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';
       return;
     }
     tbody.innerHTML = keys.map(k => `
@@ -1062,13 +1293,111 @@ async function loadIssuers() {
         <td style="font-family: monospace; font-size: 11px;">${k.key_id}</td>
         <td><span style="background: ${k.status === 'active' ? 'rgba(0,214,137,.2)' : 'rgba(255,92,108,.2)'}; color: ${k.status === 'active' ? '#7FE9C2' : '#FFB3BB'}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${k.status}</span></td>
         <td>${new Date(k.created_at).toLocaleDateString()}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="openRevokeModal('${k.key_id}')">Revocar</button></td>
+        <td>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <input type="text" class="input" style="font-size: 11px; padding: 6px 8px; width: 140px;"
+                   id="ledger-doc-${k.key_id}" value="${k.ledger_doc_id || ''}" placeholder="docId (opcional)" />
+            <button class="btn btn-secondary btn-sm" onclick="saveLedgerDocId('${k.key_id}')">Guardar</button>
+          </div>
+        </td>
+        <td>
+          <div style="display: flex; gap: 6px;">
+            ${k.status === 'pending_approval' ? `<button class="btn btn-primary btn-sm" onclick="approveIssuer('${k.key_id}')">Aprobar</button>` : ''}
+            <button class="btn btn-danger btn-sm" onclick="openRevokeModal('${k.key_id}')">Revocar</button>
+          </div>
+        </td>
       </tr>
     `).join('');
   } catch (err) {
     console.error(err);
   }
 }
+
+window.approveIssuer = async (keyId) => {
+  const passphrase = document.getElementById('issuers-root-passphrase').value;
+  if (!passphrase) {
+    showAlert('alert-issuers', 'Ingresa tu root passphrase arriba antes de aprobar', 'error');
+    return;
+  }
+  try {
+    const config = await GridAPI.readState('public_config', {});
+    const wraps = config.root_key_wraps || [];
+    const myWrap = wraps.find(w => w.admin_ldap === currentUser);
+    if (!myWrap) {
+      showAlert('alert-issuers', 'Tu usuario no tiene acceso a la root key todavía.', 'error');
+      return;
+    }
+
+    const privateJwk = await CryptoLib.decryptPrivateKey(myWrap.encrypted_private_key, passphrase, myWrap.salt, myWrap.iv);
+    const privateKey = await CryptoLib.importPrivateKey(privateJwk);
+
+    const keys = await GridAPI.readList('issuer_keys');
+    const key = keys.find(k => k.key_id === keyId);
+    if (!key) {
+      showAlert('alert-issuers', 'Emisor no encontrado', 'error');
+      return;
+    }
+    key.status = 'active';
+    key.approved_by = currentUser;
+    key.approved_at = new Date().toISOString();
+    await GridAPI.writeList('issuer_keys', keys);
+
+    const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
+    const existingEntry = trustedIssuers.issuers.find(i => i.key_id === keyId);
+    const entry = {
+      key_id: key.key_id,
+      ldap: key.ldap,
+      public_key_jwk: key.public_key_jwk,
+      status: 'active',
+      ledger_doc_id: key.ledger_doc_id || null
+    };
+    if (existingEntry) {
+      Object.assign(existingEntry, entry);
+    } else {
+      trustedIssuers.issuers.push(entry);
+    }
+
+    trustedIssuers.signed_by_root_at = new Date().toISOString();
+    const signaturePayload = {
+      issuers: trustedIssuers.issuers,
+      signed_by_root_at: trustedIssuers.signed_by_root_at
+    };
+    trustedIssuers.signature = await CryptoLib.signPayload(signaturePayload, privateKey);
+
+    await GridAPI.setState('trusted_issuers', trustedIssuers);
+
+    document.getElementById('issuers-root-passphrase').value = '';
+    showAlert('alert-issuers', `${key.ldap} aprobado y firmado en trusted_issuers ✓`, 'success');
+    loadIssuers();
+  } catch (err) {
+    showAlert('alert-issuers', 'Error: ' + err.message, 'error');
+  }
+};
+
+window.saveLedgerDocId = async (keyId) => {
+  try {
+    const newDocId = document.getElementById(`ledger-doc-${keyId}`).value.trim();
+    const keys = await GridAPI.readList('issuer_keys');
+    const key = keys.find(k => k.key_id === keyId);
+    if (key) {
+      key.ledger_doc_id = newDocId || null;
+    }
+    await GridAPI.writeList('issuer_keys', keys);
+
+    // Mirror it into trusted_issuers too, so the verifier (which doesn't
+    // read issuer_keys) knows which document holds this issuer's ledger.
+    const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
+    const trustedEntry = trustedIssuers.issuers.find(i => i.key_id === keyId);
+    if (trustedEntry) {
+      trustedEntry.ledger_doc_id = newDocId || null;
+      await GridAPI.setState('trusted_issuers', trustedIssuers);
+    }
+
+    showAlert('alert-issuers', 'Ledger Doc ID guardado ✓' + (trustedEntry ? '' : ' (nota: este emisor aún no está en trusted_issuers, se sincronizará al aprobarlo)'), 'success');
+  } catch (err) {
+    showAlert('alert-issuers', 'Error: ' + err.message, 'error');
+  }
+};
 
 window.openRevokeModal = (keyId) => {
   revokeTargetKeyId = keyId;
@@ -1087,11 +1416,26 @@ document.getElementById('btn-cancel-revoke').addEventListener('click', () => {
 
 document.getElementById('btn-confirm-revoke').addEventListener('click', async () => {
   const reason = document.getElementById('revoke-reason').value;
+  const passphrase = document.getElementById('revoke-root-passphrase').value;
   if (!reason) {
     showAlert('alert-issuers', 'Selecciona un motivo', 'error');
     return;
   }
+  if (!passphrase) {
+    showAlert('alert-issuers', 'Ingresa tu root passphrase para re-firmar trusted_issuers', 'error');
+    return;
+  }
   try {
+    const config = await GridAPI.readState('public_config', {});
+    const wraps = config.root_key_wraps || [];
+    const myWrap = wraps.find(w => w.admin_ldap === currentUser);
+    if (!myWrap) {
+      showAlert('alert-issuers', 'Tu usuario no tiene acceso a la root key todavía.', 'error');
+      return;
+    }
+    const privateJwk = await CryptoLib.decryptPrivateKey(myWrap.encrypted_private_key, passphrase, myWrap.salt, myWrap.iv);
+    const privateKey = await CryptoLib.importPrivateKey(privateJwk);
+
     const keys = await GridAPI.readList('issuer_keys');
     const key = keys.find(k => k.key_id === revokeTargetKeyId);
     if (key) {
@@ -1101,6 +1445,21 @@ document.getElementById('btn-confirm-revoke').addEventListener('click', async ()
       key.revoked_by = currentUser;
     }
     await GridAPI.writeList('issuer_keys', keys);
+
+    // Sin esto, el verifier seguiría viendo esta llave como "active" en
+    // trusted_issuers y aceptando firmas suyas — la revocación real vive aquí.
+    const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
+    const trustedEntry = trustedIssuers.issuers.find(i => i.key_id === revokeTargetKeyId);
+    if (trustedEntry) {
+      trustedEntry.status = 'revoked';
+      trustedIssuers.signed_by_root_at = new Date().toISOString();
+      const signaturePayload = {
+        issuers: trustedIssuers.issuers,
+        signed_by_root_at: trustedIssuers.signed_by_root_at
+      };
+      trustedIssuers.signature = await CryptoLib.signPayload(signaturePayload, privateKey);
+      await GridAPI.setState('trusted_issuers', trustedIssuers);
+    }
 
     if (reason === 'suspected_compromise') {
       const registry = await GridAPI.readState('badge_registry', {});
@@ -1112,8 +1471,9 @@ document.getElementById('btn-confirm-revoke').addEventListener('click', async ()
       await GridAPI.setState('badge_registry', registry);
     }
 
+    document.getElementById('revoke-root-passphrase').value = '';
     document.getElementById('modal-revoke').classList.remove('active');
-    showAlert('alert-issuers', 'Key revocada ✓', 'success');
+    showAlert('alert-issuers', 'Key revocada y trusted_issuers re-firmado ✓', 'success');
     loadIssuers();
   } catch (err) {
     showAlert('alert-issuers', 'Error: ' + err.message, 'error');
@@ -1134,40 +1494,99 @@ document.getElementById('btn-generate-checkpoint').addEventListener('click', asy
       return;
     }
 
+    const wraps = config.root_key_wraps || [];
+    const myWrap = wraps.find(w => w.admin_ldap === currentUser);
+    if (!myWrap) {
+      showAlert('alert-checkpoints', 'Tu usuario no tiene acceso a la root key todavía.', 'error');
+      return;
+    }
+
     const privateJwk = await CryptoLib.decryptPrivateKey(
-      config.root_encrypted_private_key,
+      myWrap.encrypted_private_key,
       passphrase,
-      config.root_salt,
-      config.root_iv
+      myWrap.salt,
+      myWrap.iv
     );
     const privateKey = await CryptoLib.importPrivateKey(privateJwk);
 
     const keys = await GridAPI.readList('issuer_keys');
     const checkpoints = await GridAPI.readState('checkpoints', {});
+    let alertCount = 0;
 
     for (const key of keys) {
-      if (key.status === 'active') {
-        const ledgerName = `badge_ledger_${key.key_id}`;
-        const ledger = await GridAPI.readList(ledgerName);
-        const lastHash = ledger.length > 0 ? ledger[ledger.length - 1].event_hash : null;
+      if (key.status !== 'active') continue;
 
-        const checkpoint = {
-          key_id: key.key_id,
-          latest_event_hash: lastHash,
-          created_at: new Date().toISOString(),
-          signed_by_root: true
-        };
+      const ledgerName = `badge_ledger_${key.key_id}`;
+      const ledgerDocId = key.ledger_doc_id || null;
+      const ledger = await GridAPI.readList(ledgerName, ledgerDocId);
+      const lastHash = ledger.length > 0 ? ledger[ledger.length - 1].event_hash : null;
+      const previousCheckpoint = checkpoints[key.key_id];
 
-        const signature = await CryptoLib.signPayload(checkpoint, privateKey);
-        checkpoint.signature = signature;
-
-        checkpoints[key.key_id] = checkpoint;
+      // Compara contra el checkpoint anterior: si su hash-ancla ya no
+      // aparece en la cadena actual, alguien reescribió historia pasada.
+      let status, newEventsCount = null, anchorFoundAtIndex = null;
+      if (!previousCheckpoint) {
+        status = 'first';
+      } else if (!previousCheckpoint.latest_event_hash) {
+        status = 'first';
+      } else {
+        anchorFoundAtIndex = ledger.findIndex(e => e.event_hash === previousCheckpoint.latest_event_hash);
+        if (anchorFoundAtIndex === -1) {
+          status = 'alert';
+          alertCount++;
+        } else {
+          status = 'ok';
+          newEventsCount = ledger.length - 1 - anchorFoundAtIndex;
+        }
       }
+
+      const checkpoint = {
+        key_id: key.key_id,
+        ldap: key.ldap,
+        ledger_doc_id: ledgerDocId,
+        latest_event_hash: lastHash,
+        event_count: ledger.length,
+        created_at: new Date().toISOString(),
+        signed_by_root: true,
+        status,
+        new_events_count: newEventsCount,
+        previous_checkpoint: previousCheckpoint ? {
+          created_at: previousCheckpoint.created_at,
+          latest_event_hash: previousCheckpoint.latest_event_hash
+        } : null,
+        ledger_snapshot: ledger.map(e => ({
+          event_hash: e.event_hash,
+          previous_event_hash: e.previous_event_hash,
+          event_type: e.payload && e.payload.event_type,
+          badge_id: e.payload && e.payload.badge_id,
+          issued_at: e.payload && (e.payload.issued_at || e.payload.revoked_at)
+        }))
+      };
+
+      const signature = await CryptoLib.signPayload({
+        key_id: checkpoint.key_id,
+        latest_event_hash: checkpoint.latest_event_hash,
+        created_at: checkpoint.created_at,
+        signed_by_root: true
+      }, privateKey);
+      checkpoint.signature = signature;
+
+      // Guarda un historial acotado (últimos 20) para poder ver la línea de
+      // tiempo, no solo el estado más reciente.
+      const history = (previousCheckpoint && previousCheckpoint.history) || [];
+      history.push({ created_at: checkpoint.created_at, status, new_events_count: newEventsCount, event_count: checkpoint.event_count });
+      checkpoint.history = history.slice(-20);
+
+      checkpoints[key.key_id] = checkpoint;
     }
 
     await GridAPI.setState('checkpoints', checkpoints);
     document.getElementById('checkpoint-passphrase').value = '';
-    showAlert('alert-checkpoints', 'Checkpoints generados y firmados ✓', 'success');
+    if (alertCount > 0) {
+      showAlert('alert-checkpoints', `Checkpoints generados. ⚠ ${alertCount} emisor(es) con posible historial alterado — revisa las tarjetas en rojo.`, 'warning');
+    } else {
+      showAlert('alert-checkpoints', 'Checkpoints generados y firmados ✓. Sin alertas.', 'success');
+    }
     loadCheckpoints();
   } catch (err) {
     showAlert('alert-checkpoints', 'Error: ' + err.message, 'error');
@@ -1177,23 +1596,99 @@ document.getElementById('btn-generate-checkpoint').addEventListener('click', asy
 async function loadCheckpoints() {
   try {
     const checkpoints = await GridAPI.readState('checkpoints', {});
-    const tbody = document.getElementById('checkpoints-list-tbody');
-    if (!Object.keys(checkpoints).length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';
+    const container = document.getElementById('checkpoints-cards');
+    const entries = Object.entries(checkpoints);
+    if (!entries.length) {
+      container.innerHTML = '<p style="color: var(--text-mut); text-align: center;">Ningún checkpoint generado todavía.</p>';
       return;
     }
-    tbody.innerHTML = Object.entries(checkpoints).map(([keyId, cp]) => `
-      <tr>
-        <td style="font-family: monospace; font-size: 11px;">${keyId}</td>
-        <td style="font-family: monospace; font-size: 11px;">${(cp.latest_event_hash || 'null').substr(0, 16)}...</td>
-        <td>✓ Root</td>
-        <td>${new Date(cp.created_at).toLocaleString()}</td>
-      </tr>
-    `).join('');
+    container.innerHTML = entries.map(([keyId, cp]) => renderCheckpointCard(keyId, cp)).join('');
   } catch (err) {
     console.error(err);
   }
 }
+
+function renderCheckpointCard(keyId, cp) {
+  const status = cp.status || 'first';
+  let title, desc;
+
+  if (status === 'ok') {
+    title = `<span class="status-ok">🟢 Sin alertas</span>`;
+    desc = `${cp.new_events_count} evento(s) nuevo(s) desde el checkpoint del ${cp.previous_checkpoint ? new Date(cp.previous_checkpoint.created_at).toLocaleString() : '—'}.`;
+  } else if (status === 'alert') {
+    title = `<span class="status-alert">🔴 ¡HISTORIAL ALTERADO!</span>`;
+    desc = `El checkpoint anterior (${cp.previous_checkpoint ? new Date(cp.previous_checkpoint.created_at).toLocaleString() : '—'}) ya no aparece en el historial de este emisor. ` +
+           `Esto puede significar que alguien borró o reescribió eventos pasados. Recomendación: revisar y considerar revocar su llave (motivo: compromiso sospechado).`;
+  } else {
+    title = `⚪ Primer checkpoint`;
+    desc = `Todavía no hay un checkpoint anterior con el que comparar. Este es el punto de partida.`;
+  }
+
+  const historyLine = (cp.history || []).map(h => {
+    const icon = h.status === 'alert' ? '🔴' : h.status === 'ok' ? '🟢' : '⚪';
+    return `${icon} ${new Date(h.created_at).toLocaleDateString()}`;
+  }).join(' &nbsp;→&nbsp; ');
+
+  return `
+    <div class="checkpoint-card ${status}">
+      <div class="checkpoint-card-title">
+        <span>${cp.ldap || keyId}</span>
+        ${title}
+      </div>
+      <div class="checkpoint-card-desc">${desc}</div>
+      ${historyLine ? `<div class="checkpoint-card-desc" style="margin-top: 8px; font-size: 12px;">Historial: ${historyLine}</div>` : ''}
+      <div class="checkpoint-card-actions">
+        <button class="btn btn-secondary btn-sm" onclick="copyCheckpointDetail('${keyId}')">Copiar detalle técnico</button>
+      </div>
+    </div>
+  `;
+}
+
+window.copyCheckpointDetail = async (keyId) => {
+  try {
+    const checkpoints = await GridAPI.readState('checkpoints', {});
+    const cp = checkpoints[keyId];
+    if (!cp) return;
+
+    const statusLabel = cp.status === 'alert' ? 'ALERTA - historial alterado'
+      : cp.status === 'ok' ? 'OK - sin alertas'
+      : 'Primer checkpoint (sin comparación previa)';
+
+    const chainLines = (cp.ledger_snapshot || []).map((e, i) =>
+      `  [${i}] event_hash=${e.event_hash} previous_event_hash=${e.previous_event_hash} event_type=${e.event_type} badge_id=${e.badge_id} fecha=${e.issued_at}`
+    ).join('\n');
+
+    const report = `=== Reporte técnico de checkpoint — device-badge ===
+Emisor (LDAP): ${cp.ldap || '(desconocido)'}
+Key ID: ${cp.key_id}
+Ledger Doc ID: ${cp.ledger_doc_id || '(documento compartido, sin doc dedicado)'}
+Estado detectado: ${statusLabel}
+
+Checkpoint anterior:
+  Fecha: ${cp.previous_checkpoint ? cp.previous_checkpoint.created_at : '(no había uno)'}
+  Hash ancla esperado: ${cp.previous_checkpoint ? cp.previous_checkpoint.latest_event_hash : '(n/a)'}
+
+Checkpoint actual:
+  Fecha: ${cp.created_at}
+  Último hash de la cadena: ${cp.latest_event_hash}
+  Total de eventos en la cadena: ${cp.event_count}
+  Eventos nuevos detectados desde el checkpoint anterior: ${cp.new_events_count === null ? 'n/a' : cp.new_events_count}
+
+Cadena actual completa (badge_ledger_${cp.key_id}), ${cp.event_count} eventos, en orden:
+${chainLines || '  (vacía)'}
+
+Pregunta para el agente de IA: ¿qué evento(s) de esta cadena rompen la continuidad respecto
+al "hash ancla esperado" del checkpoint anterior? ¿El patrón es consistente con una
+reescritura de historial (eventos insertados, eliminados o reordenados) o con un problema
+inocente (ej. reinicio del ledger)? Si es alteración, ¿qué badge_id(s) quedan bajo sospecha?
+`;
+
+    await navigator.clipboard.writeText(report);
+    showAlert('alert-checkpoints', 'Detalle técnico copiado al portapapeles ✓ — pégalo en tu agente de IA.', 'success');
+  } catch (err) {
+    showAlert('alert-checkpoints', 'Error al copiar: ' + err.message, 'error');
+  }
+};
 
 function showAlert(containerId, message, type) {
   const container = document.getElementById(containerId);

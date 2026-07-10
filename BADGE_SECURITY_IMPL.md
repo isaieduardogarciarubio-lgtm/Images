@@ -21,15 +21,32 @@ Si necesitas modificar la lógica de alguna, debes replicar el cambio en los 3 a
 
 ## Almacenamiento (Grid State Buckets)
 
+Cada bucket de Grid guarda un objeto JSON; los que son conceptualmente arrays (`issuer_keys`,
+`badge_ledger_<key_id>`) se guardan envueltos como `{ list: [...] }` — `GridAPI.readList`/`writeList`
+hacen el envolver/desenvolver de forma transparente.
+
 ```
-trusted_issuers          → { issuers: [], signature, signed_by_root_at }
-issuer_keys              → [ { ldap, key_id, public_key_jwk, encrypted_private_key_jwk, salt, iv, status, ... } ]
+trusted_issuers          → { issuers: [ { key_id, ldap, public_key_jwk, status, ledger_doc_id } ],
+                              signature, signed_by_root_at }
+issuer_keys              → { list: [ { ldap, key_id, public_key_jwk, encrypted_private_key_jwk,
+                              salt, iv, status, ledger_doc_id, ... } ] }
 pending_issuers          → { ldap: { status, approved_by, approved_at, role } }
 badge_registry           → { badge_id: { device_id, status, issued_at, expires_at, key_id, ... } }
-badge_ledger_<key_id>    → [ { payload, signature, event_hash, previous_event_hash } ] (uno por issuer)
-checkpoints              → { key_id: { key_id, latest_event_hash, created_at, signature } } (firmado por root)
-public_config            → { root_key_id, root_public_key, root_encrypted_private_key, root_salt, root_iv, ... }
+badge_ledger_<key_id>    → { list: [ { payload, signature, event_hash, previous_event_hash } ] }
+checkpoints              → { key_id: { key_id, ldap, ledger_doc_id, latest_event_hash, event_count,
+                              status, new_events_count, previous_checkpoint, ledger_snapshot,
+                              history, signature } } (firmado por root)
+public_config            → { root_key_id, root_public_key,
+                              root_key_wraps: [ { admin_ldap, encrypted_private_key, salt, iv, created_at } ] }
 ```
+
+**`root_key_wraps`** reemplaza los campos planos `root_encrypted_private_key/root_salt/root_iv` de
+versiones anteriores: la MISMA root private key queda cifrada varias veces, una por cada admin con
+su propia passphrase (ver "Múltiples admins" más abajo).
+
+**`ledger_doc_id`** (en `issuer_keys` y espejado en `trusted_issuers`) es opcional: si el admin creó
+un documento Grid dedicado para el ledger de ese issuer, aquí vive su `docId`. Si se deja vacío, el
+ledger de ese issuer vive en el documento compartido (`window.GRID.docId`).
 
 ## Flujo operativo
 
@@ -52,11 +69,18 @@ public_config            → { root_key_id, root_public_key, root_encrypted_priv
 4. App genera key pair ECDSA P-256, cifra private key con passphrase, guarda en `issuer_keys` con status="pending_approval".
 
 **Admin:**
-1. Tab "Emisores" → revisa la nueva key del issuer (status="pending_approval").
-2. Tab "Checkpoints" → ingresa su passphrase root → "Generar Checkpoint Firmado".
-3. App firma `trusted_issuers` con root key, incluye la public key del nuevo issuer, marca como active.
+1. Tab "Emisores" → la nueva key aparece con status="pending_approval" y un botón "Aprobar".
+2. Ingresa su root passphrase en el campo de arriba de la tabla → clic en "Aprobar".
+3. La app marca la key como "active" en `issuer_keys`, agrega/actualiza su entrada en
+   `trusted_issuers.issuers` (incluyendo `ledger_doc_id` si ya se configuró), y re-firma
+   `trusted_issuers` completo con la root key.
 
 **Verifier ahora lo reconoce como issuer confiable.**
+
+**(Opcional) Aislar su ledger:** antes o después de aprobar, en la misma fila puedes pegar un
+`docId` de un documento Grid dedicado (creado y compartido manualmente por ti con ese issuer) en
+el campo "Ledger Doc ID" → "Guardar". Esto limita el radio de daño: ese issuer solo puede reescribir
+su propio historial, nunca el de otro. Ver "Separación de documentos" más abajo.
 
 ### 3. Emisión de badge
 
@@ -93,13 +117,22 @@ public_config            → { root_key_id, root_public_key, root_encrypted_priv
 1. Issuer olvida passphrase, contacta admin.
 
 **Admin:**
-1. Tab "Emisores" → "Revocar Key" → motivo="forgotten_passphrase".
-2. App marca la vieja key con status="revoked" en `issuer_keys`.
+1. Tab "Emisores" → "Revocar" → motivo="forgotten_passphrase" → ingresa tu root passphrase → confirmar.
+2. App marca la vieja key como "revoked" en `issuer_keys` Y en `trusted_issuers` (re-firmando con
+   root) — sin este segundo paso, el verifier seguiría confiando en la llave vieja.
 3. Issuer vuelve a `pending_onboarding` (TODO: automatizar esta transición).
 4. Issuer abre **device-badge-issuer.html** de nuevo, genera nueva passphrase, nuevo key pair.
+5. Admin aprueba la nueva key (ver paso 2 del onboarding).
 
 **Badges de la llave anterior siguen siendo válidas hasta expirar** (política: forgotten_passphrase).
 Si es suspected_compromise, todas las badges de esa llave quedan invalid_key_revoked inmediatamente.
+
+### 6.1. Admin olvida su propia passphrase (root key)
+
+Ver "Múltiples admins y root key" más abajo — **no requiere rotar la root key** si hay otro admin
+activo: ese otro admin genera un acceso nuevo (nueva passphrase) para el que la olvidó, usando la
+misma root private key. Solo se rota la root key de verdad si TODOS los admins pierden acceso a la
+vez, o hay sospecha de compromiso.
 
 ### 7. Verificación de badge
 
@@ -116,6 +149,87 @@ Si es suspected_compromise, todas las badges de esa llave quedan invalid_key_rev
    - Estado en registry (no revocada, no superseded, no invalid_key_revoked).
    - (Opcional) Hash chain coincide con checkpoint firmado.
 5. Resultado: **VALIDA** / **VENCIDA** / **REVOCADA** / **REEMPLAZADA** / **FIRMA_INVALIDA** / **ISSUER_NO_CONFIABLE** / **REGISTRY_ALTERADO** / **LEGACY_UNSIGNED**.
+
+## Múltiples admins y root key (key-wrapping)
+
+La root key es **una sola** key pair, pero la private key queda cifrada varias veces — una vez por
+cada admin, con su propia passphrase (`public_config.root_key_wraps`). Es como una caja fuerte con
+varias combinaciones distintas que abren la misma cerradura.
+
+- **Un admin olvida su passphrase, pero hay otro admin activo:** ese otro admin entra a "Root Key",
+  desbloquea con SU passphrase, y en "Agregar administrador" genera un acceso nuevo (nueva
+  passphrase) para el que la perdió. **La root key pair no cambia, `PINNED_ROOT_PUBLIC_KEY_JWK` en
+  el verificador tampoco — cero redeploy.**
+- **Se agrega un admin nuevo:** mismo mecanismo — un admin existente le genera acceso.
+- **Se quita un admin** (ej. deja el equipo): "Quitar acceso" en la lista de administradores. Solo
+  borra su wrap, no afecta a los demás. No se puede quitar el último acceso restante (protección
+  contra bloqueo total).
+- **Todos los admins pierden su passphrase, o se sospecha compromiso real:** ahí sí aplica "Rotar
+  Root Key" (zona de peligro, en el tab Root Key) — genera una key pair completamente nueva, invalida
+  `trusted_issuers` hasta volver a firmarlo, y **requiere actualizar `PINNED_ROOT_PUBLIC_KEY_JWK` en
+  `device-badge-verifier.html` y volver a desplegarlo**.
+
+**Reset de emisor (issuer) vs. rotación de root — no es lo mismo:** revocar/re-aprobar la key de un
+emisor solo requiere re-firmar `trusted_issuers` con la root key que YA existe (cualquier admin con
+acceso puede hacerlo). Nunca toca la root key pair, nunca requiere redeploy del verificador.
+
+## Separación de documentos (código vs. datos vs. ledger por issuer)
+
+Esta app asume, por diseño, que Grid otorga permisos **por documento completo**, no por bucket
+individual dentro de un documento. Si un issuer necesita editor sobre un documento para escribir su
+ledger, ese mismo permiso le permitiría reescribir cualquier otro bucket — o el código HTML — que
+viva en ese documento. Por eso se recomienda:
+
+```
+Documento CODE-ADMIN     → admin.html                        editor: admins
+Documento CODE-ISSUER    → issuer.html (una sola copia)       editor: admins (issuers solo ejecutan)
+Documento CODE-VERIFIER  → verifier.html                      editor: admins (guardias solo ejecutan)
+Documento DATA-CORE      → trusted_issuers, pending_issuers,
+                            issuer_keys, badge_registry,
+                            checkpoints, public_config         editor: admins
+Documento DATA-LEDGER-<key_id>  → badge_ledger_<key_id>,
+                            uno POR issuer                     editor: {ese issuer, admins}
+```
+
+**Límite real:** el código de esta app (`GridAPI`) solo sabe leer/escribir estado dentro de un
+`docId` que ya existe — no hay una API documentada aquí para crear documentos ni gestionar quién
+tiene acceso a ellos. Crear cada `DATA-LEDGER-<key_id>` y compartirlo con el issuer correspondiente
+(+ los admins) es un paso **manual, en la UI nativa de Grid**, fuera de esta app. El `docId`
+resultante se pega en el tab "Emisores" de admin (campo "Ledger Doc ID"), y desde ahí issuer.html y
+verifier.html lo usan automáticamente.
+
+**Si Grid soporta compartir por grupo** (ej. un grupo "Admins"), compartir cada documento nuevo con
+el grupo una sola vez basta — agregar un admin nuevo al grupo le da acceso a todo lo ya compartido.
+**Si Grid solo soporta ACL por cuenta individual**, agregar un admin nuevo implica re-compartir cada
+documento existente manualmente — no escala bien con muchos issuers. Confirma con soporte/documentación
+de Grid cuál aplica antes de escalar.
+
+**Residual conocido:** aunque el issuer solo tenga acceso a su propio `DATA-LEDGER`, nada impide que
+manipule el código que corre en SU PROPIO navegador (DevTools, copia local modificada) — eso es una
+limitación de cualquier app 100% cliente, no de Grid. Lo que la separación de documentos evita es que
+esa manipulación afecte lo que corre en la máquina de OTRAS personas (admin, guardias). Y lo que la
+criptografía evita es que esa manipulación local le sirva de algo: solo puede firmar con su propia
+llave, nunca a nombre de otro emisor, ni agregarse como emisor nuevo sin romper la firma root.
+
+## Semáforo de checkpoints (detección de manipulación, en lenguaje simple)
+
+El tab "Checkpoints" ya no muestra hashes crudos. Cada vez que se genera un checkpoint nuevo, se
+compara contra el checkpoint **anterior** de ese mismo emisor:
+
+- **🟢 Sin alertas** — el hash-ancla del checkpoint anterior sigue apareciendo en la cadena actual;
+  solo hubo eventos nuevos agregados encima. Se muestra cuántos.
+- **🔴 ¡HISTORIAL ALTERADO!** — el hash-ancla del checkpoint anterior YA NO aparece en la cadena
+  actual. Esto significa que algún evento pasado fue borrado, reescrito o reordenado. Recomendación
+  mostrada en pantalla: revisar y considerar revocar esa llave con motivo `suspected_compromise`.
+  Ver el bloque anterior sobre por qué esto no se puede prevenir del todo, solo detectar y contener.
+- **⚪ Primer checkpoint** — no hay uno anterior con qué comparar todavía.
+
+Cada tarjeta también muestra una línea de tiempo compacta (últimos 20 checkpoints) para ver cuándo
+empezó una alerta, y un botón **"Copiar detalle técnico"** que genera un reporte de texto plano con:
+LDAP, key_id, docId del ledger, el hash-ancla esperado vs. el actual, cuántos eventos nuevos se
+detectaron, y la cadena completa de eventos (hash, previous_hash, tipo, badge_id, fecha) — pensado
+para pegarse directamente en un agente de IA y pedirle que investigue cuáles eventos rompen la
+continuidad y qué badges quedan bajo sospecha.
 
 ## Seguridad: qué está protegido
 
@@ -140,21 +254,29 @@ Si es suspected_compromise, todas las badges de esa llave quedan invalid_key_rev
 
 ## Despliegue a Grid
 
-1. **Obtén 3 doc IDs nuevos en Grid** (o reutiliza uno para todas con 3 apps en el mismo doc):
-   - Recomendado: un doc para las 3 apps (simplifica estado compartido).
+1. **Crea los documentos Grid separados** (ver "Separación de documentos" arriba):
+   - `CODE-ADMIN`, `CODE-ISSUER`, `CODE-VERIFIER` (uno por app), y `DATA-CORE` (buckets compartidos).
+   - `DATA-LEDGER-<key_id>` se crea más adelante, por issuer, al aprobarlo (opcional pero recomendado).
 
 2. **En device-badge-admin.html, device-badge-issuer.html, device-badge-verifier.html**, reemplaza:
    ```javascript
-   window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";  // ← cambiar a tu doc ID
+   window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";  // ← docId de DATA-CORE
    ```
+   Este es el docId de los buckets compartidos (`trusted_issuers`, `issuer_keys`, `badge_registry`,
+   `checkpoints`, `public_config`) — no el docId del documento de código de cada app.
 
-3. **Sube los 3 archivos HTML** a Grid como documentos (cada uno es autónomo, con `CryptoLib`/`GridAPI` inline — no hay archivos JS separados que subir).
+3. **Sube cada HTML a su propio documento de código** (`CODE-ADMIN`, `CODE-ISSUER`, `CODE-VERIFIER`).
+   Cada uno es autónomo, con `CryptoLib`/`GridAPI` inline — no hay archivos JS separados que subir.
 
 4. **Permisos recomendados:**
-   - **device-badge-admin.html**: editor = admins solo.
-   - **device-badge-issuer.html**: editor = emitores.
-   - **device-badge-verifier.html**: viewer = guardias/verificadores.
-   - State buckets: admin = editor, issuers = editor + issuer sobre su ledger, viewer = público (lectura solo).
+   - `CODE-ADMIN`, `CODE-ISSUER`, `CODE-VERIFIER`: editor = admins solo (issuers/guardias solo
+     necesitan poder abrir y ejecutar la app, no editar su código).
+   - `DATA-CORE`: editor = admins solo. Nota: `issuer_keys` requiere que el issuer pueda escribir su
+     propia entrada durante onboarding — si Grid no permite permisos parciales dentro de un
+     documento, este es el trade-off descrito en "Separación de documentos" (el daño posible ahí es
+     acotado: no compromete llaves ajenas, solo el campo de estado).
+   - `DATA-LEDGER-<key_id>`: editor = {ese issuer, admins}. Se crea y comparte manualmente por
+     issuer; el docId resultante se pega en el tab "Emisores" → "Ledger Doc ID".
 
 5. **Initialize en admin:** Abre admin app, genera root key.
 
