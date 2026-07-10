@@ -363,7 +363,7 @@
       </div>
       <div id="onboarding-pending" style="display: none;">
         <div class="alert warning">
-          ⚠ Tu onboarding está en espera. Un admin debe aprobarlo.
+          ⚠ Todavía no estás pre-autorizado. Pide a un admin que te agregue en la pestaña "Pendientes" antes de poder generar tu llave.
         </div>
       </div>
       <div id="onboarding-workspace-missing" style="display: none;">
@@ -1061,7 +1061,13 @@ async function loadIssuerKey() {
       document.getElementById('tab-emit').style.opacity = issuerKeyData.status === 'active' ? '1' : '0.5';
     } else {
       const pendingIssuers = await GridAPI.readState('pending_issuers', {});
-      if (pendingIssuers[currentUser]) {
+      if (!pendingIssuers[currentUser]) {
+        // Not pre-authorized by an admin — block. This was previously
+        // inverted (checked `pendingIssuers[currentUser]` truthy to show
+        // the "wait" message), which let ANY user not on the whitelist
+        // straight through to the onboarding form, and blocked the very
+        // users an admin had pre-authorized. Fixed: absence from the
+        // whitelist is what blocks, presence is what unlocks onboarding.
         document.getElementById('onboarding-workspace-missing').style.display = 'none';
         document.getElementById('onboarding-form').style.display = 'none';
         document.getElementById('key-status').style.display = 'none';
@@ -1134,6 +1140,14 @@ document.getElementById('btn-onboard').addEventListener('click', async () => {
   if (!currentPassphrase) return;
   try {
     document.getElementById('btn-onboard').disabled = true;
+
+    // Defense in depth: re-check pre-authorization here too, not just in
+    // the UI that renders this button. Grid ACLs are the real backstop,
+    // but this avoids relying on them alone.
+    const pendingIssuers = await GridAPI.readState('pending_issuers', {});
+    if (!pendingIssuers[currentUser]) {
+      throw new Error('Tu usuario no está pre-autorizado. Pide a un admin que te agregue en la pestaña "Pendientes".');
+    }
 
     // Ledger Workspace is mandatory — there is no shared-document fallback.
     // Without a dedicated document, this issuer's ledger would live in the
