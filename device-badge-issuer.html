@@ -973,6 +973,41 @@ const GridAPI = (() => {
           await this.setState(bucket, this.BUCKET_DEFAULTS[bucket]);
         }
       }
+    },
+
+    /* Create a brand new Grid document via multipart upload. Used to give
+       this issuer their own isolated ledger document — Grid's ACLs are
+       granted at the whole-document level, so a dedicated doc per issuer
+       is the only way to stop one issuer from being able to touch
+       another issuer's ledger even if they share the same "editor" role. */
+    async createDocument(title, htmlContent) {
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const formData = new FormData();
+      formData.append('file', blob, 'ledger.html');
+      formData.append('title', title);
+      formData.append('visibility', 'private');
+      const res = await fetch('/api/v1/documents', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      if (!res.ok) {
+        let detail = '';
+        try { detail = await res.text(); } catch {}
+        throw new Error(`HTTP ${res.status}${detail ? ': ' + detail : ''}`);
+      }
+      return res.json();
+    },
+
+    /* Link a document into a workspace so all workspace members instantly
+       get the workspace's linked_doc_permission (viewer) on it — this is
+       how admins/verifier get read access to this issuer's ledger without
+       anyone having to manually share the document. */
+    async linkDocumentToWorkspace(workspaceId, docId) {
+      return fetchJson(`/api/v1/workspaces/${workspaceId}/documents`, {
+        method: 'POST',
+        body: { doc_id: docId }
+      });
     }
   };
 })();
@@ -1092,8 +1127,29 @@ document.getElementById('btn-onboard').addEventListener('click', async () => {
       iterations: 310000,
       encryption: "AES-256-GCM",
       status: "pending_approval",
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      ledger_doc_id: null
     };
+
+    // If the admin has set up a Ledger Workspace, create a dedicated Grid
+    // document for this issuer's ledger and link it in — this isolates
+    // this issuer's write access from every other issuer's ledger, since
+    // Grid ACLs are granted per whole document, not per state bucket.
+    // If no workspace is configured yet, fall back to the shared document
+    // (ledger_doc_id stays null) so onboarding never blocks on this.
+    try {
+      const config = await GridAPI.readState('public_config', {});
+      if (config.ledger_workspace_id) {
+        const placeholderHtml = `<!DOCTYPE html><html><body>Device Badge Ledger — ${keyId}</body></html>`;
+        const doc = await GridAPI.createDocument(`Ledger - ${currentUser} - ${keyId}`, placeholderHtml);
+        if (doc.doc_id) {
+          await GridAPI.linkDocumentToWorkspace(config.ledger_workspace_id, doc.doc_id);
+          newKey.ledger_doc_id = doc.doc_id;
+        }
+      }
+    } catch (err) {
+      console.debug('No se pudo crear documento de ledger dedicado, se usará el compartido', err.message);
+    }
 
     const issuerKeys = await GridAPI.readList('issuer_keys');
     issuerKeys.push(newKey);

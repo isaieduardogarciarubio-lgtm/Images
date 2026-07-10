@@ -466,11 +466,24 @@
     <div class="panel">
       <div id="alert-issuers"></div>
       <h2 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Gestión de Emisores</h2>
-      <p style="color: var(--text-sub); font-size: 13px; margin: 0 0 16px 0;">
-        Para aislar el historial de cada emisor, crea un documento Grid nuevo para su ledger, compártelo
-        con ese emisor + los admins, y pega aquí el docId. Si lo dejas vacío, su ledger vive en este
-        mismo documento compartido (menos aislado, pero funcional).
-      </p>
+
+      <div id="workspace-setup-missing" style="display: none;">
+        <div class="alert warning" style="flex-direction: column; align-items: flex-start;">
+          <div>⚠ Aún no existe un Workspace de Ledgers. Sin esto, cada nuevo emisor crea su ledger en el documento compartido (menos aislado, pero funcional).</div>
+          <button id="btn-create-ledger-workspace" class="btn btn-primary" style="margin-top: 8px;">Crear Workspace de Ledgers</button>
+        </div>
+      </div>
+
+      <div id="workspace-setup-existing" style="display: none;">
+        <div class="alert success" style="flex-direction: column; align-items: flex-start;">
+          <div>✓ Workspace de Ledgers activo: <span style="font-family: monospace;" id="ledger-workspace-id-display"></span></div>
+          <div>Desde ahora, cada emisor que genere su llave recibe automáticamente su propio documento de ledger, aislado y vinculado a este workspace.</div>
+          <div style="margin-top: 8px; display: flex; gap: 8px; width: 100%; box-sizing: border-box;">
+            <input type="text" id="ledger-workspace-add-member" class="input" placeholder="LDAP de admin/verificador a agregar como lector" style="flex: 1;" />
+            <button id="btn-add-ledger-workspace-member" class="btn btn-secondary">Agregar como lector</button>
+          </div>
+        </div>
+      </div>
 
       <div class="form-group" style="max-width: 360px;">
         <label for="issuers-root-passphrase">Tu Root Passphrase (para aprobar emisores)</label>
@@ -971,6 +984,58 @@ const GridAPI = (() => {
           await this.setState(bucket, this.BUCKET_DEFAULTS[bucket]);
         }
       }
+    },
+
+    /* Create a brand new Grid document via multipart upload. Used to give
+       each issuer their own isolated ledger document — Grid's ACLs are
+       granted at the whole-document level, so a dedicated doc per issuer
+       is the only way to stop one issuer from being able to touch
+       another issuer's ledger even if they share the same "editor" role. */
+    async createDocument(title, htmlContent) {
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const formData = new FormData();
+      formData.append('file', blob, 'ledger.html');
+      formData.append('title', title);
+      formData.append('visibility', 'private');
+      const res = await fetch('/api/v1/documents', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      if (!res.ok) {
+        let detail = '';
+        try { detail = await res.text(); } catch {}
+        throw new Error(`HTTP ${res.status}${detail ? ': ' + detail : ''}`);
+      }
+      return res.json();
+    },
+
+    /* Create a Workspace: a mass-governance container. Members added to it
+       automatically inherit read (viewer) or write (editor) access to
+       every document linked to it, without per-document sharing. */
+    async createWorkspace(name, linkedDocPermission = 'viewer') {
+      return fetchJson('/api/v1/workspaces', {
+        method: 'POST',
+        body: { name, linked_doc_permission: linkedDocPermission }
+      });
+    },
+
+    /* Link a document into a workspace so all workspace members instantly
+       get the workspace's linked_doc_permission on it. */
+    async linkDocumentToWorkspace(workspaceId, docId) {
+      return fetchJson(`/api/v1/workspaces/${workspaceId}/documents`, {
+        method: 'POST',
+        body: { doc_id: docId }
+      });
+    },
+
+    /* Add a member (admin/verifier) to the ledger workspace so they can
+       read every issuer's ledger without per-document sharing. */
+    async addWorkspaceMember(workspaceId, memberId, role = 'member') {
+      return fetchJson(`/api/v1/workspaces/${workspaceId}/members`, {
+        method: 'POST',
+        body: { member_id: memberId, role }
+      });
     }
   };
 })();
@@ -995,6 +1060,7 @@ async function init() {
     setupEventListeners();
     loadPending();
     loadIssuers();
+    loadLedgerWorkspaceStatus();
     loadCheckpoints();
     checkAndAutoGenerateCheckpoint();
 
@@ -1297,12 +1363,8 @@ async function loadIssuers() {
         <td style="font-family: monospace; font-size: 11px;">${k.key_id}</td>
         <td><span style="background: ${k.status === 'active' ? 'rgba(0,214,137,.2)' : 'rgba(255,92,108,.2)'}; color: ${k.status === 'active' ? '#7FE9C2' : '#FFB3BB'}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${k.status}</span></td>
         <td>${new Date(k.created_at).toLocaleDateString()}</td>
-        <td>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            <input type="text" class="input" style="font-size: 11px; padding: 6px 8px; width: 140px;"
-                   id="ledger-doc-${k.key_id}" value="${k.ledger_doc_id || ''}" placeholder="docId (opcional)" />
-            <button class="btn btn-secondary btn-sm" onclick="saveLedgerDocId('${k.key_id}')">Guardar</button>
-          </div>
+        <td style="font-family: monospace; font-size: 11px;">
+          ${k.ledger_doc_id ? k.ledger_doc_id : '<span style="color: var(--text-mut);">compartido</span>'}
         </td>
         <td>
           <div style="display: flex; gap: 6px;">
@@ -1378,30 +1440,57 @@ window.approveIssuer = async (keyId) => {
   }
 };
 
-window.saveLedgerDocId = async (keyId) => {
+async function loadLedgerWorkspaceStatus() {
   try {
-    const newDocId = document.getElementById(`ledger-doc-${keyId}`).value.trim();
-    const keys = await GridAPI.readList('issuer_keys');
-    const key = keys.find(k => k.key_id === keyId);
-    if (key) {
-      key.ledger_doc_id = newDocId || null;
+    const config = await GridAPI.readState('public_config', {});
+    if (config.ledger_workspace_id) {
+      document.getElementById('workspace-setup-missing').style.display = 'none';
+      document.getElementById('workspace-setup-existing').style.display = 'block';
+      document.getElementById('ledger-workspace-id-display').textContent = config.ledger_workspace_id;
+    } else {
+      document.getElementById('workspace-setup-missing').style.display = 'block';
+      document.getElementById('workspace-setup-existing').style.display = 'none';
     }
-    await GridAPI.writeList('issuer_keys', keys);
+  } catch (err) {
+    console.error(err);
+  }
+}
 
-    // Mirror it into trusted_issuers too, so the verifier (which doesn't
-    // read issuer_keys) knows which document holds this issuer's ledger.
-    const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
-    const trustedEntry = trustedIssuers.issuers.find(i => i.key_id === keyId);
-    if (trustedEntry) {
-      trustedEntry.ledger_doc_id = newDocId || null;
-      await GridAPI.setState('trusted_issuers', trustedIssuers);
+document.getElementById('btn-create-ledger-workspace').addEventListener('click', async () => {
+  try {
+    document.getElementById('btn-create-ledger-workspace').disabled = true;
+    const ws = await GridAPI.createWorkspace('Device Badge - Ledgers', 'viewer');
+    const workspaceId = ws.workspace_id || ws.id;
+    if (!workspaceId) {
+      throw new Error('La respuesta de Grid no incluyó un ID de workspace reconocible');
     }
+    const config = await GridAPI.readState('public_config', {});
+    config.ledger_workspace_id = workspaceId;
+    await GridAPI.setState('public_config', config);
+    showAlert('alert-issuers', 'Workspace de Ledgers creado ✓. Agrega a los demás admins/verificadores como lectores abajo.', 'success');
+    loadLedgerWorkspaceStatus();
+  } catch (err) {
+    showAlert('alert-issuers', 'Error al crear workspace: ' + err.message, 'error');
+    document.getElementById('btn-create-ledger-workspace').disabled = false;
+  }
+});
 
-    showAlert('alert-issuers', 'Ledger Doc ID guardado ✓' + (trustedEntry ? '' : ' (nota: este emisor aún no está en trusted_issuers, se sincronizará al aprobarlo)'), 'success');
+document.getElementById('btn-add-ledger-workspace-member').addEventListener('click', async () => {
+  const ldap = document.getElementById('ledger-workspace-add-member').value.trim();
+  if (!ldap) return;
+  try {
+    const config = await GridAPI.readState('public_config', {});
+    if (!config.ledger_workspace_id) {
+      showAlert('alert-issuers', 'No hay workspace configurado todavía', 'error');
+      return;
+    }
+    await GridAPI.addWorkspaceMember(config.ledger_workspace_id, ldap, 'member');
+    document.getElementById('ledger-workspace-add-member').value = '';
+    showAlert('alert-issuers', `${ldap} agregado como lector del workspace ✓`, 'success');
   } catch (err) {
     showAlert('alert-issuers', 'Error: ' + err.message, 'error');
   }
-};
+});
 
 window.openRevokeModal = (keyId) => {
   revokeTargetKeyId = keyId;

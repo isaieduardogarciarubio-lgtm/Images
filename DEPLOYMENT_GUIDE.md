@@ -10,22 +10,36 @@
 - [ ] Add admin passphrases to vault for future access
 
 ### 2. Grid Setup
-- [ ] Create Grid document for main data (all buckets)
-- [ ] (Optional) Create dedicated Grid documents for issuer ledgers (per-issuer ledger_doc_id)
-- [ ] Verify Grid bucket ACLs:
-  - `trusted_issuers`: Editor: admin app, Reader: verifier app
-  - `badge_registry`: Editor: issuer app, Reader: verifier app
-  - `badge_ledger_*`: Editor: respective issuer app, Reader: verifier app
-  - `checkpoints`: Editor: admin app, Reader: verifier app
-  - `public_config`: Editor: admin app, Reader: verifier + issuer app
-  - `issuer_keys`: Editor: admin app, Reader: issuer app
-  - `pending_issuers`: Editor: issuer app, Reader: admin app
+
+**Important — Grid's ACL model is per whole document, not per bucket.** Anyone with Editor
+access to the main document can write to *any* state bucket inside it, including buckets
+that belong to other issuers or to admin governance (`trusted_issuers`, `checkpoints`).
+To isolate each issuer from the others, each issuer needs their own dedicated Grid document.
+
+- [ ] Create Grid document for main data (all governance buckets: `trusted_issuers`,
+      `public_config`, `checkpoints`, `pending_issuers`, `issuer_keys`, `badge_registry`)
+- [ ] In the admin app's "Emisores" tab, click **"Crear Workspace de Ledgers"** (one-time setup).
+      This creates a Grid Workspace with `linked_doc_permission: viewer` and saves its ID to
+      `public_config.ledger_workspace_id`.
+- [ ] Add every admin and anyone who needs to open the verifier as a member of this workspace
+      (viewer role) using the "Agregar como lector" field in the same tab.
+- [ ] From this point on, **every issuer's ledger document is created and linked automatically**
+      when they generate their key in the issuer app — no manual doc creation or docId entry
+      is required. The issuer becomes the owner of their own ledger doc (full write access,
+      isolated from other issuers); workspace members get automatic read-only access.
+- [ ] Verify Grid ACLs on the main document:
+  - `trusted_issuers`, `public_config`, `checkpoints`, `pending_issuers`, `issuer_keys`:
+    Editor: admins only. Reader: verifier + issuer apps as needed.
+  - `badge_registry`: Editor: issuer app (writes badge index), Reader: verifier app
 
 ### 3. Issuer Onboarding
 - [ ] For each issuer:
-  1. Issuer generates key in issuer app
+  1. Issuer generates key in issuer app — this automatically creates and links their
+     dedicated ledger document (if the Ledger Workspace is set up; falls back to the shared
+     document otherwise, with a console note)
   2. Admin reviews pending key in admin app
-  3. Admin approves key → issuer added to `trusted_issuers`
+  3. Admin approves key → issuer added to `trusted_issuers` (their `ledger_doc_id` is
+     mirrored in automatically)
   4. Issuer can now issue badges
   5. Document issuer passphrase in vault
 

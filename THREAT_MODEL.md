@@ -83,28 +83,47 @@ This threat model identifies residual security risks in the Device Badge cryptog
 
 ### RISK 3: Grid Bucket ACL Misconfiguration
 
-**Threat**: Misconfigured Grid ACLs allow unauthorized actors to:
-- Write to badge_registry or checkpoints (tampering with badge mappings or integrity anchors)
-- Write to trusted_issuers or public_config (promoting fake issuers, swapping root key)
-- Write to issuer ledgers (creating fake badge events)
+**Threat**: Grid grants access at the **whole-document level**, not per state bucket. Anyone
+with Editor access to a document can write to *every* bucket inside it. This means:
+- If all issuers shared one document, any issuer with Editor could write to another
+  issuer's ledger, or to governance buckets (`trusted_issuers`, `checkpoints`, `public_config`)
+- Misconfigured ACLs allow unauthorized actors to tamper with badge mappings, integrity
+  anchors, or promote fake issuers
 
-**Impact**: HIGH to CRITICAL depending on bucket
+**Impact**: HIGH to CRITICAL depending on which document/bucket is exposed
 
 **Current Mitigations**:
-1. **Signature validation on reads**: Verifier validates all signatures cryptographically, so unsigned tampering is detectable
-2. **Root key pinning**: Verifier doesn't trust public_config.root_public_key at read-time; it compares against pinned value
-3. **Explicit ledger control**: Each issuer controls their own ledger bucket via access control list
+1. **Per-issuer document isolation**: Each issuer's ledger lives in its own dedicated Grid
+   document (auto-created and linked to a shared "viewer" Workspace when the issuer generates
+   their key — see admin app "Emisores" tab). The issuer is the document owner (full write);
+   everyone else only has read access via Workspace membership. This means an issuer with
+   Editor on their own document cannot write to another issuer's document or to governance
+   buckets, because those live in a different document entirely.
+2. **Signature validation on reads**: Verifier validates all signatures cryptographically, so
+   even a compromised document's writes are detectable if the signature doesn't match
+3. **Root key pinning**: Verifier doesn't trust public_config.root_public_key at read-time; it
+   compares against pinned value
+4. **Governance document restricted to admins**: `trusted_issuers`, `checkpoints`,
+   `public_config`, `pending_issuers`, `issuer_keys` all live in the main document, which only
+   admins should have Editor on — no issuer needs write access there
 
 **Residual Risk**:
 - Misconfigured ACLs are an operational risk, not a crypto risk
-- Registry tampering (badge → key_id mapping) is only mitigated by signature validation; registry structure itself is not signed
+- Registry tampering (badge → key_id mapping) is only mitigated by signature validation;
+  registry structure itself is not signed
+- If the Ledger Workspace isn't set up before an issuer onboards, that issuer's ledger falls
+  back to the shared main document, re-introducing the cross-issuer write risk for that
+  specific issuer until the workspace is configured and they regenerate their key
 
 **Mitigation Timeline**:
-- Pre-deployment: Audit Grid bucket permissions
-- Post-deployment: Monthly ACL review
+- ✅ Automatic per-issuer document creation and Workspace linking (Phase 2c)
+- Pre-deployment: Set up the Ledger Workspace *before* onboarding any issuers
+- Post-deployment: Monthly ACL review — confirm no issuer has Editor on the main document
 - Automation: Script to validate expected permissions (reader: verifier app, writer: issuer app, etc.)
 
-**Recommendation**: Grid buckets should use "Editor" role narrowly (only apps that need write access) and rely on signature validation as defense-in-depth for tampering detection.
+**Recommendation**: Set up the Ledger Workspace as the very first admin action after root key
+generation, before any issuer is onboarded. Grid buckets on the main document should use
+"Editor" role narrowly (admins only) and rely on signature validation as defense-in-depth.
 
 ---
 
