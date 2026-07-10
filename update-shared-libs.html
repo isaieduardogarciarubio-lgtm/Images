@@ -133,11 +133,18 @@
     async function loadSharedLibs() {
       try {
         showStatus('Cargando...', 'info');
+
+        // Add delay to avoid rate limiting
+        await new Promise(r => setTimeout(r, 1000));
+
         const res = await fetch(`/api/v1/documents/${DOC_ID}/states/${encodeURIComponent(STATE_NAME)}`, {
           credentials: 'include'
         });
 
         if (!res.ok) {
+          if (res.status === 429) {
+            throw new Error('Grid está rate-limited. Espera 60+ segundos e intenta de nuevo.');
+          }
           throw new Error(`HTTP ${res.status}`);
         }
 
@@ -163,6 +170,10 @@
 
       try {
         showStatus('Guardando...', 'info');
+
+        // Add delay to avoid rate limiting
+        await new Promise(r => setTimeout(r, 2000));
+
         const body = {
           state: {
             code: code
@@ -181,6 +192,9 @@
 
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
+          if (res.status === 429) {
+            throw new Error('Grid está rate-limited. Espera 60+ segundos e intenta de nuevo.');
+          }
           throw new Error(errorData.detail || `HTTP ${res.status}`);
         }
 

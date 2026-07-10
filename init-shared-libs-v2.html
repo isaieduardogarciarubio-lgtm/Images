@@ -141,7 +141,10 @@
       }
 
       try {
-        showStatus('status-save', '⏳ Guardando en Grid...', 'loading');
+        showStatus('status-save', '⏳ Guardando en Grid (espera si Grid está rate-limited)...', 'loading');
+
+        // Add delay to avoid rate limiting if Grid circuit was open
+        await new Promise(r => setTimeout(r, 2000));
 
         const payload = {
           state: {
@@ -164,6 +167,9 @@
 
         if (!res.ok) {
           const detail = data.detail || data.message || JSON.stringify(data);
+          if (res.status === 429) {
+            throw new Error('Grid está rate-limited. Espera 60+ segundos e intenta de nuevo.');
+          }
           throw new Error(detail);
         }
 
@@ -178,12 +184,20 @@
       try {
         showStatus('status-verify', '⏳ Leyendo desde Grid...', 'loading');
 
+        // Add delay to avoid rate limiting
+        await new Promise(r => setTimeout(r, 2000));
+
         const res = await fetch(
           `/api/v1/documents/${DOC_ID}/states/${encodeURIComponent(STATE_NAME)}`,
           { credentials: 'include' }
         );
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          if (res.status === 429) {
+            throw new Error('Grid está rate-limited. Espera 60+ segundos e intenta de nuevo.');
+          }
+          throw new Error(`HTTP ${res.status}`);
+        }
 
         const data = await res.json();
 

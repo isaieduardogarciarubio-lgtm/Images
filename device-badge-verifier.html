@@ -687,20 +687,26 @@ const GridAPI = (() => {
 window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";
 
 async function loadSharedLibraries() {
-  try {
-    const sharedLibsDoc = "01KWJ24WNJEXCH6CE59ZW152EK";
-    const url = `/api/v1/documents/${sharedLibsDoc}/states/shared_libs_code`;
-    const res = await fetch(url, { credentials: 'include' });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.state && data.state.code && typeof data.state.code === 'string') {
-        eval(data.state.code);
-        console.log('[Device Badge] Shared libraries (CryptoLib, GridAPI) loaded from Grid');
+  // Don't block initialization if shared libs can't load
+  // This will retry silently in the background
+  setTimeout(async () => {
+    try {
+      const sharedLibsDoc = "01KWJ24WNJEXCH6CE59ZW152EK";
+      const url = `/api/v1/documents/${sharedLibsDoc}/states/shared_libs_code`;
+      const res = await fetch(url, { credentials: 'include', timeout: 5000 });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.state && data.state.code && typeof data.state.code === 'string') {
+          eval(data.state.code);
+          console.log('[Device Badge] Shared libraries (CryptoLib, GridAPI) loaded from Grid');
+        }
+      } else if (res.status === 429) {
+        console.debug('[Device Badge] Grid rate limited, will retry later');
       }
+    } catch (err) {
+      console.debug('[Device Badge] Could not load shared libraries from Grid (using built-in)', err.message);
     }
-  } catch (err) {
-    console.debug('[Device Badge] Could not load shared libraries from Grid (using built-in)', err.message);
-  }
+  }, 500);
 }
 
 /* ──────────────────────────────────────────────────────────────── */
