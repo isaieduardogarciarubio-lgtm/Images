@@ -194,7 +194,18 @@
     .btn-danger:hover:not(:disabled) { background: rgba(255, 92, 108, .2); }
     .btn-group { display: flex; gap: 12px; margin-top: 20px; }
     .btn-group .btn { flex: 1; }
-    .table-wrapper { flex: 1; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+    .table-wrapper { flex: 1; min-height: 240px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+    fieldset {
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 16px;
+      margin: 0;
+    }
+    fieldset legend {
+      padding: 0 8px;
+      font-size: 13px;
+      color: var(--text-sub);
+    }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     thead { position: sticky; top: 0; background: var(--surface-2); border-bottom: 1px solid var(--border); }
     th { padding: 12px 16px; text-align: left; color: var(--text-sub); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -588,11 +599,19 @@ const CryptoLib = (() => {
         ['decrypt']
       );
 
-      const privateBytes = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
-        aesKey,
-        ciphertext
-      );
+      // AES-GCM's authentication tag check fails (throws OperationError) when
+      // the passphrase is wrong, since it derives a different key. Surface
+      // that as a clear message instead of a cryptic browser crypto error.
+      let privateBytes;
+      try {
+        privateBytes = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv },
+          aesKey,
+          ciphertext
+        );
+      } catch {
+        throw new Error('Passphrase incorrecta');
+      }
 
       const privateJsonStr = new TextDecoder().decode(privateBytes);
       return JSON.parse(privateJsonStr);
@@ -777,6 +796,19 @@ const GridAPI = (() => {
       return state;
     },
 
+    /* Grid's named state buckets must be top-level JSON objects — a bucket
+       whose meaningful content is an array (issuer_keys, badge_ledger_*)
+       is stored wrapped as { list: [...] } and unwrapped here so callers
+       can keep treating it as a plain array. */
+    async readList(name) {
+      const wrapped = await this.readState(name, { list: [] });
+      return Array.isArray(wrapped.list) ? wrapped.list : [];
+    },
+
+    async writeList(name, arr) {
+      return this.setState(name, { list: arr });
+    },
+
     /* Write state bucket (PUT with control optimistic) */
     async setState(name, state) {
       if (!window.GRID || !window.GRID.docId) {
@@ -827,7 +859,7 @@ const GridAPI = (() => {
        bucket has ever been written, and for lazy initialization). */
     BUCKET_DEFAULTS: {
       trusted_issuers: { issuers: [], signature: null, signed_by_root_at: null },
-      issuer_keys: [],
+      issuer_keys: { list: [] },
       pending_issuers: {},
       badge_registry: {},
       checkpoints: {},
@@ -913,8 +945,16 @@ document.getElementById('btn-gen-root').addEventListener('click', async () => {
 });
 
 document.getElementById('confirm-root').addEventListener('input', () => {
-  const match = document.getElementById('confirm-root').value === currentRootPassphrase;
+  const val = document.getElementById('confirm-root').value;
+  const match = val === currentRootPassphrase;
   document.getElementById('btn-confirm-root').disabled = !match;
+  if (!val) {
+    showAlert('alert-root', '', '');
+  } else if (match) {
+    showAlert('alert-root', 'Passphrase confirmada ✓', 'success');
+  } else {
+    showAlert('alert-root', 'La passphrase no coincide con la generada arriba', 'error');
+  }
 });
 
 document.getElementById('btn-confirm-root').addEventListener('click', async () => {
@@ -1004,7 +1044,7 @@ window.removePending = async (ldap) => {
 
 async function loadIssuers() {
   try {
-    const keys = await GridAPI.readState('issuer_keys', []);
+    const keys = await GridAPI.readList('issuer_keys');
     const tbody = document.getElementById('issuers-list-tbody');
     if (!keys.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-mut);">Ninguno</td></tr>';
@@ -1046,7 +1086,7 @@ document.getElementById('btn-confirm-revoke').addEventListener('click', async ()
     return;
   }
   try {
-    const keys = await GridAPI.readState('issuer_keys', []);
+    const keys = await GridAPI.readList('issuer_keys');
     const key = keys.find(k => k.key_id === revokeTargetKeyId);
     if (key) {
       key.status = 'revoked';
@@ -1054,7 +1094,7 @@ document.getElementById('btn-confirm-revoke').addEventListener('click', async ()
       key.revocation_reason = reason;
       key.revoked_by = currentUser;
     }
-    await GridAPI.setState('issuer_keys', keys);
+    await GridAPI.writeList('issuer_keys', keys);
 
     if (reason === 'suspected_compromise') {
       const registry = await GridAPI.readState('badge_registry', {});
@@ -1096,13 +1136,13 @@ document.getElementById('btn-generate-checkpoint').addEventListener('click', asy
     );
     const privateKey = await CryptoLib.importPrivateKey(privateJwk);
 
-    const keys = await GridAPI.readState('issuer_keys', []);
+    const keys = await GridAPI.readList('issuer_keys');
     const checkpoints = await GridAPI.readState('checkpoints', {});
 
     for (const key of keys) {
       if (key.status === 'active') {
         const ledgerName = `badge_ledger_${key.key_id}`;
-        const ledger = await GridAPI.readState(ledgerName, []);
+        const ledger = await GridAPI.readList(ledgerName);
         const lastHash = ledger.length > 0 ? ledger[ledger.length - 1].event_hash : null;
 
         const checkpoint = {

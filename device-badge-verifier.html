@@ -393,11 +393,19 @@ const CryptoLib = (() => {
         ['decrypt']
       );
 
-      const privateBytes = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
-        aesKey,
-        ciphertext
-      );
+      // AES-GCM's authentication tag check fails (throws OperationError) when
+      // the passphrase is wrong, since it derives a different key. Surface
+      // that as a clear message instead of a cryptic browser crypto error.
+      let privateBytes;
+      try {
+        privateBytes = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv },
+          aesKey,
+          ciphertext
+        );
+      } catch {
+        throw new Error('Passphrase incorrecta');
+      }
 
       const privateJsonStr = new TextDecoder().decode(privateBytes);
       return JSON.parse(privateJsonStr);
@@ -582,6 +590,19 @@ const GridAPI = (() => {
       return state;
     },
 
+    /* Grid's named state buckets must be top-level JSON objects — a bucket
+       whose meaningful content is an array (issuer_keys, badge_ledger_*)
+       is stored wrapped as { list: [...] } and unwrapped here so callers
+       can keep treating it as a plain array. */
+    async readList(name) {
+      const wrapped = await this.readState(name, { list: [] });
+      return Array.isArray(wrapped.list) ? wrapped.list : [];
+    },
+
+    async writeList(name, arr) {
+      return this.setState(name, { list: arr });
+    },
+
     /* Write state bucket (PUT with control optimistic) */
     async setState(name, state) {
       if (!window.GRID || !window.GRID.docId) {
@@ -632,7 +653,7 @@ const GridAPI = (() => {
        bucket has ever been written, and for lazy initialization). */
     BUCKET_DEFAULTS: {
       trusted_issuers: { issuers: [], signature: null, signed_by_root_at: null },
-      issuer_keys: [],
+      issuer_keys: { list: [] },
       pending_issuers: {},
       badge_registry: {},
       checkpoints: {},
@@ -741,7 +762,7 @@ async function verifyBadge() {
     const ledgerName = `badge_ledger_${badge.key_id}`;
     let ledger = [];
     try {
-      ledger = await GridAPI.readState(ledgerName, []);
+      ledger = await GridAPI.readList(ledgerName);
     } catch {}
 
     const event = ledger.find(e => e.payload && e.payload.badge_id === badgeId);
