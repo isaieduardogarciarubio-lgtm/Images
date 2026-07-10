@@ -753,9 +753,11 @@ const GridAPI = (() => {
       credentials: 'include',
       ...options
     };
-    if (options.body && typeof options.body === 'object') {
-      options.headers = { ...options.headers, 'Content-Type': 'application/json' };
-      options.body = JSON.stringify(options.body);
+    // Mutate opts itself (not the discarded `options`) so the serialized
+    // body and Content-Type header actually reach the fetch() call below.
+    if (opts.body && typeof opts.body === 'object') {
+      opts.headers = { ...opts.headers, 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(opts.body);
     }
     const res = await fetch(url, opts);
     if (!res.ok) {
