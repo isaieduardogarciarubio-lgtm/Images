@@ -686,29 +686,6 @@ const GridAPI = (() => {
   <script>
 window.GRID.docId = "01KWJ24WNJEXCH6CE59ZW152EK";
 
-async function loadSharedLibraries() {
-  // Don't block initialization if shared libs can't load
-  // This will retry silently in the background
-  setTimeout(async () => {
-    try {
-      const sharedLibsDoc = "01KWJ24WNJEXCH6CE59ZW152EK";
-      const url = `/api/v1/documents/${sharedLibsDoc}/states/shared_libs_code`;
-      const res = await fetch(url, { credentials: 'include', timeout: 5000 });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.state && data.state.code && typeof data.state.code === 'string') {
-          eval(data.state.code);
-          console.log('[Device Badge] Shared libraries (CryptoLib, GridAPI) loaded from Grid');
-        }
-      } else if (res.status === 429) {
-        console.debug('[Device Badge] Grid rate limited, will retry later');
-      }
-    } catch (err) {
-      console.debug('[Device Badge] Could not load shared libraries from Grid (using built-in)', err.message);
-    }
-  }, 500);
-}
-
 /* ──────────────────────────────────────────────────────────────── */
 /* ROOT PUBLIC KEY PIN                                              */
 /* Trusting whatever public_config.root_public_key says at read-time */
@@ -733,7 +710,6 @@ function jwkKeysMatch(a, b) {
 
 async function init() {
   try {
-    await loadSharedLibraries();
     await GridAPI.initDefaultBuckets();
     setupEventListeners();
     if (!PINNED_ROOT_PUBLIC_KEY_JWK) {
@@ -823,25 +799,30 @@ async function verifyBadge() {
       return;
     }
 
-    // Search all issuer ledgers to find the badge event (source of truth).
-    // Don't trust badge_registry for badge existence or status; reconstruct
-    // from signed ledger events instead. This prevents tampering via registry.
+    // Use registry as index (O(1) lookup) to find which issuer owns this badge,
+    // then read only that issuer's ledger. If registry lies about key_id, the
+    // signature validation below will fail because the signature was made with
+    // the real issuer's key, not the fake one in the registry.
+    const badgeRegistry = await GridAPI.readState('badge_registry', {});
+    const registryEntry = badgeRegistry[badgeId];
+
     let event = null;
     let issuerInTrusted = null;
 
-    for (const issuer of (trustedIssuers.issuers || [])) {
-      const ledgerName = `badge_ledger_${issuer.key_id}`;
-      const ledgerDocId = issuer.ledger_doc_id || null;
-      let ledger = [];
-      try {
-        ledger = await GridAPI.readList(ledgerName, ledgerDocId);
-      } catch {}
+    if (registryEntry && registryEntry.key_id) {
+      // Find the issuer with this key_id in trusted list
+      issuerInTrusted = (trustedIssuers.issuers || []).find(i => i.key_id === registryEntry.key_id);
 
-      const foundEvent = ledger.find(e => e.payload && e.payload.badge_id === badgeId);
-      if (foundEvent) {
-        event = foundEvent;
-        issuerInTrusted = issuer;
-        break;
+      if (issuerInTrusted) {
+        // Read only this issuer's ledger (O(1) read)
+        const ledgerName = `badge_ledger_${issuerInTrusted.key_id}`;
+        const ledgerDocId = issuerInTrusted.ledger_doc_id || null;
+        let ledger = [];
+        try {
+          ledger = await GridAPI.readList(ledgerName, ledgerDocId);
+        } catch {}
+
+        event = ledger.find(e => e.payload && e.payload.badge_id === badgeId);
       }
     }
 
