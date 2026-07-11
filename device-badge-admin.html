@@ -503,6 +503,9 @@
         <label for="issuers-root-passphrase">Tu Root Passphrase (para aprobar emisores)</label>
         <input type="password" id="issuers-root-passphrase" class="input" autocomplete="off" placeholder="Necesaria solo al presionar Aprobar" />
       </div>
+      <div class="btn-group">
+        <button id="btn-approve-all-pending" class="btn btn-secondary">Aprobar todos los pendientes</button>
+      </div>
 
       <h3 style="margin-top: 16px; color: var(--text); font-size: 16px;">Emisores</h3>
       <div class="table-wrapper">
@@ -1458,6 +1461,74 @@ async function loadIssuers() {
   }
 }
 
+/* Core approval logic, factored out so both the single "Aprobar" button
+   and the "Aprobar todos los pendientes" batch action can reuse it
+   without each one re-reading (and clearing) the passphrase field —
+   batch approval decrypts the root key once and reuses it across all
+   pending keys in the loop, instead of one entry/clear cycle per issuer. */
+async function approveIssuerWithPassphrase(keyId, passphrase) {
+  const config = await GridAPI.readState('public_config', {});
+  const wraps = config.root_key_wraps || [];
+  const myWrap = wraps.find(w => w.admin_ldap === currentUser);
+  if (!myWrap) {
+    throw new Error('Tu usuario no tiene acceso a la root key todavía.');
+  }
+
+  const privateJwk = await CryptoLib.decryptPrivateKey(myWrap.encrypted_private_key, passphrase, myWrap.salt, myWrap.iv);
+  const privateKey = await CryptoLib.importPrivateKey(privateJwk);
+
+  const keys = await GridAPI.readList('issuer_keys');
+  const key = keys.find(k => k.key_id === keyId);
+  if (!key) {
+    throw new Error('Emisor no encontrado');
+  }
+
+  // Link the issuer's own document into the Ledger Workspace here, under
+  // the admin's session — the issuer created the document but couldn't
+  // link it themselves (linking requires workspace editor/owner rights,
+  // which issuers deliberately don't have). Do this before finalizing
+  // approval so a link failure blocks approval instead of leaving an
+  // issuer "active" with an unreadable ledger.
+  if (key.ledger_doc_id && !key.ledger_doc_linked) {
+    if (!config.ledger_workspace_id) {
+      throw new Error('No hay Workspace de Ledgers configurado, no se puede vincular el documento de este emisor.');
+    }
+    await GridAPI.linkDocumentToWorkspace(config.ledger_workspace_id, key.ledger_doc_id);
+    key.ledger_doc_linked = true;
+  }
+
+  key.status = 'active';
+  key.approved_by = currentUser;
+  key.approved_at = new Date().toISOString();
+  await GridAPI.writeList('issuer_keys', keys);
+
+  const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
+  if (!Array.isArray(trustedIssuers.issuers)) trustedIssuers.issuers = [];
+  const existingEntry = trustedIssuers.issuers.find(i => i.key_id === keyId);
+  const entry = {
+    key_id: key.key_id,
+    ldap: key.ldap,
+    public_key_jwk: key.public_key_jwk,
+    status: 'active',
+    ledger_doc_id: key.ledger_doc_id || null
+  };
+  if (existingEntry) {
+    Object.assign(existingEntry, entry);
+  } else {
+    trustedIssuers.issuers.push(entry);
+  }
+
+  trustedIssuers.signed_by_root_at = new Date().toISOString();
+  const signaturePayload = {
+    issuers: trustedIssuers.issuers,
+    signed_by_root_at: trustedIssuers.signed_by_root_at
+  };
+  trustedIssuers.signature = await CryptoLib.signPayload(signaturePayload, privateKey);
+
+  await GridAPI.setState('trusted_issuers', trustedIssuers);
+  return key.ldap;
+}
+
 window.approveIssuer = async (keyId) => {
   const passphrase = document.getElementById('issuers-root-passphrase').value;
   if (!passphrase) {
@@ -1465,75 +1536,57 @@ window.approveIssuer = async (keyId) => {
     return;
   }
   try {
-    const config = await GridAPI.readState('public_config', {});
-    const wraps = config.root_key_wraps || [];
-    const myWrap = wraps.find(w => w.admin_ldap === currentUser);
-    if (!myWrap) {
-      showAlert('alert-issuers', 'Tu usuario no tiene acceso a la root key todavía.', 'error');
-      return;
-    }
-
-    const privateJwk = await CryptoLib.decryptPrivateKey(myWrap.encrypted_private_key, passphrase, myWrap.salt, myWrap.iv);
-    const privateKey = await CryptoLib.importPrivateKey(privateJwk);
-
-    const keys = await GridAPI.readList('issuer_keys');
-    const key = keys.find(k => k.key_id === keyId);
-    if (!key) {
-      showAlert('alert-issuers', 'Emisor no encontrado', 'error');
-      return;
-    }
-
-    // Link the issuer's own document into the Ledger Workspace here, under
-    // the admin's session — the issuer created the document but couldn't
-    // link it themselves (linking requires workspace editor/owner rights,
-    // which issuers deliberately don't have). Do this before finalizing
-    // approval so a link failure blocks approval instead of leaving an
-    // issuer "active" with an unreadable ledger.
-    if (key.ledger_doc_id && !key.ledger_doc_linked) {
-      if (!config.ledger_workspace_id) {
-        showAlert('alert-issuers', 'No hay Workspace de Ledgers configurado, no se puede vincular el documento de este emisor.', 'error');
-        return;
-      }
-      await GridAPI.linkDocumentToWorkspace(config.ledger_workspace_id, key.ledger_doc_id);
-      key.ledger_doc_linked = true;
-    }
-
-    key.status = 'active';
-    key.approved_by = currentUser;
-    key.approved_at = new Date().toISOString();
-    await GridAPI.writeList('issuer_keys', keys);
-
-    const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
-    const existingEntry = trustedIssuers.issuers.find(i => i.key_id === keyId);
-    const entry = {
-      key_id: key.key_id,
-      ldap: key.ldap,
-      public_key_jwk: key.public_key_jwk,
-      status: 'active',
-      ledger_doc_id: key.ledger_doc_id || null
-    };
-    if (existingEntry) {
-      Object.assign(existingEntry, entry);
-    } else {
-      trustedIssuers.issuers.push(entry);
-    }
-
-    trustedIssuers.signed_by_root_at = new Date().toISOString();
-    const signaturePayload = {
-      issuers: trustedIssuers.issuers,
-      signed_by_root_at: trustedIssuers.signed_by_root_at
-    };
-    trustedIssuers.signature = await CryptoLib.signPayload(signaturePayload, privateKey);
-
-    await GridAPI.setState('trusted_issuers', trustedIssuers);
-
+    const ldap = await approveIssuerWithPassphrase(keyId, passphrase);
     document.getElementById('issuers-root-passphrase').value = '';
-    showAlert('alert-issuers', `${key.ldap} aprobado y firmado en trusted_issuers ✓`, 'success');
+    showAlert('alert-issuers', `${ldap} aprobado y firmado en trusted_issuers ✓`, 'success');
     loadIssuers();
   } catch (err) {
     showAlert('alert-issuers', 'Error: ' + err.message, 'error');
   }
 };
+
+document.getElementById('btn-approve-all-pending').addEventListener('click', async () => {
+  const passphrase = document.getElementById('issuers-root-passphrase').value;
+  if (!passphrase) {
+    showAlert('alert-issuers', 'Ingresa tu root passphrase arriba antes de aprobar', 'error');
+    return;
+  }
+  try {
+    document.getElementById('btn-approve-all-pending').disabled = true;
+    const keys = await GridAPI.readList('issuer_keys');
+    const pendingKeys = keys.filter(k => k.status === 'pending_approval');
+    if (!pendingKeys.length) {
+      showAlert('alert-issuers', 'No hay emisores pendientes de aprobación.', 'success');
+      return;
+    }
+
+    const approved = [];
+    const failed = [];
+    // Sequential, not parallel: each approval re-signs the whole
+    // trusted_issuers list, so running them concurrently would race on
+    // the same document write and stomp on each other.
+    for (const key of pendingKeys) {
+      try {
+        const ldap = await approveIssuerWithPassphrase(key.key_id, passphrase);
+        approved.push(ldap);
+      } catch (err) {
+        failed.push(`${key.ldap}: ${err.message}`);
+      }
+    }
+
+    document.getElementById('issuers-root-passphrase').value = '';
+    if (failed.length) {
+      showAlert('alert-issuers', `Aprobados: ${approved.join(', ') || 'ninguno'}. Fallaron: ${failed.join(' | ')}`, 'error');
+    } else {
+      showAlert('alert-issuers', `Aprobados ${approved.length} emisores: ${approved.join(', ')} ✓`, 'success');
+    }
+    loadIssuers();
+  } catch (err) {
+    showAlert('alert-issuers', 'Error: ' + err.message, 'error');
+  } finally {
+    document.getElementById('btn-approve-all-pending').disabled = false;
+  }
+});
 
 /* Migrate an issuer who onboarded before the Ledger Workspace existed
    (ledger_doc_id: null, ledger living in the shared main document) into
@@ -1593,6 +1646,7 @@ window.migrateIssuerLedger = async (keyId) => {
     await GridAPI.writeList('issuer_keys', keys);
 
     const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
+    if (!Array.isArray(trustedIssuers.issuers)) trustedIssuers.issuers = [];
     const trustedEntry = trustedIssuers.issuers.find(i => i.key_id === keyId);
     if (trustedEntry) {
       trustedEntry.ledger_doc_id = doc.doc_id;
@@ -1764,6 +1818,7 @@ document.getElementById('btn-confirm-revoke').addEventListener('click', async ()
     // Sin esto, el verifier seguiría viendo esta llave como "active" en
     // trusted_issuers y aceptando firmas suyas — la revocación real vive aquí.
     const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
+    if (!Array.isArray(trustedIssuers.issuers)) trustedIssuers.issuers = [];
     const trustedEntry = trustedIssuers.issuers.find(i => i.key_id === revokeTargetKeyId);
     if (trustedEntry) {
       trustedEntry.status = 'revoked';

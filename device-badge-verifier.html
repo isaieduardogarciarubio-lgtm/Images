@@ -756,6 +756,7 @@ async function verifyBadge() {
 
     const config = await GridAPI.readState('public_config', {});
     const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
+    if (!Array.isArray(trustedIssuers.issuers)) trustedIssuers.issuers = [];
 
     // Root of trust: prefer the key pinned in this file over whatever
     // public_config says live, since public_config is a mutable Grid
