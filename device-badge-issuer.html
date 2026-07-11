@@ -1052,19 +1052,10 @@ const GridAPI = (() => {
         return res.json();
       };
       return retry(fn);
-    },
-
-    /* Link a document into a workspace so all workspace members instantly
-       get the workspace's linked_doc_permission (viewer) on it — this is
-       how admins/verifier get read access to this issuer's ledger without
-       anyone having to manually share the document. */
-    async linkDocumentToWorkspace(workspaceId, docId) {
-      const fn = () => fetchJson(`/api/v1/workspaces/${workspaceId}/documents`, {
-        method: 'POST',
-        body: { doc_id: docId }
-      });
-      return retry(fn);
     }
+    // Note: no linkDocumentToWorkspace here — linking requires workspace
+    // management rights the issuer doesn't have. The admin app links this
+    // document into the workspace during approveIssuer instead.
   };
 })();
 
@@ -1213,12 +1204,17 @@ document.getElementById('btn-onboard').addEventListener('click', async () => {
     const encrypted = await CryptoLib.encryptPrivateKey(keyPair.privateKey, currentPassphrase);
     const keyId = `issuer-${currentUser}-${new Date().toISOString().split('T')[0]}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
+    // The issuer creates their own document (they become its owner, so
+    // this always succeeds) but does NOT link it into the workspace
+    // themselves — that requires workspace management rights the issuer
+    // was never granted (and shouldn't be, for least privilege). Linking
+    // happens later, in the admin's approveIssuer step, under a session
+    // that actually has rights on the workspace.
     const placeholderHtml = `<!DOCTYPE html><html><body>Device Badge Ledger — ${keyId}</body></html>`;
     const doc = await GridAPI.createDocument(`Ledger - ${currentUser} - ${keyId}`, placeholderHtml);
     if (!doc.doc_id) {
       throw new Error('Grid no devolvió un doc_id al crear el documento de ledger. No se puede continuar.');
     }
-    await GridAPI.linkDocumentToWorkspace(config.ledger_workspace_id, doc.doc_id);
 
     const newKey = {
       ldap: currentUser,
@@ -1233,7 +1229,8 @@ document.getElementById('btn-onboard').addEventListener('click', async () => {
       encryption: "AES-256-GCM",
       status: "pending_approval",
       created_at: new Date().toISOString(),
-      ledger_doc_id: doc.doc_id
+      ledger_doc_id: doc.doc_id,
+      ledger_doc_linked: false
     };
 
     const issuerKeys = await GridAPI.readList('issuer_keys');

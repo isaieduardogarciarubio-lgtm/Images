@@ -1298,12 +1298,14 @@ document.getElementById('btn-add-admin').addEventListener('click', async () => {
     config.root_key_wraps = wraps;
     await GridAPI.setState('public_config', config);
 
-    // Auto-add the new admin as a viewer member of the Ledger Workspace
-    // (if it exists yet) so they get automatic read access to every
-    // issuer's ledger without anyone sharing documents by hand.
+    // Auto-add the new admin as an editor member of the Ledger Workspace
+    // (if it exists yet). Editor role (not the lower "member" tier) is
+    // needed so this admin can link new issuer documents into the
+    // workspace during approveIssuer — a plain "member" role only grants
+    // read access to already-linked docs, not the right to link new ones.
     if (config.ledger_workspace_id) {
       try {
-        await GridAPI.addWorkspaceMember(config.ledger_workspace_id, newAdminLdap, 'member');
+        await GridAPI.addWorkspaceMember(config.ledger_workspace_id, newAdminLdap, 'editor');
       } catch (err) {
         console.debug(`No se pudo agregar a ${newAdminLdap} al workspace de ledgers`, err.message);
       }
@@ -1480,6 +1482,22 @@ window.approveIssuer = async (keyId) => {
       showAlert('alert-issuers', 'Emisor no encontrado', 'error');
       return;
     }
+
+    // Link the issuer's own document into the Ledger Workspace here, under
+    // the admin's session — the issuer created the document but couldn't
+    // link it themselves (linking requires workspace editor/owner rights,
+    // which issuers deliberately don't have). Do this before finalizing
+    // approval so a link failure blocks approval instead of leaving an
+    // issuer "active" with an unreadable ledger.
+    if (key.ledger_doc_id && !key.ledger_doc_linked) {
+      if (!config.ledger_workspace_id) {
+        showAlert('alert-issuers', 'No hay Workspace de Ledgers configurado, no se puede vincular el documento de este emisor.', 'error');
+        return;
+      }
+      await GridAPI.linkDocumentToWorkspace(config.ledger_workspace_id, key.ledger_doc_id);
+      key.ledger_doc_linked = true;
+    }
+
     key.status = 'active';
     key.approved_by = currentUser;
     key.approved_at = new Date().toISOString();
@@ -1571,6 +1589,7 @@ window.migrateIssuerLedger = async (keyId) => {
     }
 
     key.ledger_doc_id = doc.doc_id;
+    key.ledger_doc_linked = true;
     await GridAPI.writeList('issuer_keys', keys);
 
     const trustedIssuers = await GridAPI.readState('trusted_issuers', { issuers: [], signature: null, signed_by_root_at: null });
@@ -1618,7 +1637,10 @@ async function ensureLedgerWorkspace() {
 
     for (const wrap of wraps) {
       try {
-        await GridAPI.addWorkspaceMember(workspaceId, wrap.admin_ldap, 'member');
+        // Editor role: admins need to be able to link new issuer documents
+        // into the workspace during approveIssuer, which a plain "member"
+        // role likely can't do (only read access to already-linked docs).
+        await GridAPI.addWorkspaceMember(workspaceId, wrap.admin_ldap, 'editor');
       } catch (err) {
         console.debug(`No se pudo agregar a ${wrap.admin_ldap} como miembro del workspace`, err.message);
       }
