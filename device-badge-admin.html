@@ -646,9 +646,22 @@ const CryptoLib = (() => {
       );
     },
 
-    /* Encrypt private key with passphrase using PBKDF2 + AES-256-GCM */
+    /* Encrypt private key with passphrase using PBKDF2 + AES-256-GCM.
+       Requires an extractable CryptoKey (importPrivateKey imports keys as
+       non-extractable, since they only need to sign) — use
+       encryptPrivateKeyFromJwk instead when you already have the raw JWK
+       on hand (e.g. right after decryptPrivateKey), which is the common
+       case and avoids needing an extractable key at all. */
     async encryptPrivateKey(privateKey, passphrase) {
       const privateJwk = await crypto.subtle.exportKey('jwk', privateKey);
+      return this.encryptPrivateKeyFromJwk(privateJwk, passphrase);
+    },
+
+    /* Same as encryptPrivateKey but starts from an already-exported JWK
+       instead of a CryptoKey — used when re-wrapping a root key for a new
+       admin, where the JWK is already in memory from decryptPrivateKey and
+       the imported CryptoKey is intentionally non-extractable. */
+    async encryptPrivateKeyFromJwk(privateJwk, passphrase) {
       const privateJsonStr = JSON.stringify(privateJwk);
       const privateBytes = new TextEncoder().encode(privateJsonStr);
 
@@ -1286,10 +1299,13 @@ document.getElementById('btn-add-admin').addEventListener('click', async () => {
       myWrap.salt,
       myWrap.iv
     );
-    const privateKey = await CryptoLib.importPrivateKey(privateJwk);
 
+    // Re-wrap directly from the JWK we already have in memory — no need
+    // to round-trip through importPrivateKey, whose CryptoKey is
+    // intentionally non-extractable (it's only ever used for signing
+    // elsewhere), which would make crypto.subtle.exportKey throw here.
     const newAdminPassphrase = CryptoLib.generatePassphrase();
-    const encrypted = await CryptoLib.encryptPrivateKey(privateKey, newAdminPassphrase);
+    const encrypted = await CryptoLib.encryptPrivateKeyFromJwk(privateJwk, newAdminPassphrase);
 
     wraps.push({
       admin_ldap: newAdminLdap,
