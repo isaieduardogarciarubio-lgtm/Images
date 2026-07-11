@@ -317,6 +317,18 @@
   </style>
 <script>(function(){function _ok(r,onOk){return r.json().then(function(b){if(!r.ok)throw b;onOk(b);return b;});}window.GRID=window.GRID||{};window.GRID._stateUpdatedAtByName=window.GRID._stateUpdatedAtByName||{};window.GRID.states={get:function(name){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/states/'+encodeURIComponent(n)).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},set:function(name,data,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/states/'+encodeURIComponent(n),{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},patch:function(name,patchData,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/states/'+encodeURIComponent(n),{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});}};window.GRID.state={get:function(){return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/state',{credentials:'include'}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},set:function(data,ifUpdatedAt){return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/state',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},patch:function(patchData,ifUpdatedAt){return fetch('/api/v1/documents/'+encodeURIComponent(window.GRID.docId)+'/state',{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});}};}());</script></head>
 <body>
+  <!-- DEBUG CONSOLE: captura cada llamada a Grid (método, URL, status, respuesta)
+       para diagnosticar sin necesitar devtools del navegador. -->
+  <div id="debug-console" style="position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999; background: #0a0a0a; border-top: 2px solid #FFD100; font-family: monospace; font-size: 11px; color: #ddd; max-height: 40vh; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #1a1a1a; cursor: pointer;" id="debug-console-header">
+      <span>🐞 Debug Console (<span id="debug-console-count">0</span> llamadas) — clic para colapsar</span>
+      <div style="display: flex; gap: 8px;">
+        <button id="debug-console-copy" style="font-size: 11px; padding: 2px 8px; cursor: pointer;">Copiar todo</button>
+        <button id="debug-console-clear" style="font-size: 11px; padding: 2px 8px; cursor: pointer;">Limpiar</button>
+      </div>
+    </div>
+    <textarea id="debug-console-log" readonly style="flex: 1; min-height: 150px; background: #0a0a0a; color: #ddd; border: none; padding: 8px 12px; font-family: monospace; font-size: 11px; resize: vertical; white-space: pre;"></textarea>
+  </div>
   <nav>
     <div class="brand">
       <span>Device<b>Badge</b> — Emisor</span>
@@ -803,6 +815,24 @@ const CryptoLib = (() => {
 })();
 
 /* ──────────────────────────────────────────────────────────────── */
+/* DEBUG CONSOLE — logs every Grid API call to an on-screen panel,   */
+/* since devtools aren't available in this environment.              */
+/* ──────────────────────────────────────────────────────────────── */
+window.__debugLog = [];
+function debugLog(method, url, status, detail) {
+  const time = new Date().toLocaleTimeString();
+  const line = `[${time}] ${method} ${url} -> ${status}${detail ? '\n    ' + detail : ''}`;
+  window.__debugLog.push(line);
+  const textarea = document.getElementById('debug-console-log');
+  const counter = document.getElementById('debug-console-count');
+  if (textarea) {
+    textarea.value = window.__debugLog.join('\n\n');
+    textarea.scrollTop = textarea.scrollHeight;
+  }
+  if (counter) counter.textContent = window.__debugLog.length;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
 /* MELI GRID API WRAPPER                                            */
 /* Unified interface for reading/writing state buckets and states   */
 /* ──────────────────────────────────────────────────────────────── */
@@ -856,11 +886,13 @@ const GridAPI = (() => {
       } catch {
         try { detail = await res.text(); } catch {}
       }
+      debugLog(opts.method || 'GET', url, res.status, detail);
       const err = new Error(`HTTP ${res.status}${detail ? ': ' + detail : ''}`);
       err.status = res.status;
       err.detail = detail;
       throw err;
     }
+    debugLog(opts.method || 'GET', url, res.status, '');
     return res.json();
   }
 
@@ -1011,10 +1043,12 @@ const GridAPI = (() => {
         if (!res.ok) {
           let detail = '';
           try { detail = await res.text(); } catch {}
+          debugLog('POST', '/api/v1/documents', res.status, detail);
           const err = new Error(`HTTP ${res.status}${detail ? ': ' + detail : ''}`);
           err.status = res.status;
           throw err;
         }
+        debugLog('POST', '/api/v1/documents', res.status, '');
         return res.json();
       };
       return retry(fn);
@@ -1526,6 +1560,35 @@ function setupEventListeners() {
     });
   });
 }
+
+/* ──────────────────────────────────────────────────────────────── */
+/* DEBUG CONSOLE — panel controls                                  */
+/* ──────────────────────────────────────────────────────────────── */
+document.getElementById('debug-console-header').addEventListener('click', () => {
+  const textarea = document.getElementById('debug-console-log');
+  textarea.style.display = textarea.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('debug-console-clear').addEventListener('click', (e) => {
+  e.stopPropagation();
+  window.__debugLog = [];
+  document.getElementById('debug-console-log').value = '';
+  document.getElementById('debug-console-count').textContent = '0';
+});
+
+document.getElementById('debug-console-copy').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const textarea = document.getElementById('debug-console-log');
+  textarea.style.display = 'block';
+  textarea.focus();
+  textarea.select();
+  try {
+    document.execCommand('copy');
+  } catch {}
+  try {
+    navigator.clipboard && navigator.clipboard.writeText(textarea.value);
+  } catch {}
+});
 
 init();
   </script>
