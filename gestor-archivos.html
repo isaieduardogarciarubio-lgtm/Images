@@ -712,57 +712,103 @@
    * antes se quedaba "cargando" para siempre. Ahora se aborta y
    * se convierte en un error visible (consola de debug + toast)
    * a los REQUEST_TIMEOUT_MS.
+   *
+   * Además hay un gate global de rate limit: cuando Grid contesta
+   * 429 con Retry-After, TODAS las requests (no solo la que lo
+   * disparó) esperan ese tiempo antes de seguir, y la que lo
+   * disparó se reintenta sola. Con lotes grandes (recuperar cientos
+   * de documentos) sin esto, un 429 se confundía con "el documento
+   * no existe" y se descartaba un documento real.
    * ──────────────────────────────────────────────────────────── */
   var REQUEST_TIMEOUT_MS = 20000;
+  var MAX_429_RETRIES = 8;
+  var rateLimitGateUntil = 0;
 
-  function apiFetch(url, opts) {
+  function waitForRateLimitGate() {
+    var wait = rateLimitGateUntil - Date.now();
+    if (wait <= 0) return Promise.resolve();
+    dbg("warn", "Rate limit: esperando " + Math.ceil(wait / 1000) + "s (gate global) antes de la próxima request...");
+    return new Promise(function (resolve) { setTimeout(resolve, wait); });
+  }
+
+  function apiFetch(url, opts, _retryCount) {
+    _retryCount = _retryCount || 0;
     opts = opts || {};
     opts.credentials = "include";
     var method = (opts.method || "GET").toUpperCase();
-    var start = Date.now();
-    var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
-    var timedOut = false;
-    var timer = null;
-    if (controller) {
-      opts.signal = controller.signal;
-      timer = setTimeout(function () { timedOut = true; controller.abort(); }, REQUEST_TIMEOUT_MS);
-    }
 
-    dbg("info", method + " " + url + " → enviando...");
+    return waitForRateLimitGate().then(function () {
+      var start = Date.now();
+      var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      var timedOut = false;
+      var timer = null;
+      if (controller) {
+        opts.signal = controller.signal;
+        timer = setTimeout(function () { timedOut = true; controller.abort(); }, REQUEST_TIMEOUT_MS);
+      }
 
-    return fetch(url, opts)
-      .then(function (r) {
-        if (timer) clearTimeout(timer);
-        var ms = Date.now() - start;
-        if (!r.ok) {
+      dbg("info", method + " " + url + " → enviando..." + (_retryCount > 0 ? " (reintento " + _retryCount + ")" : ""));
+
+      return fetch(url, opts)
+        .then(function (r) {
+          if (timer) clearTimeout(timer);
+          var ms = Date.now() - start;
+
+          if (r.status === 429) {
+            return r.text().then(function (t) {
+              var retryAfterSec = 30;
+              var headerVal = r.headers && r.headers.get ? r.headers.get("Retry-After") : null;
+              if (headerVal && !isNaN(parseFloat(headerVal))) {
+                retryAfterSec = parseFloat(headerVal);
+              } else {
+                try {
+                  var parsed = JSON.parse(t);
+                  if (parsed && typeof parsed.retry_after === "number") retryAfterSec = parsed.retry_after;
+                } catch (e) { /* ignore */ }
+              }
+              rateLimitGateUntil = Date.now() + retryAfterSec * 1000 + 500;
+              dbg("warn", method + " " + url + " → 429 rate_limit (" + ms + "ms), retry_after=" + retryAfterSec + "s — reintentando solo");
+
+              if (_retryCount >= MAX_429_RETRIES) {
+                var errRL = new Error("Rate limit persistente tras " + _retryCount + " reintentos");
+                errRL.status = 429;
+                errRL._logged = true;
+                throw errRL;
+              }
+              return apiFetch(url, opts, _retryCount + 1);
+            });
+          }
+
+          if (!r.ok) {
+            return r.text().then(function (t) {
+              dbg("error", method + " " + url + " → HTTP " + r.status + " (" + ms + "ms)" + (t ? " — " + t.slice(0, 120) : ""));
+              var err = new Error("HTTP " + r.status + (t ? ": " + t.slice(0, 160) : ""));
+              err.status = r.status;
+              err._logged = true;
+              throw err;
+            });
+          }
+          if (r.status === 204) { dbg("ok", method + " " + url + " → 204 (" + ms + "ms)"); return null; }
           return r.text().then(function (t) {
-            dbg("error", method + " " + url + " → HTTP " + r.status + " (" + ms + "ms)" + (t ? " — " + t.slice(0, 120) : ""));
-            var err = new Error("HTTP " + r.status + (t ? ": " + t.slice(0, 160) : ""));
-            err.status = r.status;
-            err._logged = true;
-            throw err;
+            dbg("ok", method + " " + url + " → 200 (" + ms + "ms, " + (t ? t.length : 0) + " bytes)");
+            if (!t) return null;
+            try { return JSON.parse(t); } catch (e) { return t; }
           });
-        }
-        if (r.status === 204) { dbg("ok", method + " " + url + " → 204 (" + ms + "ms)"); return null; }
-        return r.text().then(function (t) {
-          dbg("ok", method + " " + url + " → 200 (" + ms + "ms, " + (t ? t.length : 0) + " bytes)");
-          if (!t) return null;
-          try { return JSON.parse(t); } catch (e) { return t; }
+        })
+        .catch(function (e) {
+          if (timer) clearTimeout(timer);
+          if (e._logged) throw e;
+          var ms = Date.now() - start;
+          if (timedOut) {
+            dbg("error", method + " " + url + " → TIMEOUT: sin respuesta tras " + ms + "ms, request abortado");
+            var err2 = new Error("Sin respuesta de Grid tras " + Math.round(ms / 1000) + "s (timeout)");
+            err2.status = 0;
+            throw err2;
+          }
+          dbg("error", method + " " + url + " → " + e.message + " (" + ms + "ms)");
+          throw e;
         });
-      })
-      .catch(function (e) {
-        if (timer) clearTimeout(timer);
-        if (e._logged) throw e;
-        var ms = Date.now() - start;
-        if (timedOut) {
-          dbg("error", method + " " + url + " → TIMEOUT: sin respuesta tras " + ms + "ms, request abortado");
-          var err2 = new Error("Sin respuesta de Grid tras " + Math.round(ms / 1000) + "s (timeout)");
-          err2.status = 0;
-          throw err2;
-        }
-        dbg("error", method + " " + url + " → " + e.message + " (" + ms + "ms)");
-        throw e;
-      });
+    });
   }
 
   /* ────────────────────────────────────────────────────────────
