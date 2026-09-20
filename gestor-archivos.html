@@ -1315,6 +1315,19 @@
     if (type === "doc") {
       actions.unshift({ label: "Vista previa", fn: function () { openPreview(id); } });
     }
+    if (type === "folder") {
+      actions.push({
+        label: "Inspeccionar (debug)",
+        fn: function () {
+          var f = state.folders.get(id);
+          dbg("info", 'Inspección manual de carpeta "' + (f ? f.name : id) + '" (' + id + ")...");
+          api.getFolder(id)
+            .then(function (raw) { dbg("info", 'Carpeta "' + (f ? f.name : id) + '" — metadata cruda: ' + JSON.stringify(raw)); })
+            .catch(function (e) { dbg("warn", "No se pudo inspeccionar la carpeta: " + e.message); })
+            .then(openDebugPanel);
+        }
+      });
+    }
 
     actions.forEach(function (a) {
       var item = document.createElement("div");
@@ -1746,6 +1759,18 @@
           })
           .catch(function (e) {
             dbg("warn", "Buscar perdidos — " + label + ' con owner_id="' + val + '" falló: ' + e.message);
+            // "Field required" significa que el parámetro nunca llega al
+            // validador sin importar el valor (probablemente filtrado por
+            // un proxy/gateway antes de llegar al backend) — insistir con
+            // el resto de los candidatos es gastar requests para nada.
+            if (/field required/i.test(e.message)) {
+              sourceReports.push({
+                label: label,
+                ok: false,
+                error: 'Grid nunca recibe "owner_id" desde el browser en esta ruta (mismo error con "' + val + '"); no se probaron más valores'
+              });
+              return;
+            }
             return attempt(i + 1);
           });
       }
