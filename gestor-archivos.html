@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Gestor de archivos</title>
+<title>Recuperar documentos perdidos · Grid</title>
 <style>
   :root {
     --bg:          #090C0E;
@@ -25,9 +25,7 @@
 
     --c-green:  #00D689;
     --c-blue:   #5A95FF;
-    --c-orange: #FF9E45;
     --c-red:    #FF5C6C;
-    --c-purple: #A488FF;
 
     --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-pill: 999px;
     --shadow: 0 18px 40px -20px rgba(0,0,0,.7);
@@ -84,33 +82,26 @@
     font-weight: 700; font-size: 12px;
   }
 
-  /* ── Toolbar ── */
-  .toolbar {
-    padding: 6px 28px 0 28px;
-    display: flex; flex-direction: column; gap: 14px;
+  .content { max-width: 880px; margin: 0 auto; padding: 6px 24px 60px 24px; }
+
+  .section-label {
+    font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-mut); margin: 26px 0 10px 0;
   }
 
-  .breadcrumbs {
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-    font-size: 14px; color: var(--text-sub);
-  }
-  .breadcrumbs .crumb {
-    background: none; border: none; color: var(--text-sub);
-    cursor: pointer; padding: 6px 10px; border-radius: var(--r-sm);
-    font-size: 14px;
-  }
-  .breadcrumbs .crumb:hover { color: var(--text); background: var(--surface-2); }
-  .breadcrumbs .crumb.current { color: var(--text); font-weight: 600; cursor: default; }
-  .breadcrumbs .crumb.current:hover { background: none; }
-  .breadcrumbs .sep { color: var(--text-mut); }
-
-  .toolbar-row {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 18px 20px;
   }
 
-  .search-wrap {
-    position: relative; flex: 1; min-width: 220px; max-width: 420px;
-  }
+  .status-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .status-row .stat { display: flex; flex-direction: column; gap: 2px; }
+  .status-row .stat b { font-size: 20px; }
+  .status-row .stat span { font-size: 12px; color: var(--text-mut); }
+  .status-row .actions { margin-left: auto; }
+
+  .toolbar-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .search-wrap { position: relative; flex: 1; min-width: 220px; }
   .search-wrap svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-mut); }
   .search-input {
     width: 100%; font-family: inherit; font-size: 14px; color: var(--text);
@@ -118,13 +109,6 @@
     border-radius: var(--r-pill); padding: 10px 14px 10px 38px;
   }
   .search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-  .search-scope {
-    display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-mut);
-    white-space: nowrap;
-  }
-  .search-scope label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-
-  .toolbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
   /* ── Buttons ── */
   .btn {
@@ -141,12 +125,9 @@
   .btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
   .btn-secondary { background: var(--surface-2); border-color: var(--border); color: var(--text); }
   .btn-secondary:hover { border-color: var(--accent-dim); }
-  .btn-danger { background: rgba(255,92,108,.12); border-color: rgba(255,92,108,.35); color: #FFB3BB; }
-  .btn-danger:hover { background: rgba(255,92,108,.2); }
   .btn-ghost { background: transparent; color: var(--text-sub); border-color: var(--border); }
   .btn-ghost:hover { color: var(--text); background: var(--surface-2); }
   .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; filter: none; }
-  .btn svg { flex-shrink: 0; }
 
   .icon-btn {
     width: 36px; height: 36px; display: grid; place-items: center;
@@ -155,183 +136,52 @@
   }
   .icon-btn:hover { color: var(--text); border-color: var(--accent-dim); }
 
-  /* ── Selection bar ── */
-  .selection-bar {
-    display: none; align-items: center; gap: 10px;
-    background: var(--surface-2); border: 1px solid var(--accent-dim);
-    border-radius: var(--r-md); padding: 10px 16px; margin-top: 4px;
-  }
-  .selection-bar.visible { display: flex; }
-  .selection-bar .count { font-weight: 700; color: var(--accent); font-size: 13px; }
-  .selection-bar .actions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
-
-  /* ── Content ── */
-  .content { padding: 18px 28px 60px 28px; }
-
-  .section-label {
-    font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-    color: var(--text-mut); margin: 22px 0 10px 0;
-  }
-
-  .grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    gap: 12px;
-  }
-
-  .item-card {
-    position: relative;
+  /* ── Resultados ── */
+  .result-list { display: flex; flex-direction: column; gap: 8px; }
+  .result-row {
+    display: flex; align-items: center; gap: 12px;
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--r-lg); padding: 14px; cursor: pointer;
-    transition: all .18s; user-select: none;
+    border-radius: var(--r-md); padding: 12px 14px; font-size: 13px;
   }
-  .item-card:hover { border-color: var(--accent-dim); transform: translateY(-2px); box-shadow: var(--shadow); }
-  .item-card.selected { border-color: var(--accent); background: rgba(255,209,0,.06); }
-  .item-card.dragover { border-color: var(--c-blue); background: rgba(90,149,255,.1); }
+  .result-row .info { flex: 1; overflow: hidden; }
+  .result-row .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .result-row .meta { color: var(--text-mut); font-size: 11.5px; margin-top: 2px; }
+  .result-row .meta code {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .result-row a.open-link {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-pill);
+    padding: 7px 14px; font-size: 12px; font-weight: 600; text-decoration: none; color: var(--text);
+    white-space: nowrap;
+  }
+  .result-row a.open-link:hover { border-color: var(--accent-dim); color: var(--accent); }
 
-  .item-check {
-    position: absolute; top: 10px; left: 10px; width: 20px; height: 20px;
-    border-radius: 5px; border: 1.5px solid var(--border);
-    background: var(--surface-2); display: grid; place-items: center;
-    opacity: 0; transition: opacity .12s; z-index: 2;
-  }
-  .item-card:hover .item-check,
-  .item-card.selected .item-check { opacity: 1; }
-  .item-card.selected .item-check { background: var(--accent); border-color: var(--accent); }
-  .item-card.selected .item-check::after {
-    content: ""; width: 9px; height: 5px;
-    border: 2px solid var(--on-accent); border-top: 0; border-right: 0;
-    transform: rotate(-45deg) translateY(-1px);
-  }
-
-  .item-icon {
-    width: 44px; height: 44px; border-radius: var(--r-md);
-    display: grid; place-items: center; margin-bottom: 10px;
-    background: radial-gradient(60px 40px at 50% 30%, rgba(255,209,0,.10), transparent 70%),
-                linear-gradient(160deg, #141A1F, #0D1216);
-  }
-  .item-icon.folder-icon { color: var(--accent); }
-  .item-icon.file-icon { color: var(--c-blue); }
-  .item-icon.image-icon { color: var(--c-purple); }
-  .item-icon.pdf-icon { color: var(--c-red); }
-  .item-icon.sheet-icon { color: var(--c-green); }
-
-  .item-name {
-    font-size: 13.5px; font-weight: 600; color: var(--text);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px;
-  }
-  .item-meta { font-size: 11.5px; color: var(--text-mut); }
-
-  .item-menu-btn {
-    position: absolute; top: 8px; right: 8px; width: 26px; height: 26px;
-    border-radius: 50%; border: none; background: transparent; color: var(--text-mut);
-    display: grid; place-items: center; cursor: pointer; opacity: 0;
-  }
-  .item-card:hover .item-menu-btn { opacity: 1; }
-  .item-menu-btn:hover { background: var(--surface-2); color: var(--text); }
-
-  .empty-state {
-    text-align: center; padding: 70px 20px; color: var(--text-mut);
-  }
-  .empty-state svg { color: var(--text-mut); margin-bottom: 14px; }
-  .empty-state h3 { color: var(--text-sub); font-size: 16px; margin: 0 0 6px 0; }
-  .empty-state p { font-size: 13px; margin: 0; }
-
-  .drop-overlay {
-    display: none; position: fixed; inset: 0; z-index: 40;
-    background: rgba(9,12,14,.82); backdrop-filter: blur(4px);
-    align-items: center; justify-content: center;
-    border: 3px dashed var(--accent); box-sizing: border-box;
-  }
-  .drop-overlay.visible { display: flex; }
-  .drop-overlay .msg { text-align: center; color: var(--accent); font-weight: 700; font-size: 20px; }
-
-  /* ── Modal ── */
-  .modal-bg {
-    display: none; position: fixed; inset: 0; z-index: 100;
-    background: rgba(5,7,8,.72); backdrop-filter: blur(3px);
-    align-items: center; justify-content: center; padding: 20px;
-  }
-  .modal-bg.visible { display: flex; }
-  .modal {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--r-lg); box-shadow: var(--shadow);
-    width: 100%; max-width: 460px; max-height: 84vh; overflow: auto;
-    padding: 22px;
-  }
-  .modal.wide { max-width: 620px; }
-  .modal h3 { margin: 0 0 4px 0; font-size: 17px; }
-  .modal .sub { color: var(--text-sub); font-size: 13px; margin: 0 0 16px 0; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-
-  .input, .select {
-    width: 100%; font-family: inherit; font-size: 14px; color: var(--text);
-    background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: var(--r-sm); padding: 11px 14px; margin-bottom: 4px;
-  }
-  .input:focus, .select:focus {
-    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-  .field-label { font-size: 12px; color: var(--text-sub); margin: 14px 0 6px 0; display: block; font-weight: 600; }
-
-  .folder-tree { border: 1px solid var(--border); border-radius: var(--r-md); max-height: 260px; overflow: auto; margin-top: 6px; }
-  .folder-tree-item {
-    display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer; font-size: 13px;
-  }
-  .folder-tree-item:hover { background: var(--surface-2); }
-  .folder-tree-item.active { background: rgba(255,209,0,.08); color: var(--accent); }
-  .folder-tree-item svg { flex-shrink: 0; color: var(--accent); }
-
-  .share-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; max-height: 160px; overflow: auto; }
-  .share-row { display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; font-size: 13px; }
-  .share-row .who { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-  .share-row .role { color: var(--text-mut); font-size: 11px; }
-  .share-row button { background: none; border: none; color: var(--c-red); cursor: pointer; font-size: 12px; }
-
-  .preview-body { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-  .preview-body img { max-width: 100%; max-height: 52vh; border-radius: var(--r-md); }
-  .preview-body pre {
-    width: 100%; max-height: 52vh; overflow: auto; background: var(--surface-2);
-    border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px; font-size: 12px;
-    white-space: pre-wrap; word-break: break-word;
-  }
-  .preview-body video { max-width: 100%; max-height: 52vh; border-radius: var(--r-md); }
-  .preview-fallback { text-align: center; color: var(--text-sub); padding: 30px 10px; }
-
-  .progress-list { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow: auto; margin-top: 10px; }
-  .progress-row { font-size: 12.5px; }
-  .progress-row .label { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-sub); }
-  .progress-track { height: 6px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
-  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); width: 0%; transition: width .2s; }
-  .progress-fill.ok { background: var(--c-green); }
-  .progress-fill.error { background: var(--c-red); }
+  .empty-state { text-align: center; padding: 40px 10px; color: var(--text-mut); font-size: 13px; }
 
   .alert { display:flex; gap:12px; padding:12px 14px; border-radius:var(--r-md);
-           font-size:13px; border:1px solid; margin-bottom:12px; align-items: flex-start; }
+           font-size:13px; border:1px solid; margin-bottom:8px; align-items: flex-start; }
   .alert.success { border-color:rgba(0,214,137,.35); background:rgba(0,214,137,.08); color:#7FE9C2; }
   .alert.error   { border-color:rgba(255,92,108,.35); background:rgba(255,92,108,.08); color:#FFB3BB; }
   .alert.warn    { border-color:rgba(255,209,0,.35);  background:rgba(255,209,0,.08);  color:#FFE680; }
 
+  .loading-row { display: flex; align-items: center; padding: 14px 0; color: var(--text-mut); font-size: 13px; gap: 10px; }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* ── Toasts ── */
-  .toast-stack {
-    position: fixed; bottom: 20px; right: 20px; z-index: 200;
-    display: flex; flex-direction: column; gap: 10px; max-width: 340px;
-  }
+  .toast-stack { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; max-width: 340px; }
   .toast {
-    background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: var(--r-md); padding: 12px 14px; font-size: 13px;
-    box-shadow: var(--shadow); display: flex; gap: 10px; align-items: flex-start;
-    animation: toast-in .18s ease-out;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
+    padding: 12px 14px; font-size: 13px; box-shadow: var(--shadow);
+    display: flex; gap: 10px; align-items: flex-start; animation: toast-in .18s ease-out;
   }
   .toast.success { border-color: rgba(0,214,137,.4); }
   .toast.error { border-color: rgba(255,92,108,.4); }
   @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-  .loading-row { display: flex; align-items: center; justify-content: center; padding: 50px; color: var(--text-mut); font-size: 13px; gap: 10px; }
-  .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
   /* ── Consola de depuración ── */
-  #btn-debug-toggle { position: relative; }
+  #btn-debug-toggle { position: fixed; left: 16px; bottom: 16px; z-index: 210; }
   .debug-badge {
     position: absolute; top: -4px; right: -4px; background: var(--c-red); color: #fff;
     font-size: 10px; line-height: 1; border-radius: 999px; padding: 2px 5px; display: none;
@@ -362,9 +212,7 @@
   .debug-line.error { color: var(--c-red); }
 
   @media (max-width: 720px) {
-    .nav, .toolbar, .content { padding-left: 14px; padding-right: 14px; }
-    .toolbar-actions { margin-left: 0; width: 100%; justify-content: flex-start; }
-    .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .nav, .content { padding-left: 14px; padding-right: 14px; }
   }
 </style>
 </head>
@@ -372,8 +220,8 @@
 
   <nav class="nav">
     <div class="brand">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
-      Grid <b>Files</b>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><path d="M20 20l-4.3-4.3"/><path d="M10 7.5v3M10 13h.01"/></svg>
+      Grid · <b>Recuperar perdidos</b>
     </div>
     <div class="user-pill" id="user-pill">
       <div class="avatar" id="user-avatar">?</div>
@@ -381,195 +229,38 @@
     </div>
   </nav>
 
-  <div class="toolbar">
-    <div class="breadcrumbs" id="breadcrumbs"></div>
+  <div class="content">
+    <div class="card">
+      <div class="status-row" id="status-row">
+        <div class="loading-row"><div class="spinner"></div> Cargando índice actual de Grid (carpetas y documentos)...</div>
+      </div>
+    </div>
+
+    <div class="section-label">Buscar documentos perdidos</div>
+    <p style="color:var(--text-sub); font-size:13px; margin:-4px 0 14px 0;">
+      Documentos que existen y siguen ligados a su carpeta, pero que Grid dejó de mostrar en el listado
+      (y por lo tanto tampoco aparecen en la búsqueda). Se cruzan favoritos, recientes, diagnóstico de Grid
+      y la metadata de cada carpeta contra lo que el índice actual trae.
+    </p>
 
     <div class="toolbar-row">
       <div class="search-wrap">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input class="search-input" id="search-input" type="text" placeholder="Buscar archivos y carpetas..." />
+        <input class="search-input" id="query-input" type="text" placeholder="Texto opcional para buscar también por nombre..." />
       </div>
-      <div class="search-scope">
-        <label><input type="checkbox" id="search-global" /> Buscar en todo el gestor</label>
-      </div>
-
-      <div class="toolbar-actions">
-        <button class="btn btn-secondary" id="btn-new-folder">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          Nueva carpeta
-        </button>
-        <button class="btn btn-primary" id="btn-upload">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
-          Subir
-        </button>
-        <input type="file" id="file-input" multiple style="display:none" />
-        <button class="icon-btn" id="btn-refresh" title="Refrescar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12V6m0 6h6"/></svg>
-        </button>
-        <button class="icon-btn" id="btn-sync-index" title="Si faltan documentos viejos en la lista o en la búsqueda, sincronizá el índice antes de recargar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>
-        </button>
-        <button class="icon-btn" id="btn-find-lost" title="Buscar documentos perdidos (favoritos, recientes, diagnóstico de Grid)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><path d="M20 20l-4.3-4.3"/><path d="M10 7.5v3M10 13h.01"/></svg>
-        </button>
-      </div>
+      <button class="btn btn-primary" id="btn-analyze">Analizar</button>
+      <button class="btn btn-secondary" id="btn-download-csv" disabled>Descargar CSV</button>
     </div>
 
-    <div class="selection-bar" id="selection-bar">
-      <span class="count" id="selection-count">0 seleccionados</span>
-      <div class="actions">
-        <button class="btn btn-secondary" id="sel-move"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>Mover a...</button>
-        <button class="btn btn-secondary" id="sel-download"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>Descargar</button>
-        <button class="btn btn-secondary" id="sel-share"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.9-4M8.6 13.5l6.9 4"/></svg>Compartir</button>
-        <button class="btn btn-danger" id="sel-delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-8 0v13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V7"/></svg>Eliminar</button>
-        <button class="btn btn-ghost" id="sel-clear">Cancelar</button>
-      </div>
+    <div id="sources-status"></div>
+
+    <div class="section-label">Resultados encontrados</div>
+    <div id="results-list" class="result-list">
+      <div class="empty-state">Todavía no corriste un análisis.</div>
     </div>
   </div>
 
-  <div class="content" id="content">
-    <div class="loading-row"><div class="spinner"></div> Cargando gestor de archivos...</div>
-  </div>
-
-  <div class="drop-overlay" id="drop-overlay">
-    <div class="msg">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
-      <div>Soltá los archivos para subirlos aquí</div>
-    </div>
-  </div>
-
-  <!-- Modal: nueva carpeta / renombrar -->
-  <div class="modal-bg" id="modal-folder">
-    <div class="modal">
-      <h3 id="modal-folder-title">Nueva carpeta</h3>
-      <p class="sub">Elegí un nombre para la carpeta.</p>
-      <input class="input" id="modal-folder-name" type="text" placeholder="Nombre de la carpeta" />
-      <div id="modal-folder-alert"></div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" data-close="modal-folder">Cancelar</button>
-        <button class="btn btn-primary" id="modal-folder-confirm">Guardar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: renombrar archivo -->
-  <div class="modal-bg" id="modal-rename">
-    <div class="modal">
-      <h3>Renombrar</h3>
-      <p class="sub">Cambiá el nombre visible del elemento.</p>
-      <input class="input" id="modal-rename-name" type="text" />
-      <div id="modal-rename-alert"></div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" data-close="modal-rename">Cancelar</button>
-        <button class="btn btn-primary" id="modal-rename-confirm">Guardar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: mover -->
-  <div class="modal-bg" id="modal-move">
-    <div class="modal">
-      <h3>Mover a...</h3>
-      <p class="sub" id="modal-move-sub">Elegí la carpeta destino.</p>
-      <div class="folder-tree" id="modal-move-tree"></div>
-      <div id="modal-move-alert"></div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" data-close="modal-move">Cancelar</button>
-        <button class="btn btn-primary" id="modal-move-confirm">Mover aquí</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: confirmar borrado -->
-  <div class="modal-bg" id="modal-delete">
-    <div class="modal">
-      <h3>¿Eliminar definitivamente?</h3>
-      <p class="sub" id="modal-delete-sub">Esta acción no se puede deshacer.</p>
-      <div class="alert warn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9L2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-        <span>Si eliminás una carpeta, los archivos que contiene también quedarán afectados.</span>
-      </div>
-      <div id="modal-delete-alert"></div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" data-close="modal-delete">Cancelar</button>
-        <button class="btn btn-danger" id="modal-delete-confirm">Eliminar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: compartir -->
-  <div class="modal-bg" id="modal-share">
-    <div class="modal">
-      <h3>Compartir</h3>
-      <p class="sub" id="modal-share-sub">Invitá a una persona por su usuario o email.</p>
-      <input class="input" id="modal-share-who" type="text" placeholder="usuario o email@mercadolibre.com" />
-      <label class="field-label">Permiso</label>
-      <select class="select" id="modal-share-role">
-        <option value="viewer">Puede ver</option>
-        <option value="editor">Puede editar</option>
-      </select>
-      <div id="modal-share-alert"></div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" data-close="modal-share">Cerrar</button>
-        <button class="btn btn-primary" id="modal-share-confirm">Compartir</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: preview -->
-  <div class="modal-bg" id="modal-preview">
-    <div class="modal wide">
-      <h3 id="modal-preview-title">Vista previa</h3>
-      <p class="sub" id="modal-preview-sub"></p>
-      <div class="preview-body" id="modal-preview-body"></div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" data-close="modal-preview">Cerrar</button>
-        <button class="btn btn-primary" id="modal-preview-download">Descargar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: documentos perdidos -->
-  <div class="modal-bg" id="modal-lost">
-    <div class="modal wide">
-      <h3>Buscar documentos perdidos</h3>
-      <p class="sub">Cruza favoritos, recientes y el diagnóstico de Grid contra lo que el gestor tiene cargado, para encontrar documentos que existen pero no aparecen en el listado ni en la búsqueda.</p>
-
-      <div id="modal-lost-sources"></div>
-
-      <label class="field-label">Buscar también por texto (opcional)</label>
-      <div style="display:flex; gap:8px; align-items:flex-start;">
-        <input class="input" id="modal-lost-query" type="text" placeholder="Nombre o palabra clave..." style="margin-bottom:0;" />
-        <button class="btn btn-secondary" id="modal-lost-search-btn" style="white-space:nowrap;">Buscar</button>
-      </div>
-      <div id="modal-lost-alert"></div>
-
-      <div class="section-label" style="margin-top:18px;">Candidatos encontrados</div>
-      <div id="modal-lost-results" class="share-list" style="max-height:240px;"></div>
-
-      <div class="modal-footer">
-        <button class="btn btn-ghost" data-close="modal-lost">Cerrar</button>
-        <button class="btn btn-secondary" id="modal-lost-analyze">Analizar de nuevo</button>
-        <button class="btn btn-primary" id="modal-lost-recover-all" disabled>Recuperar todos</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: progreso de subida / descarga en lote -->
-  <div class="modal-bg" id="modal-progress">
-    <div class="modal">
-      <h3 id="modal-progress-title">Procesando...</h3>
-      <p class="sub" id="modal-progress-sub"></p>
-      <div class="progress-list" id="modal-progress-list"></div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" id="modal-progress-close" disabled>Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="toast-stack" id="toast-stack"></div>
-
-  <button class="icon-btn" id="btn-debug-toggle" title="Consola de depuración" style="position:fixed;left:16px;bottom:16px;z-index:210;">
+  <button class="icon-btn" id="btn-debug-toggle" title="Consola de depuración">
     🐞<span class="debug-badge" id="debug-badge"></span>
   </button>
   <div class="debug-panel" id="debug-panel">
@@ -583,6 +274,8 @@
     <div class="debug-panel-body" id="debug-panel-body"></div>
   </div>
 
+  <div class="toast-stack" id="toast-stack"></div>
+
 <script>
 (function () {
   "use strict";
@@ -592,26 +285,19 @@
    * ──────────────────────────────────────────────────────────── */
   var state = {
     currentUser: null,
-    folderId: null,          // null = raíz
-    folders: new Map(),      // id -> folder normalizado
-    documents: new Map(),    // id -> doc normalizado
-    selection: new Map(),    // key "folder:id"/"doc:id" -> item
-    query: "",
-    globalSearch: false,
+    folders: new Map(),   // id -> folder normalizado
+    documents: new Map(), // id -> doc normalizado (lo que Grid SI muestra hoy)
     loaded: false
   };
 
-  function selKey(type, id) { return type + ":" + id; }
+  function $(id) { return document.getElementById(id); }
 
   /* ────────────────────────────────────────────────────────────
-   * Consola de depuración — visible en pantalla (🐞, esquina
-   * inferior izquierda) y espejada a console.log/warn/error.
-   * Registra cada request a Grid con método, url, duración y
-   * resultado para poder ver exactamente dónde se traba una carga.
+   * Consola de depuración
    * ──────────────────────────────────────────────────────────── */
-  var DEBUG_MAX_LINES = 500;
   var debugLines = [];
   var debugUnread = 0;
+  var DEBUG_MAX_LINES = 500;
 
   function dbg(kind, msg) {
     var line = { t: new Date(), kind: kind, msg: msg };
@@ -619,16 +305,13 @@
     if (debugLines.length > DEBUG_MAX_LINES) debugLines.shift();
     renderDebugLine(line);
     var fn = kind === "error" ? console.error : (kind === "warn" ? console.warn : console.log);
-    fn("[GridFiles]", msg);
-    var panel = document.getElementById("debug-panel");
-    if (!panel || !panel.classList.contains("visible")) {
-      debugUnread++;
-      updateDebugBadge();
-    }
+    fn("[Recuperar perdidos]", msg);
+    var panel = $("debug-panel");
+    if (!panel || !panel.classList.contains("visible")) { debugUnread++; updateDebugBadge(); }
   }
 
   function renderDebugLine(line) {
-    var body = document.getElementById("debug-panel-body");
+    var body = $("debug-panel-body");
     if (!body) return;
     var el = document.createElement("div");
     el.className = "debug-line " + line.kind;
@@ -639,33 +322,31 @@
   }
 
   function updateDebugBadge() {
-    var badge = document.getElementById("debug-badge");
+    var badge = $("debug-badge");
     if (!badge) return;
     if (debugUnread > 0) { badge.textContent = debugUnread > 99 ? "99+" : String(debugUnread); badge.classList.add("visible"); }
     else { badge.classList.remove("visible"); }
   }
 
   function openDebugPanel() {
-    var panel = document.getElementById("debug-panel");
+    var panel = $("debug-panel");
     if (!panel) return;
     panel.classList.add("visible");
     debugUnread = 0;
     updateDebugBadge();
   }
 
-  /* ────────────────────────────────────────────────────────────
-   * Helpers UI genéricos
-   * ──────────────────────────────────────────────────────────── */
-  function $(id) { return document.getElementById(id); }
-
-  function showModal(id) { $(id).classList.add("visible"); }
-  function hideModal(id) { $(id).classList.remove("visible"); }
-
-  document.addEventListener("click", function (e) {
-    var closeId = e.target.getAttribute && e.target.getAttribute("data-close");
-    if (closeId) hideModal(closeId);
+  $("btn-debug-toggle").addEventListener("click", function () {
+    var panel = $("debug-panel");
+    if (panel.classList.contains("visible")) panel.classList.remove("visible");
+    else openDebugPanel();
   });
+  $("debug-close").addEventListener("click", function () { $("debug-panel").classList.remove("visible"); });
+  $("debug-clear").addEventListener("click", function () { debugLines = []; $("debug-panel-body").innerHTML = ""; });
 
+  /* ────────────────────────────────────────────────────────────
+   * Helpers genéricos
+   * ──────────────────────────────────────────────────────────── */
   function toast(message, kind) {
     var stack = $("toast-stack");
     var el = document.createElement("div");
@@ -679,23 +360,9 @@
     }, 3600);
   }
 
-  function setAlert(containerId, message, kind) {
-    var el = $(containerId);
-    if (!message) { el.innerHTML = ""; return; }
-    el.innerHTML = '<div class="alert ' + (kind || "error") + '">' + escapeHtml(message) + "</div>";
-  }
-
   function escapeHtml(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
-  function fmtBytes(n) {
-    if (!n || n <= 0) return "";
-    var units = ["B", "KB", "MB", "GB"];
-    var i = 0;
-    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
-    return n.toFixed(i === 0 ? 0 : 1) + " " + units[i];
   }
 
   function fmtDate(iso) {
@@ -708,17 +375,12 @@
   /* ────────────────────────────────────────────────────────────
    * Cliente API Grid
    *
-   * Cada request tiene un timeout duro: si Grid nunca responde,
-   * antes se quedaba "cargando" para siempre. Ahora se aborta y
-   * se convierte en un error visible (consola de debug + toast)
-   * a los REQUEST_TIMEOUT_MS.
-   *
-   * Además hay un gate global de rate limit: cuando Grid contesta
-   * 429 con Retry-After, TODAS las requests (no solo la que lo
-   * disparó) esperan ese tiempo antes de seguir, y la que lo
-   * disparó se reintenta sola. Con lotes grandes (recuperar cientos
-   * de documentos) sin esto, un 429 se confundía con "el documento
-   * no existe" y se descartaba un documento real.
+   * Timeout duro por request (si Grid nunca responde, se aborta
+   * en vez de colgar la app) y gate global de rate limit: si Grid
+   * contesta 429 con Retry-After, TODAS las requests esperan ese
+   * tiempo exacto (no uno inventado) antes de seguir, y la propia
+   * request se reintenta sola en vez de descartarse como si el
+   * documento no existiera.
    * ──────────────────────────────────────────────────────────── */
   var REQUEST_TIMEOUT_MS = 20000;
   var MAX_429_RETRIES = 8;
@@ -756,18 +418,20 @@
 
           if (r.status === 429) {
             return r.text().then(function (t) {
-              var retryAfterSec = 30;
+              var retryAfterSec = null;
               var headerVal = r.headers && r.headers.get ? r.headers.get("Retry-After") : null;
-              if (headerVal && !isNaN(parseFloat(headerVal))) {
+              if (headerVal != null && !isNaN(parseFloat(headerVal))) {
                 retryAfterSec = parseFloat(headerVal);
               } else {
                 try {
                   var parsed = JSON.parse(t);
-                  if (parsed && typeof parsed.retry_after === "number") retryAfterSec = parsed.retry_after;
+                  var rawVal = parsed && (parsed.retry_after != null ? parsed.retry_after : parsed.retryAfter);
+                  if (rawVal != null && !isNaN(parseFloat(rawVal))) retryAfterSec = parseFloat(rawVal);
                 } catch (e) { /* ignore */ }
               }
+              if (retryAfterSec == null) retryAfterSec = 30;
               rateLimitGateUntil = Date.now() + retryAfterSec * 1000 + 500;
-              dbg("warn", method + " " + url + " → 429 rate_limit (" + ms + "ms), retry_after=" + retryAfterSec + "s — reintentando solo");
+              dbg("warn", method + " " + url + " → 429 rate_limit (" + ms + "ms), Grid pidió esperar " + retryAfterSec + "s — reintentando solo");
 
               if (_retryCount >= MAX_429_RETRIES) {
                 var errRL = new Error("Rate limit persistente tras " + _retryCount + " reintentos");
@@ -812,16 +476,7 @@
   }
 
   /* ────────────────────────────────────────────────────────────
-   * Paginación defensiva
-   *
-   * Grid es conocido por no devolver el listado completo de
-   * documentos en una sola respuesta: docs viejos pueden faltar
-   * tanto en /api/v1/documents como en la búsqueda si el cliente
-   * confía en la primera página. El esquema real de paginación
-   * (cursor vs page, nombres de campo) no está confirmado en la
-   * Biblia más allá de los paths, así que se siguen varias
-   * convenciones posibles y se para cuando no hay progreso real
-   * (evita loops infinitos si la API ignora los params extra).
+   * Paginación defensiva para /api/v1/folders y /api/v1/documents
    * ──────────────────────────────────────────────────────────── */
   function withParam(url, key, val) {
     return url + (url.indexOf("?") === -1 ? "?" : "&") + key + "=" + encodeURIComponent(val);
@@ -843,7 +498,7 @@
   }
 
   function paginatedFetch(baseUrl, idFields) {
-    var MAX_PAGES = 40;
+    var MAX_PAGES = 60;
     var allItems = [];
     var seenIds = new Set();
 
@@ -872,12 +527,9 @@
 
         dbg(canContinue ? "info" : "ok",
           "  página " + page + " de " + baseUrl + " → " + items.length + " items (" + newCount + " nuevos), acumulado " +
-          allItems.length + (total != null ? "/" + total : "") +
-          (cursor ? " · cursor presente" : "") + (hasMoreFlag ? " · has_more=true" : "") +
-          (canContinue ? " → pide siguiente página" : (page >= MAX_PAGES ? " → tope de páginas alcanzado" : " → fin del listado")));
+          allItems.length + (total != null ? "/" + total : "") + (canContinue ? " → sigue" : " → fin"));
 
         if (!canContinue) return allItems;
-
         var nextUrl = cursor ? withParam(baseUrl, "cursor", cursor) : withParam(baseUrl, "page", page + 1);
         return step(nextUrl, page + 1);
       });
@@ -890,155 +542,91 @@
     });
   }
 
+  /* ────────────────────────────────────────────────────────────
+   * API
+   * ──────────────────────────────────────────────────────────── */
   var api = {
     me: function () { return apiFetch("/api/v1/me"); },
-
     listFolders: function () { return paginatedFetch("/api/v1/folders", ["id", "folder_id"]); },
     getFolder: function (id) { return apiFetch("/api/v1/folders/" + id); },
-    createFolder: function (name, parentId) {
-      var body = { name: name };
-      if (parentId) body.parent_id = parentId;
-      return apiFetch("/api/v1/folders", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
-      });
-    },
-    patchFolder: function (id, body) {
-      return apiFetch("/api/v1/folders/" + id, {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
-      });
-    },
-    deleteFolder: function (id) { return apiFetch("/api/v1/folders/" + id, { method: "DELETE" }); },
-    moveFolder: function (id, newParentId) {
-      return apiFetch("/api/v1/folders/" + id + "/move", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parent_id: newParentId })
-      });
-    },
-    addDocToFolder: function (folderId, docId) {
-      return apiFetch("/api/v1/folders/" + folderId + "/documents", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ doc_id: docId })
-      });
-    },
-    removeDocFromFolder: function (folderId, docId) {
-      return apiFetch("/api/v1/folders/" + folderId + "/documents/" + docId, { method: "DELETE" });
-    },
-    shareFolder: function (id, body) {
-      return apiFetch("/api/v1/folders/" + id + "/share", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
-      });
-    },
-
     listDocuments: function () { return paginatedFetch("/api/v1/documents", ["id", "doc_id"]); },
-    syncOwnerIndex: function () { return apiFetch("/api/v1/documents/sync-owner-kvs-listing", { method: "POST" }); },
+    getDocument: function (id) { return apiFetch("/api/v1/documents/" + id); },
+    getStarred: function () { return apiFetch("/api/v1/me/starred"); },
+    getRecentlyViewed: function () { return apiFetch("/api/v1/me/recently-viewed"); },
     diagnoseKvs: function (ownerId) {
       return apiFetch("/api/v1/documents/diagnose-kvs" + (ownerId ? "?owner_id=" + encodeURIComponent(ownerId) : ""));
     },
     readOwnerIndex: function (ownerId) {
       return apiFetch("/api/v1/documents/read-owner-index" + (ownerId ? "?owner_id=" + encodeURIComponent(ownerId) : ""));
     },
-    getStarred: function () { return apiFetch("/api/v1/me/starred"); },
-    getRecentlyViewed: function () { return apiFetch("/api/v1/me/recently-viewed"); },
     searchDocs: function (q) {
       return apiFetch("/api/v1/search", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: q, q: q })
-      });
-    },
-    getDocument: function (id) { return apiFetch("/api/v1/documents/" + id); },
-    createDocument: function (file, title) {
-      var fd = new FormData();
-      fd.append("file", file, file.name);
-      fd.append("title", title || file.name);
-      return apiFetch("/api/v1/documents", { method: "POST", body: fd });
-    },
-    patchDocument: function (id, body) {
-      return apiFetch("/api/v1/documents/" + id, {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
-      });
-    },
-    deleteDocument: function (id) { return apiFetch("/api/v1/documents/" + id, { method: "DELETE" }); },
-    downloadMeta: function (id) { return apiFetch("/api/v1/documents/" + id + "/download"); },
-    shareDocument: function (id, body) {
-      return apiFetch("/api/v1/documents/" + id + "/share", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
       });
     }
   };
 
   /* ────────────────────────────────────────────────────────────
-   * Normalización (los nombres exactos de campos del contrato
-   * runtime no están confirmados en la Biblia más allá de los
-   * paths; se acepta más de un alias por campo para ser robustos)
+   * Normalización defensiva (nombres de campo no confirmados
+   * más allá de los paths documentados)
    * ──────────────────────────────────────────────────────────── */
   function normFolder(raw) {
     return {
-      type: "folder",
       id: raw.id || raw.folder_id,
       name: raw.name || raw.title || "Carpeta sin nombre",
-      parentId: raw.parent_id || raw.parent_folder_id || null,
-      updatedAt: raw.updated_at || raw.modified_at || raw.created_at || null,
-      raw: raw
+      parentId: raw.parent_id || raw.parent_folder_id || null
     };
   }
 
   function normDoc(raw) {
     return {
-      type: "doc",
       id: raw.id || raw.doc_id,
       name: raw.title || raw.filename || raw.name || "Sin título",
       folderId: raw.folder_id || raw.parent_folder_id || null,
-      mime: raw.mime_type || raw.content_type || "",
-      size: raw.size_bytes || raw.size || 0,
-      updatedAt: raw.updated_at || raw.modified_at || raw.created_at || null,
-      raw: raw
+      updatedAt: raw.updated_at || raw.modified_at || raw.created_at || null
     };
   }
 
-  /* ────────────────────────────────────────────────────────────
-   * Iconos por tipo
-   * ──────────────────────────────────────────────────────────── */
-  var ICONS = {
-    folder: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>',
-    file: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
-    image: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
-    pdf: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h1.5a1.5 1.5 0 1 0 0-3H9v5"/></svg>',
-    sheet: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>'
-  };
-
-  function iconAndClassFor(doc) {
-    var m = (doc.mime || "").toLowerCase();
-    var n = (doc.name || "").toLowerCase();
-    if (m.indexOf("image/") === 0 || /\.(png|jpg|jpeg|gif|webp|svg)$/.test(n)) return { icon: ICONS.image, cls: "image-icon" };
-    if (m.indexOf("pdf") !== -1 || /\.pdf$/.test(n)) return { icon: ICONS.pdf, cls: "pdf-icon" };
-    if (m.indexOf("sheet") !== -1 || m.indexOf("csv") !== -1 || /\.(csv|xlsx|xls)$/.test(n)) return { icon: ICONS.sheet, cls: "sheet-icon" };
-    return { icon: ICONS.file, cls: "file-icon" };
+  function folderLabelFor(folderId) {
+    if (!folderId) return "raíz";
+    var folder = state.folders.get(folderId);
+    return folder ? folder.name : "carpeta " + folderId + " (metadata no cargada)";
   }
 
   /* ────────────────────────────────────────────────────────────
-   * Carga de datos
+   * Carga del índice actual (lo que Grid SÍ muestra hoy) — hace
+   * falta para saber qué falta, y para las carpetas del escaneo.
    * ──────────────────────────────────────────────────────────── */
-  function loadAll() {
-    var startedAt = Date.now();
-    dbg("info", "── loadAll: iniciando carga de carpetas y documentos ──");
-    setContentLoading(startedAt);
-    var tickTimer = setInterval(function () { updateLoadingElapsed(startedAt); }, 500);
+  function asArray(res) { return extractItems(res); }
 
-    // Carpetas y documentos se confirman en state por separado en cuanto
-    // cada uno resuelve: /api/v1/documents puede tardar minutos en
-    // paginar, y antes las carpetas (que llegan rápido) quedaban
-    // invisibles para el resto de la app —incluido el buscador de
-    // perdidos— hasta que la paginación de documentos terminaba entera.
+  function renderStatus() {
+    var row = $("status-row");
+    row.innerHTML =
+      '<div class="stat"><b>' + state.folders.size + "</b><span>carpetas en el índice</span></div>" +
+      '<div class="stat"><b>' + state.documents.size + "</b><span>documentos en el índice</span></div>" +
+      '<div class="actions"><button class="btn btn-secondary" id="btn-reload-index">Recargar índice</button></div>';
+    $("btn-reload-index").addEventListener("click", loadIndex);
+  }
+
+  function loadIndex() {
+    var startedAt = Date.now();
+    dbg("info", "── cargando índice actual (carpetas + documentos) ──");
+    $("status-row").innerHTML = '<div class="loading-row"><div class="spinner"></div> <span id="index-loading-text">Cargando índice actual...</span></div>';
+    var tickTimer = setInterval(function () {
+      var el = $("index-loading-text");
+      if (!el) return;
+      el.textContent = "Cargando índice actual... (" + Math.round((Date.now() - startedAt) / 1000) + "s)";
+    }, 500);
+
     var foldersDone = api.listFolders()
       .then(function (raw) {
         var rawFolders = asArray(raw);
         state.folders = new Map();
-        rawFolders.forEach(function (f) {
-          var nf = normFolder(f);
-          if (nf.id) state.folders.set(nf.id, nf);
-        });
+        rawFolders.forEach(function (f) { var nf = normFolder(f); if (nf.id) state.folders.set(nf.id, nf); });
         dbg("ok", "Carpetas listas: " + state.folders.size);
       })
       .catch(function (e) {
-        dbg("error", "listFolders falló definitivamente: " + e.message);
+        dbg("error", "listFolders falló: " + e.message);
         toast("No se pudieron cargar las carpetas (" + e.message + ")", "error");
       });
 
@@ -1046,653 +634,68 @@
       .then(function (raw) {
         var rawDocs = asArray(raw);
         state.documents = new Map();
-        rawDocs.forEach(function (d) {
-          var nd = normDoc(d);
-          if (nd.id) state.documents.set(nd.id, nd);
-        });
+        rawDocs.forEach(function (d) { var nd = normDoc(d); if (nd.id) state.documents.set(nd.id, nd); });
         dbg("ok", "Documentos listos: " + state.documents.size);
       })
       .catch(function (e) {
-        dbg("error", "listDocuments falló definitivamente: " + e.message);
-        toast("No se pudieron cargar los archivos (" + e.message + ")", "error");
+        dbg("error", "listDocuments falló: " + e.message);
+        toast("No se pudieron cargar los documentos (" + e.message + ")", "error");
       });
 
     return Promise.all([foldersDone, docsDone]).then(function () {
       clearInterval(tickTimer);
       state.loaded = true;
-      dbg("ok", "── loadAll: listo en " + (Date.now() - startedAt) + "ms · " + state.folders.size + " carpetas, " + state.documents.size + " documentos ──");
-      render();
+      dbg("ok", "── índice listo en " + (Date.now() - startedAt) + "ms ──");
+      renderStatus();
     }).catch(function (e) {
       clearInterval(tickTimer);
-      dbg("error", "loadAll: error inesperado — " + e.message);
-      renderLoadError(e);
+      dbg("error", "loadIndex: error inesperado — " + e.message);
+      $("status-row").innerHTML = '<div class="alert error">No se pudo cargar el índice: ' + escapeHtml(e.message) + "</div>";
     });
-  }
-
-  function asArray(res) {
-    if (Array.isArray(res)) return res;
-    if (res && Array.isArray(res.items)) return res.items;
-    if (res && Array.isArray(res.folders)) return res.folders;
-    if (res && Array.isArray(res.documents)) return res.documents;
-    if (res && Array.isArray(res.results)) return res.results;
-    return [];
-  }
-
-  function setContentLoading(startedAt) {
-    $("content").innerHTML =
-      '<div class="loading-row"><div class="spinner"></div> <span id="loading-text">Cargando...</span></div>' +
-      '<div style="text-align:center;margin-top:-6px;"><button class="btn btn-ghost" id="open-debug-from-loading" style="font-size:12px;">Ver consola de depuración</button></div>';
-    var btn = $("open-debug-from-loading");
-    if (btn) btn.addEventListener("click", openDebugPanel);
-    updateLoadingElapsed(startedAt);
-  }
-
-  function updateLoadingElapsed(startedAt) {
-    var el = $("loading-text");
-    if (!el) return;
-    var secs = Math.round((Date.now() - startedAt) / 1000);
-    el.textContent = "Cargando... (" + secs + "s)" +
-      (secs >= 8 ? " — está tardando más de lo normal, mirá 🐞 la consola de depuración" : "");
-  }
-
-  function renderLoadError(e) {
-    $("content").innerHTML =
-      '<div class="empty-state">' +
-      '<h3>No se pudo cargar el gestor</h3>' +
-      "<p>" + escapeHtml(e.message) + "</p>" +
-      '<p style="margin-top:16px;"><button class="btn btn-secondary" id="retry-load">Reintentar</button> ' +
-      '<button class="btn btn-ghost" id="open-debug-from-error">Ver consola de depuración</button></p>' +
-      "</div>";
-    var retryBtn = $("retry-load");
-    if (retryBtn) retryBtn.addEventListener("click", loadAll);
-    var dbgBtn = $("open-debug-from-error");
-    if (dbgBtn) dbgBtn.addEventListener("click", openDebugPanel);
   }
 
   /* ────────────────────────────────────────────────────────────
-   * Breadcrumbs
+   * Identidad
    * ──────────────────────────────────────────────────────────── */
-  function folderPath(folderId) {
-    var path = [];
-    var cur = folderId;
-    var guard = 0;
-    while (cur && guard < 50) {
-      var f = state.folders.get(cur);
-      if (!f) break;
-      path.unshift(f);
-      cur = f.parentId;
-      guard++;
-    }
-    return path;
-  }
-
-  function renderBreadcrumbs() {
-    var path = folderPath(state.folderId);
-    var html = '<button class="crumb' + (state.folderId ? "" : " current") + '" data-nav-root="1">Mis archivos</button>';
-    path.forEach(function (f, i) {
-      var isLast = i === path.length - 1;
-      html += '<span class="sep">/</span>';
-      html += '<button class="crumb' + (isLast ? " current" : "") + '" data-nav-folder="' + f.id + '">' + escapeHtml(f.name) + "</button>";
+  function resolveOwnerId() {
+    var u = state.currentUser;
+    if (!u) return [];
+    var fields = ["caller_id", "ldap", "id", "user_id", "userId", "username", "nickname", "login", "email"];
+    var seen = new Set();
+    var candidates = [];
+    fields.forEach(function (f) {
+      var v = u[f];
+      if (v != null && String(v).trim() !== "" && !seen.has(String(v))) { seen.add(String(v)); candidates.push(String(v)); }
     });
-    $("breadcrumbs").innerHTML = html;
+    return candidates;
   }
 
-  /* ────────────────────────────────────────────────────────────
-   * Render principal
-   * ──────────────────────────────────────────────────────────── */
-  function currentFolders() {
-    var list = [];
-    state.folders.forEach(function (f) {
-      var parent = f.parentId || null;
-      if (parent === state.folderId) list.push(f);
-    });
-    return list;
-  }
-
-  function currentDocs() {
-    var list = [];
-    state.documents.forEach(function (d) {
-      var folder = d.folderId || null;
-      if (folder === state.folderId) list.push(d);
-    });
-    return list;
-  }
-
-  function matchesQuery(name) {
-    if (!state.query) return true;
-    return name.toLowerCase().indexOf(state.query.toLowerCase()) !== -1;
-  }
-
-  function render() {
-    renderBreadcrumbs();
-
-    var folders, docs;
-    if (state.query && state.globalSearch) {
-      folders = Array.from(state.folders.values()).filter(function (f) { return matchesQuery(f.name); });
-      docs = Array.from(state.documents.values()).filter(function (d) { return matchesQuery(d.name); });
-    } else {
-      folders = currentFolders().filter(function (f) { return matchesQuery(f.name); });
-      docs = currentDocs().filter(function (d) { return matchesQuery(d.name); });
-    }
-
-    folders.sort(function (a, b) { return a.name.localeCompare(b.name); });
-    docs.sort(function (a, b) { return a.name.localeCompare(b.name); });
-
-    var content = $("content");
-
-    if (folders.length === 0 && docs.length === 0) {
-      content.innerHTML =
-        '<div class="empty-state">' +
-        '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>' +
-        "<h3>" + (state.query ? "Sin resultados" : "Esta carpeta está vacía") + "</h3>" +
-        "<p>" + (state.query ? "Probá con otro término de búsqueda." : "Subí archivos o creá una carpeta nueva para empezar.") + "</p>" +
-        "</div>";
-      renderSelectionBar();
-      return;
-    }
-
-    var html = "";
-    if (folders.length) {
-      html += '<div class="section-label">Carpetas</div><div class="grid" id="grid-folders">';
-      folders.forEach(function (f) { html += renderFolderCard(f); });
-      html += "</div>";
-    }
-    if (docs.length) {
-      html += '<div class="section-label">Archivos</div><div class="grid" id="grid-docs">';
-      docs.forEach(function (d) { html += renderDocCard(d); });
-      html += "</div>";
-    }
-    content.innerHTML = html;
-
-    wireCardEvents();
-    renderSelectionBar();
-  }
-
-  function renderFolderCard(f) {
-    var key = selKey("folder", f.id);
-    var selected = state.selection.has(key);
-    return (
-      '<div class="item-card' + (selected ? " selected" : "") + '" data-type="folder" data-id="' + f.id + '" draggable="true">' +
-      '<div class="item-check"></div>' +
-      '<button class="item-menu-btn" data-menu="folder:' + f.id + '">⋮</button>' +
-      '<div class="item-icon folder-icon">' + ICONS.folder + "</div>" +
-      '<div class="item-name" title="' + escapeHtml(f.name) + '">' + escapeHtml(f.name) + "</div>" +
-      '<div class="item-meta">Carpeta' + (f.updatedAt ? " · " + fmtDate(f.updatedAt) : "") + "</div>" +
-      "</div>"
-    );
-  }
-
-  function renderDocCard(d) {
-    var key = selKey("doc", d.id);
-    var selected = state.selection.has(key);
-    var iconInfo = iconAndClassFor(d);
-    return (
-      '<div class="item-card' + (selected ? " selected" : "") + '" data-type="doc" data-id="' + d.id + '" draggable="true">' +
-      '<div class="item-check"></div>' +
-      '<button class="item-menu-btn" data-menu="doc:' + d.id + '">⋮</button>' +
-      '<div class="item-icon ' + iconInfo.cls + '">' + iconInfo.icon + "</div>" +
-      '<div class="item-name" title="' + escapeHtml(d.name) + '">' + escapeHtml(d.name) + "</div>" +
-      '<div class="item-meta">' + [fmtBytes(d.size), fmtDate(d.updatedAt)].filter(Boolean).join(" · ") + "</div>" +
-      "</div>"
-    );
-  }
-
-  /* ────────────────────────────────────────────────────────────
-   * Selección
-   * ──────────────────────────────────────────────────────────── */
-  function toggleSelect(type, id) {
-    var key = selKey(type, id);
-    if (state.selection.has(key)) state.selection.delete(key);
-    else state.selection.set(key, { type: type, id: id });
-    render();
-  }
-
-  function clearSelection() { state.selection.clear(); render(); }
-
-  function renderSelectionBar() {
-    var bar = $("selection-bar");
-    var n = state.selection.size;
-    if (n === 0) { bar.classList.remove("visible"); return; }
-    bar.classList.add("visible");
-    $("selection-count").textContent = n + (n === 1 ? " elemento seleccionado" : " elementos seleccionados");
-    $("sel-share").style.display = n === 1 ? "" : "none";
-  }
-
-  function selectionItems() {
-    var items = [];
-    state.selection.forEach(function (v) {
-      var obj = v.type === "folder" ? state.folders.get(v.id) : state.documents.get(v.id);
-      if (obj) items.push(obj);
-    });
-    return items;
-  }
-
-  /* ────────────────────────────────────────────────────────────
-   * Eventos de tarjetas (click, doble click, drag&drop, menú)
-   * ──────────────────────────────────────────────────────────── */
-  function wireCardEvents() {
-    var cards = document.querySelectorAll(".item-card");
-    cards.forEach(function (card) {
-      var type = card.getAttribute("data-type");
-      var id = card.getAttribute("data-id");
-
-      card.querySelector(".item-check").addEventListener("click", function (e) {
-        e.stopPropagation();
-        toggleSelect(type, id);
-      });
-
-      card.addEventListener("click", function (e) {
-        if (e.target.closest(".item-menu-btn")) return;
-        if (state.selection.size > 0) { toggleSelect(type, id); return; }
-        if (type === "folder") openFolder(id);
-        else openPreview(id);
-      });
-
-      card.addEventListener("dblclick", function () {
-        if (type === "folder") openFolder(id);
-        else openPreview(id);
-      });
-
-      card.addEventListener("dragstart", function (e) {
-        e.dataTransfer.setData("text/plain", type + ":" + id);
-      });
-
-      if (type === "folder") {
-        card.addEventListener("dragover", function (e) { e.preventDefault(); card.classList.add("dragover"); });
-        card.addEventListener("dragleave", function () { card.classList.remove("dragover"); });
-        card.addEventListener("drop", function (e) {
-          e.preventDefault();
-          card.classList.remove("dragover");
-          var data = e.dataTransfer.getData("text/plain");
-          if (!data) return;
-          var parts = data.split(":");
-          var srcType = parts[0], srcId = parts[1];
-          if (srcType === "folder" && srcId === id) return;
-          moveItems([{ type: srcType, id: srcId }], id);
-        });
-      }
-
-      card.querySelector('[data-menu]').addEventListener("click", function (e) {
-        e.stopPropagation();
-        openCardMenu(type, id, e.currentTarget);
-      });
-    });
-  }
-
-  function openFolder(id) {
-    state.query = "";
-    $("search-input").value = "";
-    state.folderId = id;
-    clearSelection();
-    render();
-  }
-
-  /* Menú contextual simple por tarjeta (rename / mover / eliminar / compartir) */
-  function openCardMenu(type, id, anchor) {
-    if (!state.selection.has(selKey(type, id))) {
-      clearSelection();
-      state.selection.set(selKey(type, id), { type: type, id: id });
-      render();
-    }
-    var existing = document.querySelector(".card-context-menu");
-    if (existing) existing.remove();
-
-    var menu = document.createElement("div");
-    menu.className = "card-context-menu";
-    menu.style.position = "fixed";
-    menu.style.zIndex = "150";
-    menu.style.background = "var(--surface-2)";
-    menu.style.border = "1px solid var(--border)";
-    menu.style.borderRadius = "10px";
-    menu.style.padding = "6px";
-    menu.style.boxShadow = "var(--shadow)";
-    menu.style.minWidth = "170px";
-
-    var rect = anchor.getBoundingClientRect();
-    menu.style.top = (rect.bottom + 4) + "px";
-    menu.style.left = Math.max(8, rect.right - 170) + "px";
-
-    var actions = [
-      { label: "Renombrar", fn: function () { openRenameModal(type, id); } },
-      { label: "Mover a...", fn: function () { openMoveModal(); } },
-      { label: "Compartir", fn: function () { openShareModal(type, id); } },
-      { label: "Eliminar", fn: function () { openDeleteModal(); }, danger: true }
-    ];
-    if (type === "doc") {
-      actions.unshift({ label: "Vista previa", fn: function () { openPreview(id); } });
-    }
-    if (type === "folder") {
-      actions.push({
-        label: "Inspeccionar (debug)",
-        fn: function () {
-          var f = state.folders.get(id);
-          dbg("info", 'Inspección manual de carpeta "' + (f ? f.name : id) + '" (' + id + ")...");
-          api.getFolder(id)
-            .then(function (raw) { dbg("info", 'Carpeta "' + (f ? f.name : id) + '" — metadata cruda: ' + JSON.stringify(raw)); })
-            .catch(function (e) { dbg("warn", "No se pudo inspeccionar la carpeta: " + e.message); })
-            .then(openDebugPanel);
-        }
-      });
-    }
-
-    actions.forEach(function (a) {
-      var item = document.createElement("div");
-      item.textContent = a.label;
-      item.style.padding = "9px 12px";
-      item.style.fontSize = "13px";
-      item.style.borderRadius = "8px";
-      item.style.cursor = "pointer";
-      item.style.color = a.danger ? "#FFB3BB" : "var(--text)";
-      item.addEventListener("mouseenter", function () { item.style.background = "var(--surface-3)"; });
-      item.addEventListener("mouseleave", function () { item.style.background = "transparent"; });
-      item.addEventListener("click", function () { menu.remove(); a.fn(); });
-      menu.appendChild(item);
-    });
-
-    document.body.appendChild(menu);
-    var closeMenu = function (ev) {
-      if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener("click", closeMenu); }
-    };
-    setTimeout(function () { document.addEventListener("click", closeMenu); }, 0);
-  }
-
-  /* ────────────────────────────────────────────────────────────
-   * Buscar / filtrar
-   * ──────────────────────────────────────────────────────────── */
-  var searchDebounce = null;
-  $("search-input").addEventListener("input", function (e) {
-    clearTimeout(searchDebounce);
-    var val = e.target.value;
-    searchDebounce = setTimeout(function () { state.query = val; render(); }, 160);
-  });
-  $("search-global").addEventListener("change", function (e) {
-    state.globalSearch = e.target.checked;
-    render();
-  });
-
-  /* ────────────────────────────────────────────────────────────
-   * Nueva carpeta / renombrar
-   * ──────────────────────────────────────────────────────────── */
-  $("btn-new-folder").addEventListener("click", function () {
-    $("modal-folder-title").textContent = "Nueva carpeta";
-    $("modal-folder-name").value = "";
-    setAlert("modal-folder-alert", "");
-    showModal("modal-folder");
-    $("modal-folder-name").focus();
-  });
-
-  $("modal-folder-confirm").addEventListener("click", function () {
-    var name = $("modal-folder-name").value.trim();
-    if (!name) { setAlert("modal-folder-alert", "Ingresá un nombre para la carpeta."); return; }
-    var btn = this;
-    btn.disabled = true;
-    api.createFolder(name, state.folderId)
-      .then(function (created) {
-        var nf = normFolder(created || {});
-        if (!nf.id) nf.id = "tmp_" + Date.now();
-        nf.parentId = state.folderId;
-        nf.name = name;
-        state.folders.set(nf.id, nf);
-        hideModal("modal-folder");
-        render();
-        toast("Carpeta creada.", "success");
-      })
-      .catch(function (e) { setAlert("modal-folder-alert", "No se pudo crear la carpeta: " + e.message); })
-      .then(function () { btn.disabled = false; });
-  });
-
-  var renameTarget = null;
-  function openRenameModal(type, id) {
-    renameTarget = { type: type, id: id };
-    var obj = type === "folder" ? state.folders.get(id) : state.documents.get(id);
-    if (!obj) return;
-    $("modal-rename-name").value = obj.name;
-    setAlert("modal-rename-alert", "");
-    showModal("modal-rename");
-    $("modal-rename-name").focus();
-  }
-
-  $("modal-rename-confirm").addEventListener("click", function () {
-    if (!renameTarget) return;
-    var name = $("modal-rename-name").value.trim();
-    if (!name) { setAlert("modal-rename-alert", "El nombre no puede estar vacío."); return; }
-    var btn = this;
-    btn.disabled = true;
-
-    var task = renameTarget.type === "folder"
-      ? api.patchFolder(renameTarget.id, { name: name })
-      : api.patchDocument(renameTarget.id, { title: name });
-
-    task
-      .then(function () {
-        var map = renameTarget.type === "folder" ? state.folders : state.documents;
-        var obj = map.get(renameTarget.id);
-        if (obj) obj.name = name;
-        hideModal("modal-rename");
-        render();
-        toast("Nombre actualizado.", "success");
+  function loadIdentity() {
+    return api.me()
+      .then(function (u) {
+        state.currentUser = u;
+        dbg("info", "/api/v1/me payload: " + JSON.stringify(u));
+        var name = (u && (u.full_name || u.ldap || u.username || u.email)) || "Usuario";
+        $("user-name").textContent = name;
+        $("user-avatar").textContent = name.trim().charAt(0).toUpperCase();
       })
       .catch(function (e) {
-        var hint = renameTarget.type === "doc"
-          ? " (algunos tipos de documento en Grid solo permiten editar la descripción, no el título)"
-          : "";
-        setAlert("modal-rename-alert", "No se pudo renombrar: " + e.message + hint);
-      })
-      .then(function () { btn.disabled = false; });
-  });
-
-  /* ────────────────────────────────────────────────────────────
-   * Mover
-   * ──────────────────────────────────────────────────────────── */
-  var moveTargetFolderId = null;
-
-  function openMoveModal() {
-    var items = selectionItems();
-    if (items.length === 0) return;
-    moveTargetFolderId = null;
-    $("modal-move-sub").textContent = "Elegí la carpeta destino para " + items.length + " elemento(s).";
-    setAlert("modal-move-alert", "");
-    renderMoveTree(items);
-    showModal("modal-move");
-  }
-
-  function renderMoveTree(itemsBeingMoved) {
-    var movingFolderIds = itemsBeingMoved.filter(function (i) { return i.type === "folder"; }).map(function (i) { return i.id; });
-
-    function isDescendant(candidateId, ancestorId) {
-      var cur = candidateId;
-      var guard = 0;
-      while (cur && guard < 50) {
-        if (cur === ancestorId) return true;
-        var f = state.folders.get(cur);
-        cur = f ? f.parentId : null;
-        guard++;
-      }
-      return false;
-    }
-
-    function buildLevel(parentId, depth) {
-      var children = [];
-      state.folders.forEach(function (f) {
-        if ((f.parentId || null) === (parentId || null)) children.push(f);
+        dbg("warn", "No se pudo resolver /api/v1/me: " + e.message);
+        $("user-name").textContent = "Sin identificar";
+        $("user-avatar").textContent = "?";
       });
-      children.sort(function (a, b) { return a.name.localeCompare(b.name); });
-      var html = "";
-      children.forEach(function (f) {
-        var disabled = movingFolderIds.indexOf(f.id) !== -1 || movingFolderIds.some(function (mid) { return isDescendant(f.id, mid); });
-        html += '<div class="folder-tree-item' + (disabled ? "" : "") + '" data-folder="' + f.id + '" style="padding-left:' + (12 + depth * 18) + 'px;' + (disabled ? "opacity:.35;pointer-events:none;" : "") + '">' + ICONS.folder + "<span>" + escapeHtml(f.name) + "</span></div>";
-        html += buildLevel(f.id, depth + 1);
-      });
-      return html;
-    }
-
-    var html = '<div class="folder-tree-item" data-folder="" style="padding-left:12px;">' + ICONS.folder + "<span>Mis archivos (raíz)</span></div>";
-    html += buildLevel(null, 1);
-    var tree = $("modal-move-tree");
-    tree.innerHTML = html;
-
-    tree.querySelectorAll(".folder-tree-item").forEach(function (row) {
-      row.addEventListener("click", function () {
-        tree.querySelectorAll(".folder-tree-item").forEach(function (r) { r.classList.remove("active"); });
-        row.classList.add("active");
-        moveTargetFolderId = row.getAttribute("data-folder") || null;
-      });
-    });
-  }
-
-  $("modal-move-confirm").addEventListener("click", function () {
-    var items = selectionItems();
-    if (items.length === 0) { hideModal("modal-move"); return; }
-    moveItems(items, moveTargetFolderId);
-    hideModal("modal-move");
-  });
-
-  function moveItems(items, targetFolderId) {
-    showProgressModal("Moviendo elementos...", "");
-    var rows = items.map(function (it) {
-      var obj = it.type === "folder" ? state.folders.get(it.id) : state.documents.get(it.id);
-      return { item: it, name: obj ? obj.name : it.id, rowEl: addProgressRow(obj ? obj.name : it.id) };
-    });
-
-    rows.reduce(function (chain, row) {
-      return chain.then(function () {
-        var it = row.item;
-        var task;
-        if (it.type === "folder") {
-          task = api.moveFolder(it.id, targetFolderId);
-        } else {
-          var doc = state.documents.get(it.id);
-          var prevFolder = doc ? doc.folderId : null;
-          task = (prevFolder ? api.removeDocFromFolder(prevFolder, it.id) : Promise.resolve())
-            .then(function () {
-              return targetFolderId ? api.addDocToFolder(targetFolderId, it.id) : Promise.resolve();
-            });
-        }
-        return task
-          .then(function () {
-            if (it.type === "folder") {
-              var f = state.folders.get(it.id);
-              if (f) f.parentId = targetFolderId;
-            } else {
-              var d = state.documents.get(it.id);
-              if (d) d.folderId = targetFolderId;
-            }
-            markProgressRow(row.rowEl, "ok");
-          })
-          .catch(function (e) { markProgressRow(row.rowEl, "error", e.message); });
-      });
-    }, Promise.resolve()).then(function () {
-      finishProgressModal();
-      clearSelection();
-      render();
-      toast("Elementos movidos.", "success");
-    });
   }
 
   /* ────────────────────────────────────────────────────────────
-   * Eliminar (borrado en serie)
-   * ──────────────────────────────────────────────────────────── */
-  function openDeleteModal() {
-    var items = selectionItems();
-    if (items.length === 0) return;
-    $("modal-delete-sub").textContent = "Vas a eliminar " + items.length + " elemento(s) de forma permanente.";
-    setAlert("modal-delete-alert", "");
-    showModal("modal-delete");
-  }
-
-  $("sel-delete").addEventListener("click", openDeleteModal);
-
-  $("modal-delete-confirm").addEventListener("click", function () {
-    var items = selectionItems();
-    hideModal("modal-delete");
-    if (items.length === 0) return;
-    showProgressModal("Eliminando elementos...", "");
-
-    var rows = items.map(function (it) {
-      var obj = it.type === "folder" ? state.folders.get(it.id) : state.documents.get(it.id);
-      return { item: it, rowEl: addProgressRow(obj ? obj.name : it.id) };
-    });
-
-    rows.reduce(function (chain, row) {
-      return chain.then(function () {
-        var it = row.item;
-        var task = it.type === "folder" ? api.deleteFolder(it.id) : api.deleteDocument(it.id);
-        return task
-          .then(function () {
-            if (it.type === "folder") state.folders.delete(it.id);
-            else state.documents.delete(it.id);
-            markProgressRow(row.rowEl, "ok");
-          })
-          .catch(function (e) { markProgressRow(row.rowEl, "error", e.message); });
-      });
-    }, Promise.resolve()).then(function () {
-      finishProgressModal();
-      clearSelection();
-      render();
-      toast("Elementos eliminados.", "success");
-    });
-  });
-
-  /* ────────────────────────────────────────────────────────────
-   * Compartir
-   * ──────────────────────────────────────────────────────────── */
-  var shareTarget = null;
-
-  function openShareModal(type, id) {
-    shareTarget = { type: type, id: id };
-    var obj = type === "folder" ? state.folders.get(id) : state.documents.get(id);
-    $("modal-share-sub").textContent = obj ? ('Compartir "' + obj.name + '"') : "Compartir elemento";
-    $("modal-share-who").value = "";
-    $("modal-share-role").value = "viewer";
-    setAlert("modal-share-alert", "");
-    showModal("modal-share");
-  }
-
-  $("sel-share").addEventListener("click", function () {
-    var items = selectionItems();
-    if (items.length !== 1) return;
-    openShareModal(items[0].type, items[0].id);
-  });
-
-  $("modal-share-confirm").addEventListener("click", function () {
-    if (!shareTarget) return;
-    var who = $("modal-share-who").value.trim();
-    var role = $("modal-share-role").value;
-    if (!who) { setAlert("modal-share-alert", "Ingresá un usuario o email."); return; }
-    var btn = this;
-    btn.disabled = true;
-
-    var body = { user: who, role: role };
-    var task = shareTarget.type === "folder" ? api.shareFolder(shareTarget.id, body) : api.shareDocument(shareTarget.id, body);
-
-    task
-      .then(function () {
-        setAlert("modal-share-alert", "Compartido con " + who + ".", "success");
-        toast("Compartido con " + who + ".", "success");
-      })
-      .catch(function (e) { setAlert("modal-share-alert", "No se pudo compartir: " + e.message); })
-      .then(function () { btn.disabled = false; });
-  });
-
-  /* ────────────────────────────────────────────────────────────
-   * Buscar documentos perdidos
+   * Extracción genérica de ids con forma de documento Grid
    *
-   * Cuando un documento se cae del índice que alimenta
-   * /api/v1/documents (y por lo tanto del listado y de la
-   * búsqueda), suele seguir existiendo intacto y accesible por
-   * link directo. Para encontrarlo sin conocer su doc_id de
-   * antemano, se consultan otras fuentes que corren sobre índices
-   * separados (favoritos, recientes, diagnóstico de Grid, y
-   * opcionalmente el buscador) y se escanean sus respuestas en
-   * busca de ids con forma de doc_id. Cada candidato se valida de
-   * verdad pidiendo GET /api/v1/documents/{id}: si no es un
-   * documento real o no es accesible, se descarta solo.
+   * Los ids de Grid (docs y carpetas) son tipo ULID: ~20-32
+   * caracteres en mayúsculas/dígitos. Algunas fuentes devuelven
+   * objetos con una clave id/doc_id; otras (como la metadata de
+   * una carpeta) pueden guardar el vínculo como un array de ids
+   * "pelados" sin envolver en objetos — por eso se buscan ambas
+   * formas en cualquier posición, a cualquier profundidad.
    * ──────────────────────────────────────────────────────────── */
-  // IDs de Grid observados (docs y carpetas) son tipo ULID: 26
-  // caracteres en mayúsculas/dígitos. Los folders pueden guardar su
-  // vínculo con documentos como un array de ids "pelados" en vez de
-  // objetos con una clave id/doc_id — sin este chequeo esos arrays
-  // quedaban completamente invisibles para el escaneo.
   function looksLikeBareId(s) {
     return typeof s === "string" && /^[0-9A-Z]{20,32}$/.test(s);
   }
@@ -1719,38 +722,6 @@
     }
   }
 
-  var lostCandidates = new Map();
-
-  function resolveOwnerId() {
-    var u = state.currentUser;
-    if (!u) return [];
-    // No está confirmado en runtime qué campo espera Grid como owner_id
-    // en diagnose-kvs/read-owner-index. Se juntan todos los candidatos
-    // razonables de /api/v1/me (sin duplicados) para poder probarlos
-    // todos si el primero no alcanza, en vez de adivinar uno solo.
-    var fields = ["caller_id", "ldap", "id", "user_id", "userId", "username", "nickname", "login", "email"];
-    var seen = new Set();
-    var candidates = [];
-    fields.forEach(function (f) {
-      var v = u[f];
-      if (v != null && String(v).trim() !== "" && !seen.has(String(v))) {
-        seen.add(String(v));
-        candidates.push(String(v));
-      }
-    });
-    return candidates;
-  }
-
-  function openLostModal() {
-    setAlert("modal-lost-alert", "");
-    $("modal-lost-query").value = "";
-    $("modal-lost-results").innerHTML = "";
-    $("modal-lost-recover-all").disabled = true;
-    lostCandidates = new Map();
-    showModal("modal-lost");
-    runLostAnalysis();
-  }
-
   function scanFoldersForDocIds(candidateIds) {
     var folders = Array.from(state.folders.values());
     var scanned = 0, newFound = 0;
@@ -1770,11 +741,74 @@
     }, Promise.resolve()).then(function () { return { scanned: scanned, newFound: newFound }; });
   }
 
-  function runLostAnalysis(extraQuery) {
-    var sourcesEl = $("modal-lost-sources");
+  /* ────────────────────────────────────────────────────────────
+   * Bucket acumulado de documentos encontrados en la sesión
+   * (sobrevive a varios "Analizar" y alimenta el CSV descargable).
+   * ──────────────────────────────────────────────────────────── */
+  var foundDocs = new Map(); // id -> {id, name, folderId}
+
+  function csvEscape(v) {
+    var s = String(v == null ? "" : v);
+    if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function downloadCsv() {
+    if (foundDocs.size === 0) { toast("Todavía no hay documentos encontrados.", "error"); return; }
+    var headers = ["doc_id", "titulo", "carpeta_id", "carpeta"];
+    var lines = [headers.join(",")];
+    foundDocs.forEach(function (item) {
+      lines.push([item.id, item.name, item.folderId || "", folderLabelFor(item.folderId)].map(csvEscape).join(","));
+    });
+    var blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "documentos_perdidos_" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    dbg("ok", "CSV descargado con " + foundDocs.size + " documento(s).");
+    toast("CSV descargado (" + foundDocs.size + " documento[s]).", "success");
+  }
+
+  function renderResults() {
+    var container = $("results-list");
+    $("btn-download-csv").disabled = foundDocs.size === 0;
+    if (foundDocs.size === 0) {
+      container.innerHTML = '<div class="empty-state">No se encontraron documentos perdidos todavía.</div>';
+      return;
+    }
+    var rows = Array.from(foundDocs.values()).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    container.innerHTML = rows.map(function (d) {
+      return (
+        '<div class="result-row">' +
+        '<div class="info">' +
+        '<div class="name">' + escapeHtml(d.name) + "</div>" +
+        '<div class="meta">Carpeta: ' + escapeHtml(folderLabelFor(d.folderId)) + ' · <code>' + escapeHtml(d.id) + "</code></div>" +
+        "</div>" +
+        '<a class="open-link" href="/d/' + encodeURIComponent(d.id) + '" target="_blank" rel="noopener">Abrir en Grid</a>' +
+        "</div>"
+      );
+    }).join("");
+  }
+
+  /* ────────────────────────────────────────────────────────────
+   * Análisis: cruza favoritos, recientes, diagnóstico de Grid,
+   * índice crudo, metadata de carpetas y (opcional) búsqueda de
+   * texto contra el índice actual, valida cada candidato y lo
+   * agrega a foundDocs.
+   * ──────────────────────────────────────────────────────────── */
+  function runAnalysis(extraQuery) {
+    if (!state.loaded) {
+      toast("Esperá a que termine de cargar el índice actual.", "error");
+      return;
+    }
+
+    var sourcesEl = $("sources-status");
     sourcesEl.innerHTML = '<div class="loading-row"><div class="spinner"></div> Consultando favoritos, recientes, diagnóstico y carpetas...</div>';
-    $("modal-lost-results").innerHTML = "";
-    $("modal-lost-recover-all").disabled = true;
+    $("btn-analyze").disabled = true;
 
     var ownerIdCandidates = resolveOwnerId();
     dbg("info", "Buscar perdidos: owner_id candidatos desde /api/v1/me → " + JSON.stringify(ownerIdCandidates));
@@ -1795,9 +829,11 @@
         });
     }
 
-    // El nombre de campo que Grid espera como owner_id en estos dos
-    // endpoints no está confirmado: se prueba cada candidato de /me en
-    // orden hasta que uno sea aceptado, en vez de asumir uno solo.
+    // "Field required" en diagnose-kvs/read-owner-index significa que
+    // el parametro owner_id nunca llega al validador sin importar el
+    // valor probado (visto en runtime): insistir con más candidatos es
+    // gastar requests para nada, asi que se corta en el primer fallo
+    // de ese tipo puntual.
     function tryOwnerIdEndpoint(label, apiFn, candidates) {
       if (candidates.length === 0) {
         sourceReports.push({ label: label, ok: false, error: "no se pudo resolver ningún owner_id candidato desde /api/v1/me" });
@@ -1818,10 +854,6 @@
           })
           .catch(function (e) {
             dbg("warn", "Buscar perdidos — " + label + ' con owner_id="' + val + '" falló: ' + e.message);
-            // "Field required" significa que el parámetro nunca llega al
-            // validador sin importar el valor (probablemente filtrado por
-            // un proxy/gateway antes de llegar al backend) — insistir con
-            // el resto de los candidatos es gastar requests para nada.
             if (/field required/i.test(e.message)) {
               sourceReports.push({
                 label: label,
@@ -1842,36 +874,33 @@
       tryOwnerIdEndpoint("Diagnóstico (/documents/diagnose-kvs)", api.diagnoseKvs, ownerIdCandidates),
       tryOwnerIdEndpoint("Índice crudo (/documents/read-owner-index)", api.readOwnerIndex, ownerIdCandidates)
     ];
-    if (extraQuery) {
-      tasks.push(trySource('Búsqueda de texto ("' + extraQuery + '")', api.searchDocs(extraQuery)));
-    }
+    if (extraQuery) tasks.push(trySource('Búsqueda de texto ("' + extraQuery + '")', api.searchDocs(extraQuery)));
 
-    return Promise.all(tasks)
+    Promise.all(tasks)
       .then(function () {
         dbg("info", "Buscar perdidos: revisando metadata de " + state.folders.size + " carpeta(s)...");
         return scanFoldersForDocIds(candidateIds);
       })
       .then(function (folderResult) {
-        sourceReports.push({
-          label: "Metadata de carpetas (" + folderResult.scanned + " revisadas)",
-          ok: true,
-          found: folderResult.newFound
-        });
+        sourceReports.push({ label: "Metadata de carpetas (" + folderResult.scanned + " revisadas)", ok: true, found: folderResult.newFound });
 
         sourcesEl.innerHTML = sourceReports.map(function (r) {
-          if (r.ok) return '<div class="alert success" style="margin-bottom:6px;">' + escapeHtml(r.label) + ": " + r.found + " id(s) encontrados</div>";
-          return '<div class="alert warn" style="margin-bottom:6px;">' + escapeHtml(r.label) + ": no disponible (" + escapeHtml(r.error || "") + ")</div>";
+          if (r.ok) return '<div class="alert success">' + escapeHtml(r.label) + ": " + r.found + " id(s) encontrados</div>";
+          return '<div class="alert warn">' + escapeHtml(r.label) + ": no disponible (" + escapeHtml(r.error || "") + ")</div>";
         }).join("");
 
         var missingIds = Array.from(candidateIds).filter(function (id) { return !state.documents.has(id); });
-        dbg("info", "Buscar perdidos: " + candidateIds.size + " ids candidatos totales, " + missingIds.length + " no están en el listado actual");
+        dbg("info", "Buscar perdidos: " + candidateIds.size + " ids candidatos totales, " + missingIds.length + " no están en el índice actual");
 
         if (missingIds.length === 0) {
-          $("modal-lost-results").innerHTML = '<div class="preview-fallback">No se encontraron documentos fuera del listado actual en estas fuentes.</div>';
+          toast("No se encontraron documentos fuera del índice actual.", "success");
           return;
         }
 
-        $("modal-lost-results").innerHTML = '<div class="loading-row"><div class="spinner"></div> Verificando ' + missingIds.length + " candidato(s)...</div>";
+        var progressLine = document.createElement("div");
+        progressLine.className = "loading-row";
+        progressLine.innerHTML = '<div class="spinner"></div> <span>Verificando ' + missingIds.length + " candidato(s)...</span>";
+        sourcesEl.appendChild(progressLine);
 
         return missingIds.reduce(function (chain, id) {
           return chain.then(function () {
@@ -1879,334 +908,34 @@
               .then(function (raw) {
                 var nd = normDoc(raw || {});
                 nd.id = nd.id || id;
-                lostCandidates.set(nd.id, nd);
+                foundDocs.set(nd.id, { id: nd.id, name: nd.name, folderId: nd.folderId });
+                renderResults();
               })
               .catch(function (e) {
                 dbg("warn", "Candidato " + id + " descartado (no es un doc válido/accesible): " + e.message);
               });
           });
-        }, Promise.resolve());
-      }).then(function () {
-      renderLostResults();
-    });
-  }
-
-  function renderLostResults() {
-    var container = $("modal-lost-results");
-    if (lostCandidates.size === 0) {
-      container.innerHTML = '<div class="preview-fallback">No se pudo recuperar metadata de ningún candidato encontrado.</div>';
-      $("modal-lost-recover-all").disabled = true;
-      return;
-    }
-    var html = "";
-    lostCandidates.forEach(function (d) {
-      var folder = d.folderId ? state.folders.get(d.folderId) : null;
-      var folderLabel = d.folderId ? (folder ? folder.name : "carpeta " + d.folderId + " (no cargada acá)") : "raíz";
-      html +=
-        '<div class="share-row">' +
-        '<div class="who"><b>' + escapeHtml(d.name) + "</b><br/><span class=\"role\">Carpeta: " + escapeHtml(folderLabel) + "</span></div>" +
-        '<button data-recover="' + escapeHtml(d.id) + '">Recuperar</button>' +
-        "</div>";
-    });
-    container.innerHTML = html;
-    $("modal-lost-recover-all").disabled = false;
-
-    container.querySelectorAll("[data-recover]").forEach(function (btn) {
-      btn.addEventListener("click", function () { recoverLostDoc(btn.getAttribute("data-recover")); });
-    });
-  }
-
-  function recoverLostDoc(id) {
-    var d = lostCandidates.get(id);
-    if (!d) return;
-    state.documents.set(d.id, d);
-    lostCandidates.delete(id);
-    renderLostResults();
-    render();
-    toast('"' + d.name + '" recuperado en el gestor.', "success");
-  }
-
-  $("btn-find-lost").addEventListener("click", openLostModal);
-  $("modal-lost-analyze").addEventListener("click", function () { runLostAnalysis($("modal-lost-query").value.trim() || undefined); });
-  $("modal-lost-search-btn").addEventListener("click", function () {
-    var q = $("modal-lost-query").value.trim();
-    if (!q) { setAlert("modal-lost-alert", "Ingresá un texto para buscar."); return; }
-    setAlert("modal-lost-alert", "");
-    runLostAnalysis(q);
-  });
-  $("modal-lost-recover-all").addEventListener("click", function () {
-    var count = 0;
-    lostCandidates.forEach(function (d) { state.documents.set(d.id, d); count++; });
-    lostCandidates.clear();
-    renderLostResults();
-    render();
-    toast(count + " documento(s) recuperado(s) en el gestor.", "success");
-  });
-
-  /* ────────────────────────────────────────────────────────────
-   * Vista previa
-   * ──────────────────────────────────────────────────────────── */
-  var previewDoc = null;
-
-  function openPreview(id) {
-    var d = state.documents.get(id);
-    if (!d) return;
-    previewDoc = d;
-    $("modal-preview-title").textContent = d.name;
-    $("modal-preview-sub").textContent = [fmtBytes(d.size), d.mime].filter(Boolean).join(" · ");
-    $("modal-preview-body").innerHTML = '<div class="loading-row"><div class="spinner"></div> Cargando vista previa...</div>';
-    showModal("modal-preview");
-
-    api.downloadMeta(id)
-      .then(function (meta) {
-        var url = meta && (meta.download_url || meta.agent_download_url);
-        if (!url) throw new Error("Sin download_url");
-        renderPreviewBody(d, url);
-      })
-      .catch(function () {
-        $("modal-preview-body").innerHTML =
-          '<div class="preview-fallback">No se pudo generar la vista previa de este archivo.<br/>Podés descargarlo para verlo.</div>';
-      });
-  }
-
-  function renderPreviewBody(doc, url) {
-    var m = (doc.mime || "").toLowerCase();
-    var n = (doc.name || "").toLowerCase();
-    var body = $("modal-preview-body");
-
-    if (m.indexOf("image/") === 0 || /\.(png|jpg|jpeg|gif|webp|svg)$/.test(n)) {
-      body.innerHTML = "";
-      var img = document.createElement("img");
-      img.src = url;
-      img.alt = doc.name;
-      body.appendChild(img);
-      return;
-    }
-    if (m.indexOf("video/") === 0 || /\.(mp4|webm|mov)$/.test(n)) {
-      body.innerHTML = "";
-      var video = document.createElement("video");
-      video.src = url; video.controls = true;
-      body.appendChild(video);
-      return;
-    }
-    if (m.indexOf("text/") === 0 || m.indexOf("csv") !== -1 || /\.(txt|csv|md|json|log)$/.test(n)) {
-      fetch(url, { credentials: "include" })
-        .then(function (r) { return r.text(); })
-        .then(function (text) {
-          var pre = document.createElement("pre");
-          pre.textContent = text.slice(0, 20000);
-          body.innerHTML = "";
-          body.appendChild(pre);
-        })
-        .catch(function () {
-          body.innerHTML = '<div class="preview-fallback">No se pudo leer el contenido del archivo.</div>';
+        }, Promise.resolve()).then(function () {
+          progressLine.remove();
+          toast("Análisis completo: " + foundDocs.size + " documento(s) encontrados en total.", "success");
         });
-      return;
-    }
-    body.innerHTML = '<div class="preview-fallback">No hay vista previa disponible para este tipo de archivo.<br/>Usá "Descargar" para abrirlo.</div>';
-  }
-
-  $("modal-preview-download").addEventListener("click", function () {
-    if (previewDoc) triggerDownload(previewDoc.id);
-  });
-
-  /* ────────────────────────────────────────────────────────────
-   * Descargar (individual y en lote)
-   * ──────────────────────────────────────────────────────────── */
-  function triggerDownload(docId) {
-    return api.downloadMeta(docId).then(function (meta) {
-      var url = meta && (meta.download_url || meta.agent_download_url);
-      if (!url) throw new Error("Sin download_url");
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = "";
-      a.target = "_blank";
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    });
-  }
-
-  $("sel-download").addEventListener("click", function () {
-    var items = selectionItems().filter(function (i) { return i.type === "doc"; });
-    if (items.length === 0) { toast("Seleccioná al menos un archivo (las carpetas no se pueden descargar directamente).", "error"); return; }
-    showProgressModal("Descargando archivos...", "Cada archivo se abrirá en una pestaña nueva. Grid no ofrece descarga en .zip.");
-    var rows = items.map(function (it) {
-      var d = state.documents.get(it.id);
-      return { id: it.id, rowEl: addProgressRow(d ? d.name : it.id) };
-    });
-    rows.reduce(function (chain, row) {
-      return chain.then(function () {
-        return triggerDownload(row.id)
-          .then(function () { markProgressRow(row.rowEl, "ok"); })
-          .catch(function (e) { markProgressRow(row.rowEl, "error", e.message); });
-      }).then(function () { return new Promise(function (res) { setTimeout(res, 250); }); });
-    }, Promise.resolve()).then(function () {
-      finishProgressModal();
-    });
-  });
-
-  /* ────────────────────────────────────────────────────────────
-   * Subir archivos
-   * ──────────────────────────────────────────────────────────── */
-  $("btn-upload").addEventListener("click", function () { $("file-input").click(); });
-  $("file-input").addEventListener("change", function (e) {
-    var files = Array.prototype.slice.call(e.target.files || []);
-    e.target.value = "";
-    if (files.length) uploadFiles(files);
-  });
-
-  var dropOverlay = $("drop-overlay");
-  var dragCounter = 0;
-  document.addEventListener("dragenter", function (e) {
-    if (e.dataTransfer && e.dataTransfer.types && Array.prototype.indexOf.call(e.dataTransfer.types, "Files") !== -1) {
-      dragCounter++;
-      dropOverlay.classList.add("visible");
-    }
-  });
-  document.addEventListener("dragleave", function () {
-    dragCounter = Math.max(0, dragCounter - 1);
-    if (dragCounter === 0) dropOverlay.classList.remove("visible");
-  });
-  document.addEventListener("dragover", function (e) { e.preventDefault(); });
-  document.addEventListener("drop", function (e) {
-    e.preventDefault();
-    dragCounter = 0;
-    dropOverlay.classList.remove("visible");
-    var files = e.dataTransfer && e.dataTransfer.files ? Array.prototype.slice.call(e.dataTransfer.files) : [];
-    if (files.length) uploadFiles(files);
-  });
-
-  function uploadFiles(files) {
-    showProgressModal("Subiendo archivos...", "");
-    var targetFolderId = state.folderId;
-    var rows = files.map(function (f) { return { file: f, rowEl: addProgressRow(f.name) }; });
-
-    rows.reduce(function (chain, row) {
-      return chain.then(function () {
-        return api.createDocument(row.file, row.file.name)
-          .then(function (created) {
-            var nd = normDoc(created || {});
-            if (!nd.id) throw new Error("Respuesta sin id de documento");
-            nd.name = row.file.name;
-            nd.size = row.file.size;
-            nd.mime = row.file.type;
-            nd.folderId = null; // los documentos siempre se crean en la raíz
-            state.documents.set(nd.id, nd);
-            if (!targetFolderId) return null;
-            return api.addDocToFolder(targetFolderId, nd.id).then(function () { nd.folderId = targetFolderId; });
-          })
-          .then(function () { markProgressRow(row.rowEl, "ok"); })
-          .catch(function (e) { markProgressRow(row.rowEl, "error", e.message); });
-      });
-    }, Promise.resolve()).then(function () {
-      finishProgressModal();
-      render();
-      toast("Subida completada.", "success");
-    });
-  }
-
-  /* ────────────────────────────────────────────────────────────
-   * Modal de progreso (subida / descarga en lote / mover / borrar)
-   * ──────────────────────────────────────────────────────────── */
-  function showProgressModal(title, sub) {
-    $("modal-progress-title").textContent = title;
-    $("modal-progress-sub").textContent = sub || "";
-    $("modal-progress-list").innerHTML = "";
-    $("modal-progress-close").disabled = true;
-    showModal("modal-progress");
-  }
-
-  function addProgressRow(label) {
-    var row = document.createElement("div");
-    row.className = "progress-row";
-    row.innerHTML =
-      '<div class="label"><span>' + escapeHtml(label) + '</span><span class="status">...</span></div>' +
-      '<div class="progress-track"><div class="progress-fill" style="width:40%"></div></div>';
-    $("modal-progress-list").appendChild(row);
-    return row;
-  }
-
-  function markProgressRow(rowEl, kind, errMsg) {
-    var fill = rowEl.querySelector(".progress-fill");
-    var status = rowEl.querySelector(".status");
-    fill.style.width = "100%";
-    if (kind === "ok") { fill.classList.add("ok"); status.textContent = "OK"; }
-    else { fill.classList.add("error"); status.textContent = "Error"; rowEl.title = errMsg || ""; }
-  }
-
-  function finishProgressModal() { $("modal-progress-close").disabled = false; }
-  $("modal-progress-close").addEventListener("click", function () { hideModal("modal-progress"); });
-
-  /* ────────────────────────────────────────────────────────────
-   * Barra de selección: acciones globales
-   * ──────────────────────────────────────────────────────────── */
-  $("sel-move").addEventListener("click", openMoveModal);
-  $("sel-clear").addEventListener("click", clearSelection);
-  $("btn-refresh").addEventListener("click", loadAll);
-
-  $("btn-sync-index").addEventListener("click", function () {
-    var btn = this;
-    btn.disabled = true;
-    toast("Sincronizando índice de documentos...");
-    api.syncOwnerIndex()
-      .catch(function (e) {
-        var msg = (e.status === 403 || e.status === 404)
-          ? "Tu cuenta no tiene permiso para sincronizar el índice (o no está disponible acá). Se recarga igual con lo que la API devuelva."
-          : "No se pudo sincronizar el índice (" + e.message + "). Se recarga igual con lo que la API devuelva.";
-        toast(msg, "error");
       })
-      .then(loadAll)
-      .then(function () { toast("Recarga completa.", "success"); })
-      .then(function () { btn.disabled = false; }, function () { btn.disabled = false; });
-  });
-
-  /* ────────────────────────────────────────────────────────────
-   * Navegación por breadcrumbs
-   * ──────────────────────────────────────────────────────────── */
-  $("breadcrumbs").addEventListener("click", function (e) {
-    var root = e.target.closest("[data-nav-root]");
-    var folderBtn = e.target.closest("[data-nav-folder]");
-    if (root) { state.folderId = null; clearSelection(); render(); }
-    else if (folderBtn) { state.folderId = folderBtn.getAttribute("data-nav-folder"); clearSelection(); render(); }
-  });
-
-  /* ────────────────────────────────────────────────────────────
-   * Identidad
-   * ──────────────────────────────────────────────────────────── */
-  function loadIdentity() {
-    return api.me()
-      .then(function (u) {
-        state.currentUser = u;
-        dbg("info", "/api/v1/me payload: " + JSON.stringify(u));
-        var name = (u && (u.full_name || u.ldap || u.username || u.email)) || "Usuario";
-        $("user-name").textContent = name;
-        $("user-avatar").textContent = name.trim().charAt(0).toUpperCase();
-      })
+      .then(function () { $("btn-analyze").disabled = false; })
       .catch(function (e) {
-        dbg("warn", "No se pudo resolver /api/v1/me: " + e.message);
-        $("user-name").textContent = "Sin identificar";
-        $("user-avatar").textContent = "?";
+        dbg("error", "runAnalysis: error inesperado — " + e.message);
+        $("btn-analyze").disabled = false;
       });
   }
 
-  $("btn-debug-toggle").addEventListener("click", function () {
-    var panel = $("debug-panel");
-    if (panel.classList.contains("visible")) panel.classList.remove("visible");
-    else openDebugPanel();
-  });
-  $("debug-close").addEventListener("click", function () { $("debug-panel").classList.remove("visible"); });
-  $("debug-clear").addEventListener("click", function () {
-    debugLines = [];
-    $("debug-panel-body").innerHTML = "";
-  });
+  $("btn-analyze").addEventListener("click", function () { runAnalysis($("query-input").value.trim() || undefined); });
+  $("btn-download-csv").addEventListener("click", downloadCsv);
+  renderResults();
 
   /* ────────────────────────────────────────────────────────────
    * Init
    * ──────────────────────────────────────────────────────────── */
   loadIdentity();
-  loadAll();
+  loadIndex();
 })();
 </script>
 </body>
