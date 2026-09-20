@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Publicar documentos en masa · Grid</title>
+<style>
+  :root {
+    --bg:          #090C0E;
+    --surface:     #11161A;
+    --surface-2:   #161D22;
+    --surface-3:   #1B2329;
+    --border:      #1F2830;
+    --border-soft: #161C21;
+
+    --accent:        #FFD100;
+    --accent-strong: #E6BC00;
+    --accent-dim:    #6E5E00;
+    --accent-glow:   rgba(255,209,0,.14);
+    --on-accent:     #1A1A1A;
+
+    --text:     #F4F6F8;
+    --text-sub: #AAB4BC;
+    --text-mut: #6B757D;
+
+    --c-green:  #00D689;
+    --c-blue:   #5A95FF;
+    --c-red:    #FF5C6C;
+
+    --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-pill: 999px;
+    --shadow: 0 18px 40px -20px rgba(0,0,0,.7);
+
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter,
+            Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(1000px 640px at 100% -8%, rgba(255,209,0,.09), transparent 55%),
+      radial-gradient(760px 520px at -12% 108%, rgba(255,209,0,.04), transparent 60%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    min-height: 100vh;
+  }
+
+  a { color: inherit; }
+  button { font-family: inherit; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; scroll-behavior: auto; }
+  }
+
+  .nav {
+    display: flex; align-items: center; gap: 20px;
+    padding: 18px 28px;
+    position: sticky; top: 0; z-index: 60;
+    background: linear-gradient(180deg, rgba(9,12,14,.92), rgba(9,12,14,.4));
+    backdrop-filter: blur(10px);
+  }
+  .nav .brand { flex: 1; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .nav .brand b { color: var(--accent); }
+  .nav .brand svg { color: var(--accent); }
+
+  .user-pill {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r-pill); padding: 6px 14px 6px 6px;
+    font-size: 13px; color: var(--text-sub);
+  }
+  .user-pill .avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    color: var(--on-accent); display: grid; place-items: center;
+    font-weight: 700; font-size: 12px;
+  }
+
+  .content { max-width: 920px; margin: 0 auto; padding: 6px 24px 60px 24px; }
+
+  .section-label {
+    font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-mut); margin: 26px 0 10px 0;
+  }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; }
+
+  .radio-row { display: flex; gap: 18px; margin-bottom: 12px; flex-wrap: wrap; }
+  .radio-opt { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .radio-opt input { accent-color: var(--accent); }
+
+  .btn {
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    border-radius: var(--r-pill); padding: 9px 16px;
+    cursor: pointer; border: 1px solid transparent; transition: all .16s;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    color: var(--on-accent);
+    box-shadow: 0 8px 22px -12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
+  .btn-secondary { background: var(--surface-2); border-color: var(--border); color: var(--text); }
+  .btn-secondary:hover { border-color: var(--accent-dim); }
+  .btn-danger { background: rgba(255,92,108,.12); border-color: rgba(255,92,108,.35); color: #FFB3BB; }
+  .btn-danger:hover { background: rgba(255,92,108,.2); }
+  .btn-ghost { background: transparent; color: var(--text-sub); border-color: var(--border); }
+  .btn-ghost:hover { color: var(--text); background: var(--surface-2); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; filter: none; }
+
+  .icon-btn {
+    width: 36px; height: 36px; display: grid; place-items: center;
+    border: 1px solid var(--border); border-radius: var(--r-pill);
+    background: var(--surface-2); color: var(--text-sub); cursor: pointer;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--accent-dim); }
+
+  .select, .textarea, .input {
+    width: 100%; font-family: inherit; font-size: 14px; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r-sm); padding: 10px 12px; margin-bottom: 4px;
+  }
+  .select:focus, .textarea:focus, .input:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .textarea { min-height: 90px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .field-label { font-size: 12px; color: var(--text-sub); margin: 4px 0 6px 0; display: block; font-weight: 600; }
+
+  .toolbar-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+  .result-list { display: flex; flex-direction: column; gap: 6px; }
+  .result-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r-md); padding: 10px 14px; font-size: 13px;
+  }
+  .result-row .check { flex-shrink: 0; accent-color: var(--accent); width: 16px; height: 16px; }
+  .result-row .info { flex: 1; overflow: hidden; }
+  .result-row .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .result-row .meta { color: var(--text-mut); font-size: 11.5px; margin-top: 2px; }
+  .result-row .meta code {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .badge {
+    font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: var(--r-pill); border: 1px solid currentColor; white-space: nowrap;
+  }
+  .badge.public  { color: var(--c-green); }
+  .badge.private { color: var(--c-red); }
+  .badge.unknown { color: var(--text-mut); }
+
+  .empty-state { text-align: center; padding: 30px 10px; color: var(--text-mut); font-size: 13px; }
+
+  .alert { display:flex; gap:12px; padding:12px 14px; border-radius:var(--r-md);
+           font-size:13px; border:1px solid; margin-bottom:8px; align-items: flex-start; }
+  .alert.success { border-color:rgba(0,214,137,.35); background:rgba(0,214,137,.08); color:#7FE9C2; }
+  .alert.error   { border-color:rgba(255,92,108,.35); background:rgba(255,92,108,.08); color:#FFB3BB; }
+  .alert.warn    { border-color:rgba(255,209,0,.35);  background:rgba(255,209,0,.08);  color:#FFE680; }
+
+  .loading-row { display: flex; align-items: center; padding: 10px 0; color: var(--text-mut); font-size: 13px; gap: 10px; }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast-stack { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; max-width: 340px; }
+  .toast {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
+    padding: 12px 14px; font-size: 13px; box-shadow: var(--shadow);
+    display: flex; gap: 10px; align-items: flex-start; animation: toast-in .18s ease-out;
+  }
+  .toast.success { border-color: rgba(0,214,137,.4); }
+  .toast.error { border-color: rgba(255,92,108,.4); }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Modal ── */
+  .modal-bg {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(5,7,8,.72); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-bg.visible { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r-lg); box-shadow: var(--shadow);
+    width: 100%; max-width: 480px; max-height: 84vh; overflow: auto; padding: 22px;
+  }
+  .modal h3 { margin: 0 0 4px 0; font-size: 17px; }
+  .modal .sub { color: var(--text-sub); font-size: 13px; margin: 0 0 16px 0; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .confirm-row { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0; font-size: 13px; }
+  .confirm-row input { margin-top: 3px; accent-color: var(--accent); }
+
+  /* ── Consola de depuración ── */
+  #btn-debug-toggle { position: fixed; left: 16px; bottom: 16px; z-index: 210; }
+  .debug-badge {
+    position: absolute; top: -4px; right: -4px; background: var(--c-red); color: #fff;
+    font-size: 10px; line-height: 1; border-radius: 999px; padding: 2px 5px; display: none;
+  }
+  .debug-badge.visible { display: block; }
+  .debug-panel {
+    display: none; flex-direction: column; overflow: hidden;
+    position: fixed; left: 16px; bottom: 64px; width: min(560px, 92vw); max-height: 50vh;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+    box-shadow: var(--shadow); z-index: 205;
+  }
+  .debug-panel.visible { display: flex; }
+  .debug-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; background: var(--surface-2); font-size: 12px; font-weight: 700; color: var(--text-sub);
+  }
+  .debug-panel-header button { background: none; border: none; color: var(--text-sub); cursor: pointer; font-size: 12px; margin-left: 10px; }
+  .debug-panel-header button:hover { color: var(--text); }
+  .debug-panel-body {
+    flex: 1; overflow: auto; padding: 8px 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.5;
+  }
+  .debug-line { white-space: pre-wrap; word-break: break-word; border-bottom: 1px solid var(--border-soft); padding: 3px 0; }
+  .debug-line .t { color: var(--text-mut); margin-right: 6px; }
+  .debug-line.info { color: var(--text-sub); }
+  .debug-line.ok { color: var(--c-green); }
+  .debug-line.warn { color: var(--accent); }
+  .debug-line.error { color: var(--c-red); }
+
+  @media (max-width: 720px) {
+    .nav, .content { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a13 13 0 0 1 0 18M12 3a13 13 0 0 0 0 18"/></svg>
+      Grid · <b>Publicar en masa</b>
+    </div>
+    <div class="user-pill" id="user-pill">
+      <div class="avatar" id="user-avatar">?</div>
+      <span id="user-name">Cargando...</span>
+    </div>
+  </nav>
+
+  <div class="content">
+    <div class="alert warn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9L2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span>
+        Grid no documenta un endpoint "hacer público" con schema conocido. Esta herramienta primero
+        <b>lee</b> los permisos reales de un documento antes de tocar nada, y obliga a probar con
+        <b>un solo documento</b> antes de habilitar el cambio masivo. Revisá siempre la consola 🐞 de depuración.
+      </span>
+    </div>
+
+    <div class="section-label">1. Elegí el alcance</div>
+    <div class="card">
+      <div class="radio-row">
+        <label class="radio-opt"><input type="radio" name="scope" value="folder" checked /> Toda una carpeta</label>
+        <label class="radio-opt"><input type="radio" name="scope" value="ids" /> Lista de doc_id</label>
+      </div>
+
+      <div id="scope-folder">
+        <label class="field-label">Carpeta</label>
+        <select class="select" id="folder-select"><option value="">Cargando carpetas...</option></select>
+      </div>
+      <div id="scope-ids" style="display:none;">
+        <label class="field-label">Un doc_id por línea (o separados por coma)</label>
+        <textarea class="textarea" id="ids-input" placeholder="01M2PDWYD4TYNM78AP1QWE9J1R&#10;01KXHH66CFA1XB2SDYFD9BEG8D"></textarea>
+      </div>
+
+      <div class="toolbar-row">
+        <button class="btn btn-primary" id="btn-load-docs">Cargar documentos</button>
+        <button class="icon-btn" id="btn-check-visibility" title="Consultar visibilidad actual de los cargados" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <div id="load-status"></div>
+    </div>
+
+    <div class="section-label">2. Documentos</div>
+    <div class="toolbar-row" style="margin-top:0;">
+      <label class="radio-opt"><input type="checkbox" id="filter-private-only" /> Mostrar solo los que están en privado</label>
+      <button class="btn btn-ghost" id="btn-select-all" style="margin-left:auto;">Seleccionar todos</button>
+      <button class="btn btn-ghost" id="btn-select-none">Ninguno</button>
+    </div>
+    <div id="docs-list" class="result-list">
+      <div class="empty-state">Cargá documentos primero.</div>
+    </div>
+
+    <div class="section-label">3. Aplicar</div>
+    <div class="card">
+      <p class="sub" style="margin:0 0 12px 0; color:var(--text-sub); font-size:13px;">
+        Primero probá con un solo documento seleccionado. Si el resultado es el esperado, se habilita aplicar al resto.
+      </p>
+      <div class="toolbar-row" style="margin-top:0;">
+        <button class="btn btn-secondary" id="btn-test-one">Probar con 1 seleccionado</button>
+        <button class="btn btn-primary" id="btn-apply-all" disabled>Aplicar a los seleccionados</button>
+        <button class="btn btn-secondary" id="btn-download-csv" disabled>Descargar CSV de resultados</button>
+      </div>
+      <div id="apply-status"></div>
+    </div>
+  </div>
+
+  <!-- Modal: confirmar aplicación masiva -->
+  <div class="modal-bg" id="modal-confirm">
+    <div class="modal">
+      <h3>Confirmar publicación masiva</h3>
+      <p class="sub" id="modal-confirm-sub"></p>
+      <div class="alert warn">
+        <span>Esto puede exponer documentos privados a más gente de la que tenían acceso. No hay deshacer automático.</span>
+      </div>
+      <div class="confirm-row">
+        <input type="checkbox" id="modal-confirm-checkbox" />
+        <label for="modal-confirm-checkbox">Entiendo que esto cambia permisos reales en Grid y ya probé con 1 documento.</label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="modal-confirm">Cancelar</button>
+        <button class="btn btn-danger" id="modal-confirm-go" disabled>Aplicar</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="icon-btn" id="btn-debug-toggle" title="Consola de depuración">
+    🐞<span class="debug-badge" id="debug-badge"></span>
+  </button>
+  <div class="debug-panel" id="debug-panel">
+    <div class="debug-panel-header">
+      <span>Consola de depuración</span>
+      <div class="debug-panel-actions">
+        <button id="debug-clear">Limpiar</button>
+        <button id="debug-close">✕</button>
+      </div>
+    </div>
+    <div class="debug-panel-body" id="debug-panel-body"></div>
+  </div>
+
+  <div class="toast-stack" id="toast-stack"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  function $(id) { return document.getElementById(id); }
+
+  /* ────────────────────────────────────────────────────────────
+   * Consola de depuración
+   * ──────────────────────────────────────────────────────────── */
+  var debugLines = [];
+  var debugUnread = 0;
+  var DEBUG_MAX_LINES = 500;
+
+  function dbg(kind, msg) {
+    var line = { t: new Date(), kind: kind, msg: msg };
+    debugLines.push(line);
+    if (debugLines.length > DEBUG_MAX_LINES) debugLines.shift();
+    renderDebugLine(line);
+    var fn = kind === "error" ? console.error : (kind === "warn" ? console.warn : console.log);
+    fn("[Publicar en masa]", msg);
+    var panel = $("debug-panel");
+    if (!panel || !panel.classList.contains("visible")) { debugUnread++; updateDebugBadge(); }
+  }
+
+  function renderDebugLine(line) {
+    var body = $("debug-panel-body");
+    if (!body) return;
+    var el = document.createElement("div");
+    el.className = "debug-line " + line.kind;
+    var hh = line.t.toLocaleTimeString([], { hour12: false });
+    el.innerHTML = '<span class="t">' + hh + "</span>" + escapeHtml(line.msg);
+    body.appendChild(el);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function updateDebugBadge() {
+    var badge = $("debug-badge");
+    if (!badge) return;
+    if (debugUnread > 0) { badge.textContent = debugUnread > 99 ? "99+" : String(debugUnread); badge.classList.add("visible"); }
+    else { badge.classList.remove("visible"); }
+  }
+
+  function openDebugPanel() {
+    var panel = $("debug-panel");
+    if (!panel) return;
+    panel.classList.add("visible");
+    debugUnread = 0;
+    updateDebugBadge();
+  }
+
+  $("btn-debug-toggle").addEventListener("click", function () {
+    var panel = $("debug-panel");
+    if (panel.classList.contains("visible")) panel.classList.remove("visible");
+    else openDebugPanel();
+  });
+  $("debug-close").addEventListener("click", function () { $("debug-panel").classList.remove("visible"); });
+  $("debug-clear").addEventListener("click", function () { debugLines = []; $("debug-panel-body").innerHTML = ""; });
+
+  function showModal(id) { $(id).classList.add("visible"); }
+  function hideModal(id) { $(id).classList.remove("visible"); }
+  document.addEventListener("click", function (e) {
+    var closeId = e.target.getAttribute && e.target.getAttribute("data-close");
+    if (closeId) hideModal(closeId);
+  });
+
+  function toast(message, kind) {
+    var stack = $("toast-stack");
+    var el = document.createElement("div");
+    el.className = "toast" + (kind ? " " + kind : "");
+    el.textContent = message;
+    stack.appendChild(el);
+    setTimeout(function () {
+      el.style.transition = "opacity .3s";
+      el.style.opacity = "0";
+      setTimeout(function () { el.remove(); }, 320);
+    }, 3600);
+  }
+
+  function setStatus(containerId, html) { $(containerId).innerHTML = html; }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  /* ────────────────────────────────────────────────────────────
+   * Cliente API Grid — timeout duro + gate global de rate limit
+   * (mismo patrón validado en el recuperador de documentos perdidos)
+   * ──────────────────────────────────────────────────────────── */
+  var REQUEST_TIMEOUT_MS = 20000;
+  var MAX_429_RETRIES = 8;
+  var rateLimitGateUntil = 0;
+
+  function waitForRateLimitGate() {
+    var wait = rateLimitGateUntil - Date.now();
+    if (wait <= 0) return Promise.resolve();
+    dbg("warn", "Rate limit: esperando " + Math.ceil(wait / 1000) + "s (gate global) antes de la próxima request...");
+    return new Promise(function (resolve) { setTimeout(resolve, wait); });
+  }
+
+  function apiFetch(url, opts, _retryCount) {
+    _retryCount = _retryCount || 0;
+    opts = opts || {};
+    opts.credentials = "include";
+    var method = (opts.method || "GET").toUpperCase();
+
+    return waitForRateLimitGate().then(function () {
+      var start = Date.now();
+      var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      var timedOut = false;
+      var timer = null;
+      if (controller) {
+        opts.signal = controller.signal;
+        timer = setTimeout(function () { timedOut = true; controller.abort(); }, REQUEST_TIMEOUT_MS);
+      }
+
+      dbg("info", method + " " + url + (opts.body ? " body=" + String(opts.body).slice(0, 200) : "") + " → enviando..." + (_retryCount > 0 ? " (reintento " + _retryCount + ")" : ""));
+
+      return fetch(url, opts)
+        .then(function (r) {
+          if (timer) clearTimeout(timer);
+          var ms = Date.now() - start;
+
+          if (r.status === 429) {
+            return r.text().then(function (t) {
+              var retryAfterSec = null;
+              var headerVal = r.headers && r.headers.get ? r.headers.get("Retry-After") : null;
+              if (headerVal != null && !isNaN(parseFloat(headerVal))) {
+                retryAfterSec = parseFloat(headerVal);
+              } else {
+                try {
+                  var parsed = JSON.parse(t);
+                  var rawVal = parsed && (parsed.retry_after != null ? parsed.retry_after : parsed.retryAfter);
+                  if (rawVal != null && !isNaN(parseFloat(rawVal))) retryAfterSec = parseFloat(rawVal);
+                } catch (e) { /* ignore */ }
+              }
+              if (retryAfterSec == null) retryAfterSec = 30;
+              rateLimitGateUntil = Date.now() + retryAfterSec * 1000 + 500;
+              dbg("warn", method + " " + url + " → 429 rate_limit (" + ms + "ms), Grid pidió esperar " + retryAfterSec + "s — reintentando solo");
+
+              if (_retryCount >= MAX_429_RETRIES) {
+                var errRL = new Error("Rate limit persistente tras " + _retryCount + " reintentos");
+                errRL.status = 429;
+                errRL._logged = true;
+                throw errRL;
+              }
+              return apiFetch(url, opts, _retryCount + 1);
+            });
+          }
+
+          if (!r.ok) {
+            return r.text().then(function (t) {
+              dbg("error", method + " " + url + " → HTTP " + r.status + " (" + ms + "ms)" + (t ? " — " + t.slice(0, 200) : ""));
+              var err = new Error("HTTP " + r.status + (t ? ": " + t.slice(0, 200) : ""));
+              err.status = r.status;
+              err._logged = true;
+              throw err;
+            });
+          }
+          if (r.status === 204) { dbg("ok", method + " " + url + " → 204 (" + ms + "ms)"); return null; }
+          return r.text().then(function (t) {
+            dbg("ok", method + " " + url + " → 200 (" + ms + "ms)" + (t ? " — " + t.slice(0, 300) : ""));
+            if (!t) return null;
+            try { return JSON.parse(t); } catch (e) { return t; }
+          });
+        })
+        .catch(function (e) {
+          if (timer) clearTimeout(timer);
+          if (e._logged) throw e;
+          var ms = Date.now() - start;
+          if (timedOut) {
+            dbg("error", method + " " + url + " → TIMEOUT: sin respuesta tras " + ms + "ms, request abortado");
+            var err2 = new Error("Sin respuesta de Grid tras " + Math.round(ms / 1000) + "s (timeout)");
+            err2.status = 0;
+            throw err2;
+          }
+          dbg("error", method + " " + url + " → " + e.message + " (" + ms + "ms)");
+          throw e;
+        });
+    });
+  }
+
+  function withParam(url, key, val) {
+    return url + (url.indexOf("?") === -1 ? "?" : "&") + key + "=" + encodeURIComponent(val);
+  }
+
+  function extractItems(res) {
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.items)) return res.items;
+    if (res && Array.isArray(res.results)) return res.results;
+    if (res && Array.isArray(res.documents)) return res.documents;
+    if (res && Array.isArray(res.folders)) return res.folders;
+    if (res && Array.isArray(res.data)) return res.data;
+    return [];
+  }
+
+  function extractCursor(res) {
+    if (!res || typeof res !== "object") return null;
+    return res.next_cursor || res.nextCursor || res.cursor || res.next_page_token || res.next || null;
+  }
+
+  function paginatedFetch(baseUrl, idFields) {
+    var MAX_PAGES = 60;
+    var allItems = [];
+    var seenIds = new Set();
+    function idOf(raw) {
+      for (var i = 0; i < idFields.length; i++) if (raw && raw[idFields[i]] != null) return String(raw[idFields[i]]);
+      return null;
+    }
+    function step(url, page) {
+      return apiFetch(url).then(function (res) {
+        var items = extractItems(res);
+        var newCount = 0;
+        items.forEach(function (it) {
+          var key = idOf(it) || JSON.stringify(it);
+          if (!seenIds.has(key)) { seenIds.add(key); allItems.push(it); newCount++; }
+        });
+        var cursor = extractCursor(res);
+        var hasMoreFlag = res && typeof res === "object" && (res.has_more === true || res.hasMore === true);
+        var total = res && typeof res === "object" && typeof res.total === "number" ? res.total : null;
+        var canContinue = page < MAX_PAGES && newCount > 0 && (cursor || hasMoreFlag || (total != null && allItems.length < total));
+        if (!canContinue) return allItems;
+        var nextUrl = cursor ? withParam(baseUrl, "cursor", cursor) : withParam(baseUrl, "page", page + 1);
+        return step(nextUrl, page + 1);
+      });
+    }
+    return step(baseUrl, 1);
+  }
+
+  var api = {
+    me: function () { return apiFetch("/api/v1/me"); },
+    listFolders: function () { return paginatedFetch("/api/v1/folders", ["id", "folder_id"]); },
+    getFolder: function (id) { return apiFetch("/api/v1/folders/" + id); },
+    getDocument: function (id) { return apiFetch("/api/v1/documents/" + id); },
+    getPermissions: function (id) { return apiFetch("/api/v1/documents/" + id + "/permissions"); },
+    putPermissions: function (id, body) {
+      return apiFetch("/api/v1/documents/" + id + "/permissions", {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+      });
+    }
+  };
+
+  function looksLikeBareId(s) { return typeof s === "string" && /^[0-9A-Z]{20,32}$/.test(s); }
+
+  function extractDocIdsDeep(obj, out, depth) {
+    if (depth > 6 || obj == null) return;
+    if (Array.isArray(obj)) {
+      obj.forEach(function (it) { if (looksLikeBareId(it)) out.add(it); else extractDocIdsDeep(it, out, depth + 1); });
+      return;
+    }
+    if (typeof obj === "object") {
+      ["doc_id", "document_id", "docId", "documentId", "id"].forEach(function (k) {
+        var v = obj[k];
+        if (typeof v === "string" && v.length >= 6 && /^[A-Za-z0-9_-]+$/.test(v)) out.add(v);
+      });
+      Object.keys(obj).forEach(function (k) {
+        var v = obj[k];
+        if (v && typeof v === "object") extractDocIdsDeep(v, out, depth + 1);
+        else if (looksLikeBareId(v)) out.add(v);
+      });
+    }
+  }
+
+  /* ────────────────────────────────────────────────────────────
+   * Estado
+   * ──────────────────────────────────────────────────────────── */
+  var folders = new Map(); // id -> {id, name}
+  var docs = new Map();    // id -> {id, name, visibility: 'public'|'private'|'unknown', permsRaw, selected}
+
+  function normFolder(raw) { return { id: raw.id || raw.folder_id, name: raw.name || raw.title || "Carpeta sin nombre" }; }
+  function normDocName(raw, id) { return raw.title || raw.filename || raw.name || id; }
+
+  /* ────────────────────────────────────────────────────────────
+   * Identidad
+   * ──────────────────────────────────────────────────────────── */
+  function loadIdentity() {
+    return api.me()
+      .then(function (u) {
+        dbg("info", "/api/v1/me payload: " + JSON.stringify(u));
+        var name = (u && (u.full_name || u.ldap || u.username || u.email)) || "Usuario";
+        $("user-name").textContent = name;
+        $("user-avatar").textContent = name.trim().charAt(0).toUpperCase();
+      })
+      .catch(function (e) {
+        dbg("warn", "No se pudo resolver /api/v1/me: " + e.message);
+        $("user-name").textContent = "Sin identificar";
+        $("user-avatar").textContent = "?";
+      });
+  }
+
+  /* ────────────────────────────────────────────────────────────
+   * Carga de carpetas para el selector
+   * ──────────────────────────────────────────────────────────── */
+  function loadFolders() {
+    return api.listFolders()
+      .then(function (raw) {
+        folders = new Map();
+        extractItems(raw).forEach(function (f) { var nf = normFolder(f); if (nf.id) folders.set(nf.id, nf); });
+        var sel = $("folder-select");
+        var opts = Array.from(folders.values()).sort(function (a, b) { return a.name.localeCompare(b.name); });
+        sel.innerHTML = opts.map(function (f) { return '<option value="' + escapeHtml(f.id) + '">' + escapeHtml(f.name) + "</option>"; }).join("");
+        dbg("ok", "Carpetas cargadas para el selector: " + folders.size);
+      })
+      .catch(function (e) {
+        dbg("error", "No se pudieron cargar carpetas: " + e.message);
+        $("folder-select").innerHTML = '<option value="">Error al cargar carpetas</option>';
+      });
+  }
+
+  /* ────────────────────────────────────────────────────────────
+   * Radios de alcance
+   * ──────────────────────────────────────────────────────────── */
+  document.querySelectorAll('input[name="scope"]').forEach(function (r) {
+    r.addEventListener("change", function () {
+      var v = document.querySelector('input[name="scope"]:checked').value;
+      $("scope-folder").style.display = v === "folder" ? "" : "none";
+      $("scope-ids").style.display = v === "ids" ? "" : "none";
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────
+   * Cargar documentos según el alcance elegido
+   *
+   * Para carpetas se usa GET /api/v1/folders/{id} + extracción de
+   * ids embebidos (el mismo truco del recuperador de perdidos),
+   * porque es más confiable que filtrar el listado general roto.
+   * ──────────────────────────────────────────────────────────── */
+  function loadDocsForScope() {
+    var scope = document.querySelector('input[name="scope"]:checked').value;
+    setStatus("load-status", '<div class="loading-row"><div class="spinner"></div> Resolviendo documentos del alcance elegido...</div>');
+    docs = new Map();
+    $("btn-check-visibility").disabled = true;
+
+    var idsPromise;
+    if (scope === "folder") {
+      var folderId = $("folder-select").value;
+      if (!folderId) {
+        setStatus("load-status", '<div class="alert error">Elegí una carpeta.</div>');
+        return;
+      }
+      idsPromise = api.getFolder(folderId).then(function (raw) {
+        var ids = new Set();
+        extractDocIdsDeep(raw, ids, 0);
+        ids.delete(folderId);
+        dbg("ok", "Carpeta " + folderId + ": " + ids.size + " id(s) candidatos en su metadata");
+        return Array.from(ids);
+      });
+    } else {
+      var raw = $("ids-input").value;
+      var tokens = raw.split(/[\s,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+      idsPromise = Promise.resolve(tokens.filter(looksLikeBareId));
+    }
+
+    idsPromise.then(function (ids) {
+      if (ids.length === 0) {
+        setStatus("load-status", '<div class="alert warn">No se encontraron ids para este alcance.</div>');
+        renderDocsList();
+        return;
+      }
+      setStatus("load-status", '<div class="loading-row"><div class="spinner"></div> Verificando ' + ids.length + " documento(s)...</div>");
+      return ids.reduce(function (chain, id) {
+        return chain.then(function () {
+          return api.getDocument(id)
+            .then(function (raw2) {
+              docs.set(id, { id: id, name: normDocName(raw2 || {}, id), visibility: "unknown", permsRaw: null, selected: false });
+              renderDocsList();
+            })
+            .catch(function (e) { dbg("warn", "id " + id + " no es un doc válido/accesible: " + e.message); });
+        });
+      }, Promise.resolve());
+    }).then(function () {
+      setStatus("load-status", '<div class="alert success">' + docs.size + " documento(s) cargados. Ahora podés consultar su visibilidad actual.</div>");
+      $("btn-check-visibility").disabled = docs.size === 0;
+    }).catch(function (e) {
+      dbg("error", "loadDocsForScope: " + e.message);
+      setStatus("load-status", '<div class="alert error">Error: ' + escapeHtml(e.message) + "</div>");
+    });
+  }
+
+  $("btn-load-docs").addEventListener("click", loadDocsForScope);
+
+  /* ────────────────────────────────────────────────────────────
+   * Detección del campo de visibilidad — SIEMPRE lee antes de
+   * escribir. Se buscan nombres de campo plausibles (is_public es
+   * el que ya usa Grid en /api/v1/me para el perfil del usuario);
+   * si no se reconoce ninguno, queda "unknown" y no se toca nada.
+   * ──────────────────────────────────────────────────────────── */
+  var VISIBILITY_FIELD_CANDIDATES = ["is_public", "public", "visibility", "is_private", "access_level", "sharing_level"];
+
+  function detectVisibility(perms) {
+    if (!perms || typeof perms !== "object") return { field: null, raw: null, isPublic: null };
+    for (var i = 0; i < VISIBILITY_FIELD_CANDIDATES.length; i++) {
+      var f = VISIBILITY_FIELD_CANDIDATES[i];
+      if (perms[f] !== undefined) {
+        var v = perms[f];
+        var isPublic;
+        if (typeof v === "boolean") isPublic = f === "is_private" ? !v : v;
+        else if (typeof v === "string") isPublic = /public/i.test(v);
+        else continue;
+        return { field: f, raw: v, isPublic: isPublic };
+      }
+    }
+    return { field: null, raw: null, isPublic: null };
+  }
+
+  function checkVisibility() {
+    var ids = Array.from(docs.keys());
+    if (ids.length === 0) return;
+    setStatus("load-status", '<div class="loading-row"><div class="spinner"></div> Consultando permisos reales (uno por uno)...</div>');
+    ids.reduce(function (chain, id) {
+      return chain.then(function () {
+        return api.getPermissions(id)
+          .then(function (perms) {
+            var d = docs.get(id);
+            var det = detectVisibility(perms);
+            d.permsRaw = perms;
+            d.visibility = det.isPublic === null ? "unknown" : (det.isPublic ? "public" : "private");
+            dbg("info", 'Permisos "' + d.name + '" (' + id + "): campo detectado=" + (det.field || "ninguno") + ", valor=" + JSON.stringify(det.raw) + " → " + d.visibility);
+            renderDocsList();
+          })
+          .catch(function (e) {
+            dbg("warn", "No se pudieron leer permisos de " + id + ": " + e.message);
+          });
+      });
+    }, Promise.resolve()).then(function () {
+      setStatus("load-status", '<div class="alert success">Visibilidad consultada para ' + docs.size + " documento(s).</div>");
+    });
+  }
+
+  $("btn-check-visibility").addEventListener("click", checkVisibility);
+
+  /* ────────────────────────────────────────────────────────────
+   * Render de la lista de documentos
+   * ──────────────────────────────────────────────────────────── */
+  function renderDocsList() {
+    var container = $("docs-list");
+    var onlyPrivate = $("filter-private-only").checked;
+    var rows = Array.from(docs.values())
+      .filter(function (d) { return !onlyPrivate || d.visibility === "private"; })
+      .sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+    if (rows.length === 0) {
+      container.innerHTML = '<div class="empty-state">' + (docs.size === 0 ? "Cargá documentos primero." : "Nada que mostrar con este filtro.") + "</div>";
+      updateApplyButtons();
+      return;
+    }
+
+    container.innerHTML = rows.map(function (d) {
+      return (
+        '<div class="result-row">' +
+        '<input type="checkbox" class="check" data-id="' + escapeHtml(d.id) + '" ' + (d.selected ? "checked" : "") + " />" +
+        '<div class="info"><div class="name">' + escapeHtml(d.name) + '</div><div class="meta"><code>' + escapeHtml(d.id) + "</code></div></div>" +
+        '<span class="badge ' + d.visibility + '">' + (d.visibility === "public" ? "Público" : d.visibility === "private" ? "Privado" : "Sin datos") + "</span>" +
+        "</div>"
+      );
+    }).join("");
+
+    container.querySelectorAll("[data-id]").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var d = docs.get(cb.getAttribute("data-id"));
+        if (d) d.selected = cb.checked;
+        updateApplyButtons();
+      });
+    });
+    updateApplyButtons();
+  }
+
+  $("filter-private-only").addEventListener("change", renderDocsList);
+  $("btn-select-all").addEventListener("click", function () {
+    var onlyPrivate = $("filter-private-only").checked;
+    docs.forEach(function (d) { if (!onlyPrivate || d.visibility === "private") d.selected = true; });
+    renderDocsList();
+  });
+  $("btn-select-none").addEventListener("click", function () {
+    docs.forEach(function (d) { d.selected = false; });
+    renderDocsList();
+  });
+
+  function selectedDocs() { return Array.from(docs.values()).filter(function (d) { return d.selected; }); }
+
+  function updateApplyButtons() {
+    var n = selectedDocs().length;
+    $("btn-test-one").disabled = n === 0;
+  }
+
+  /* ────────────────────────────────────────────────────────────
+   * Aplicar: read-modify-write sobre /permissions.
+   * Nunca se manda un body inventado desde cero — se parte de lo
+   * que Grid ya devolvió en getPermissions y solo se cambia el
+   * campo de visibilidad detectado.
+   * ──────────────────────────────────────────────────────────── */
+  var testPassed = false;
+  var lastResults = []; // {id, name, before, after, ok, error}
+
+  function buildPublicBody(d) {
+    if (!d.permsRaw || typeof d.permsRaw !== "object") return null;
+    var det = detectVisibility(d.permsRaw);
+    if (!det.field) return null;
+    var body = JSON.parse(JSON.stringify(d.permsRaw)); // copia, no mutar el original todavía
+    if (det.field === "is_private") body[det.field] = false;
+    else if (typeof det.raw === "string") body[det.field] = "public";
+    else body[det.field] = true;
+    return body;
+  }
+
+  function applyOne(d) {
+    if (!d.permsRaw) {
+      return api.getPermissions(d.id).then(function (perms) { d.permsRaw = perms; return applyOne(d); });
+    }
+    var body = buildPublicBody(d);
+    if (!body) {
+      dbg("error", 'No se detectó un campo de visibilidad reconocible en los permisos de "' + d.name + '" — no se toca nada.');
+      return Promise.resolve({ id: d.id, name: d.name, before: d.visibility, after: d.visibility, ok: false, error: "campo de visibilidad no reconocido" });
+    }
+    return api.putPermissions(d.id, body)
+      .then(function () { return api.getPermissions(d.id); })
+      .then(function (perms2) {
+        var det2 = detectVisibility(perms2);
+        var newVis = det2.isPublic === null ? "unknown" : (det2.isPublic ? "public" : "private");
+        var before = d.visibility;
+        d.visibility = newVis;
+        d.permsRaw = perms2;
+        var ok = newVis === "public";
+        dbg(ok ? "ok" : "warn", '"' + d.name + '" → ' + before + " → " + newVis + (ok ? "" : " (no quedó público, revisar)"));
+        return { id: d.id, name: d.name, before: before, after: newVis, ok: ok, error: ok ? "" : "no quedó en público tras el PUT" };
+      })
+      .catch(function (e) {
+        dbg("error", 'Fallo publicando "' + d.name + '": ' + e.message);
+        return { id: d.id, name: d.name, before: d.visibility, after: d.visibility, ok: false, error: e.message };
+      });
+  }
+
+  $("btn-test-one").addEventListener("click", function () {
+    var sel = selectedDocs();
+    if (sel.length === 0) return;
+    var target = sel[0];
+    setStatus("apply-status", '<div class="loading-row"><div class="spinner"></div> Probando con "' + escapeHtml(target.name) + '"...</div>');
+    applyOne(target).then(function (res) {
+      lastResults = [res];
+      renderDocsList();
+      if (res.ok) {
+        testPassed = true;
+        $("btn-apply-all").disabled = selectedDocs().length <= 1;
+        setStatus("apply-status", '<div class="alert success">Prueba exitosa: "' + escapeHtml(res.name) + '" quedó público. Ya podés aplicar al resto.</div>');
+        toast('"' + res.name + '" ahora es público.', "success");
+      } else {
+        setStatus("apply-status", '<div class="alert error">La prueba falló para "' + escapeHtml(res.name) + '": ' + escapeHtml(res.error) + ". Revisá la consola 🐞 antes de seguir.</div>");
+        toast("La prueba falló, revisá la consola de depuración.", "error");
+      }
+      updateCsvButton();
+    });
+  });
+
+  $("btn-apply-all").addEventListener("click", function () {
+    var sel = selectedDocs();
+    if (sel.length === 0) return;
+    $("modal-confirm-sub").textContent = "Se va a intentar publicar " + sel.length + " documento(s) seleccionados.";
+    $("modal-confirm-checkbox").checked = false;
+    $("modal-confirm-go").disabled = true;
+    showModal("modal-confirm");
+  });
+
+  $("modal-confirm-checkbox").addEventListener("change", function (e) {
+    $("modal-confirm-go").disabled = !e.target.checked;
+  });
+
+  $("modal-confirm-go").addEventListener("click", function () {
+    hideModal("modal-confirm");
+    var sel = selectedDocs();
+    setStatus("apply-status", '<div class="loading-row"><div class="spinner"></div> Aplicando a ' + sel.length + " documento(s)...</div>");
+    $("btn-apply-all").disabled = true;
+
+    var results = [];
+    sel.reduce(function (chain, d) {
+      return chain.then(function () {
+        return applyOne(d).then(function (res) {
+          results.push(res);
+          renderDocsList();
+          setStatus("apply-status", '<div class="loading-row"><div class="spinner"></div> ' + results.length + " / " + sel.length + " procesados...</div>");
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      lastResults = results;
+      var ok = results.filter(function (r) { return r.ok; }).length;
+      var fail = results.length - ok;
+      setStatus("apply-status",
+        '<div class="alert ' + (fail === 0 ? "success" : "warn") + '">Listo: ' + ok + " publicado(s), " + fail + " con error." +
+        (fail > 0 ? " Revisá la consola 🐞 y el CSV para ver el detalle." : "") + "</div>");
+      toast(ok + " documento(s) publicados" + (fail ? ", " + fail + " con error" : "") + ".", fail ? "error" : "success");
+      updateCsvButton();
+      $("btn-apply-all").disabled = selectedDocs().length === 0;
+    });
+  });
+
+  function updateCsvButton() { $("btn-download-csv").disabled = lastResults.length === 0; }
+
+  function csvEscape(v) {
+    var s = String(v == null ? "" : v);
+    if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  $("btn-download-csv").addEventListener("click", function () {
+    if (lastResults.length === 0) return;
+    var headers = ["doc_id", "titulo", "estado_anterior", "estado_nuevo", "resultado", "error"];
+    var lines = [headers.join(",")];
+    lastResults.forEach(function (r) {
+      lines.push([r.id, r.name, r.before, r.after, r.ok ? "ok" : "error", r.error || ""].map(csvEscape).join(","));
+    });
+    var blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "publicar_documentos_" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    dbg("ok", "CSV de resultados descargado (" + lastResults.length + " fila[s]).");
+  });
+
+  /* ────────────────────────────────────────────────────────────
+   * Init
+   * ──────────────────────────────────────────────────────────── */
+  loadIdentity();
+  loadFolders();
+  renderDocsList();
+})();
+</script>
+</body>
+</html>

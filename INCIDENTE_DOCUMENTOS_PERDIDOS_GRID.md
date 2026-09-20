@@ -95,3 +95,11 @@ Reportar al equipo de plataforma de Grid, adjuntando esta evidencia:
 1. El índice que alimenta `GET /api/v1/documents` (y la búsqueda) se desincroniza bajo cargas masivas de escritura en poco tiempo.
 2. Los endpoints de reparación (`sync-owner-kvs-listing`, `backfill-owner-index`, `rebuild-owner-index-from-*`, `diagnose-kvs`, `read-owner-index`) no son accesibles/funcionales desde una sesión de browser normal — si están pensados como self-service, algo en el camino (gateway/proxy) está bloqueando el parámetro `owner_id`.
 3. `GET /api/v1/folders/{folder_id}` es, hoy, la fuente más confiable para reconstruir qué documentos pertenecen realmente a una carpeta — más confiable que el índice general.
+
+## 8. Hallazgo relacionado: también existe un "índice de lo público"
+
+El inventario OpenAPI expone además `POST /api/v1/documents/backfill-public-index` ("Backfill Public Index"), junto al ya conocido `backfill-owner-index`. Esto sugiere que la visibilidad pública/privada de un documento **también se resuelve contra un índice derivado**, no contra el dato real — el mismo patrón de riesgo que causó este incidente, aplicado a otra dimensión (quién puede ver el doc, en vez de si aparece listado).
+
+No hay evidencia todavía de que esto haya fallado en producción como el índice por owner, pero es una superficie a vigilar: cualquier automatización que dependa de `is_public`/visibilidad debería, por las mismas razones de la sección 2, **leer el estado real antes de escribir** y no asumir que lo que devuelve un índice de listado refleja el estado verdadero del permiso.
+
+Esto motivó `publicar-documentos.html`: una utilidad separada para cambiar documentos de privado a público en masa, construida con lectura-antes-de-escritura (`GET /api/v1/documents/{id}/permissions` → detectar el campo de visibilidad real → modificar solo ese campo → `PUT` → releer para confirmar) y un paso obligatorio de "probar con 1 documento" antes de habilitar el cambio masivo, en vez de asumir un schema de request no documentado.
