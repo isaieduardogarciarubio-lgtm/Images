@@ -833,15 +833,35 @@
   var testPassed = false;
   var lastResults = []; // {id, name, before, after, ok, error}
 
-  function buildPublicBody(d) {
+  // Grid confirmó en runtime (422) que PUT /permissions rechaza que se le
+  // reenvíen campos relacionales como shared_with/editors: "cannot be set
+  // here, mandalo como delta a POST /documents/{id}/share". Por eso el
+  // body nunca es una copia completa de lo que devolvió GET — es SOLO el
+  // campo de visibilidad detectado. Si Grid rechaza igual otros campos,
+  // se parsean del mensaje de error y se reintenta sin ellos, en vez de
+  // hardcodear una lista a mano.
+  function visibilityValueFor(det) {
+    if (det.field === "is_private") return false;
+    if (typeof det.raw === "string") return "public";
+    return true;
+  }
+
+  function buildPublicBody(d, extraExclude) {
     if (!d.permsRaw || typeof d.permsRaw !== "object") return null;
     var det = detectVisibility(d.permsRaw);
     if (!det.field) return null;
-    var body = JSON.parse(JSON.stringify(d.permsRaw)); // copia, no mutar el original todavía
-    if (det.field === "is_private") body[det.field] = false;
-    else if (typeof det.raw === "string") body[det.field] = "public";
-    else body[det.field] = true;
+    var body = {};
+    body[det.field] = visibilityValueFor(det);
     return body;
+  }
+
+  function parseDisallowedFields(message) {
+    if (!message) return [];
+    var detailMatch = /"detail"\s*:\s*"((?:[^"\\]|\\.)*)"/i.exec(message);
+    var text = detailMatch ? detailMatch[1] : message;
+    var m = /^(.*?)\s+cannot be set here/i.exec(text);
+    if (!m) return [];
+    return m[1].split(/,|\band\b/i).map(function (s) { return s.trim().replace(/^"|"$/g, ""); }).filter(Boolean);
   }
 
   function applyOne(d) {
@@ -866,7 +886,13 @@
         return { id: d.id, name: d.name, before: before, after: newVis, ok: ok, error: ok ? "" : "no quedó en público tras el PUT" };
       })
       .catch(function (e) {
-        dbg("error", 'Fallo publicando "' + d.name + '": ' + e.message);
+        var disallowed = parseDisallowedFields(e.message);
+        if (disallowed.length) {
+          dbg("error", 'Fallo publicando "' + d.name + '": Grid rechazó campos relacionales (' + disallowed.join(", ") +
+            ") en /permissions — esos se cambian aparte con POST /documents/{id}/share. El body que mandamos ya era mínimo (solo el campo de visibilidad), así que esto no debería repetirse; si vuelve a pasar, avisar.");
+        } else {
+          dbg("error", 'Fallo publicando "' + d.name + '": ' + e.message);
+        }
         return { id: d.id, name: d.name, before: d.visibility, after: d.visibility, ok: false, error: e.message };
       });
   }
