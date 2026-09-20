@@ -409,6 +409,9 @@
         <button class="icon-btn" id="btn-sync-index" title="Si faltan documentos viejos en la lista o en la búsqueda, sincronizá el índice antes de recargar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>
         </button>
+        <button class="icon-btn" id="btn-find-lost" title="Buscar documentos perdidos (favoritos, recientes, diagnóstico de Grid)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><path d="M20 20l-4.3-4.3"/><path d="M10 7.5v3M10 13h.01"/></svg>
+        </button>
       </div>
     </div>
 
@@ -522,6 +525,32 @@
       <div class="modal-footer">
         <button class="btn btn-ghost" data-close="modal-preview">Cerrar</button>
         <button class="btn btn-primary" id="modal-preview-download">Descargar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: documentos perdidos -->
+  <div class="modal-bg" id="modal-lost">
+    <div class="modal wide">
+      <h3>Buscar documentos perdidos</h3>
+      <p class="sub">Cruza favoritos, recientes y el diagnóstico de Grid contra lo que el gestor tiene cargado, para encontrar documentos que existen pero no aparecen en el listado ni en la búsqueda.</p>
+
+      <div id="modal-lost-sources"></div>
+
+      <label class="field-label">Buscar también por texto (opcional)</label>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <input class="input" id="modal-lost-query" type="text" placeholder="Nombre o palabra clave..." style="margin-bottom:0;" />
+        <button class="btn btn-secondary" id="modal-lost-search-btn" style="white-space:nowrap;">Buscar</button>
+      </div>
+      <div id="modal-lost-alert"></div>
+
+      <div class="section-label" style="margin-top:18px;">Candidatos encontrados</div>
+      <div id="modal-lost-results" class="share-list" style="max-height:240px;"></div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="modal-lost">Cerrar</button>
+        <button class="btn btn-secondary" id="modal-lost-analyze">Analizar de nuevo</button>
+        <button class="btn btn-primary" id="modal-lost-recover-all" disabled>Recuperar todos</button>
       </div>
     </div>
   </div>
@@ -854,6 +883,15 @@
 
     listDocuments: function () { return paginatedFetch("/api/v1/documents", ["id", "doc_id"]); },
     syncOwnerIndex: function () { return apiFetch("/api/v1/documents/sync-owner-kvs-listing", { method: "POST" }); },
+    diagnoseKvs: function () { return apiFetch("/api/v1/documents/diagnose-kvs"); },
+    getStarred: function () { return apiFetch("/api/v1/me/starred"); },
+    getRecentlyViewed: function () { return apiFetch("/api/v1/me/recently-viewed"); },
+    searchDocs: function (q) {
+      return apiFetch("/api/v1/search", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: q, q: q })
+      });
+    },
+    getDocument: function (id) { return apiFetch("/api/v1/documents/" + id); },
     createDocument: function (file, title) {
       var fd = new FormData();
       fd.append("file", file, file.name);
@@ -1557,6 +1595,168 @@
       })
       .catch(function (e) { setAlert("modal-share-alert", "No se pudo compartir: " + e.message); })
       .then(function () { btn.disabled = false; });
+  });
+
+  /* ────────────────────────────────────────────────────────────
+   * Buscar documentos perdidos
+   *
+   * Cuando un documento se cae del índice que alimenta
+   * /api/v1/documents (y por lo tanto del listado y de la
+   * búsqueda), suele seguir existiendo intacto y accesible por
+   * link directo. Para encontrarlo sin conocer su doc_id de
+   * antemano, se consultan otras fuentes que corren sobre índices
+   * separados (favoritos, recientes, diagnóstico de Grid, y
+   * opcionalmente el buscador) y se escanean sus respuestas en
+   * busca de ids con forma de doc_id. Cada candidato se valida de
+   * verdad pidiendo GET /api/v1/documents/{id}: si no es un
+   * documento real o no es accesible, se descarta solo.
+   * ──────────────────────────────────────────────────────────── */
+  function extractDocIdsDeep(obj, out, depth) {
+    if (depth > 6 || obj == null) return;
+    if (Array.isArray(obj)) {
+      obj.forEach(function (it) { extractDocIdsDeep(it, out, depth + 1); });
+      return;
+    }
+    if (typeof obj === "object") {
+      ["doc_id", "document_id", "docId", "documentId", "id"].forEach(function (k) {
+        var v = obj[k];
+        if (typeof v === "string" && v.length >= 6 && /^[A-Za-z0-9_-]+$/.test(v)) out.add(v);
+      });
+      Object.keys(obj).forEach(function (k) {
+        var v = obj[k];
+        if (v && typeof v === "object") extractDocIdsDeep(v, out, depth + 1);
+      });
+    }
+  }
+
+  var lostCandidates = new Map();
+
+  function openLostModal() {
+    setAlert("modal-lost-alert", "");
+    $("modal-lost-query").value = "";
+    $("modal-lost-results").innerHTML = "";
+    $("modal-lost-recover-all").disabled = true;
+    lostCandidates = new Map();
+    showModal("modal-lost");
+    runLostAnalysis();
+  }
+
+  function runLostAnalysis(extraQuery) {
+    var sourcesEl = $("modal-lost-sources");
+    sourcesEl.innerHTML = '<div class="loading-row"><div class="spinner"></div> Consultando favoritos, recientes y diagnóstico...</div>';
+    $("modal-lost-results").innerHTML = "";
+    $("modal-lost-recover-all").disabled = true;
+
+    var candidateIds = new Set();
+    var sourceReports = [];
+
+    function trySource(label, task) {
+      return task
+        .then(function (res) {
+          var before = candidateIds.size;
+          extractDocIdsDeep(res, candidateIds, 0);
+          dbg("ok", "Buscar perdidos — " + label + ": OK, " + (candidateIds.size - before) + " ids nuevos");
+          sourceReports.push({ label: label, ok: true, found: candidateIds.size - before });
+        })
+        .catch(function (e) {
+          dbg("warn", "Buscar perdidos — " + label + " falló: " + e.message);
+          sourceReports.push({ label: label, ok: false, error: e.message });
+        });
+    }
+
+    var tasks = [
+      trySource("Favoritos (/me/starred)", api.getStarred()),
+      trySource("Recientes (/me/recently-viewed)", api.getRecentlyViewed()),
+      trySource("Diagnóstico (/documents/diagnose-kvs)", api.diagnoseKvs())
+    ];
+    if (extraQuery) {
+      tasks.push(trySource('Búsqueda de texto ("' + extraQuery + '")', api.searchDocs(extraQuery)));
+    }
+
+    return Promise.all(tasks).then(function () {
+      sourcesEl.innerHTML = sourceReports.map(function (r) {
+        if (r.ok) return '<div class="alert success" style="margin-bottom:6px;">' + escapeHtml(r.label) + ": " + r.found + " id(s) encontrados</div>";
+        return '<div class="alert warn" style="margin-bottom:6px;">' + escapeHtml(r.label) + ": no disponible (" + escapeHtml(r.error || "") + ")</div>";
+      }).join("");
+
+      var missingIds = Array.from(candidateIds).filter(function (id) { return !state.documents.has(id); });
+      dbg("info", "Buscar perdidos: " + candidateIds.size + " ids candidatos totales, " + missingIds.length + " no están en el listado actual");
+
+      if (missingIds.length === 0) {
+        $("modal-lost-results").innerHTML = '<div class="preview-fallback">No se encontraron documentos fuera del listado actual en estas fuentes.</div>';
+        return;
+      }
+
+      $("modal-lost-results").innerHTML = '<div class="loading-row"><div class="spinner"></div> Verificando ' + missingIds.length + " candidato(s)...</div>";
+
+      return missingIds.reduce(function (chain, id) {
+        return chain.then(function () {
+          return api.getDocument(id)
+            .then(function (raw) {
+              var nd = normDoc(raw || {});
+              nd.id = nd.id || id;
+              lostCandidates.set(nd.id, nd);
+            })
+            .catch(function (e) {
+              dbg("warn", "Candidato " + id + " descartado (no es un doc válido/accesible): " + e.message);
+            });
+        });
+      }, Promise.resolve());
+    }).then(function () {
+      renderLostResults();
+    });
+  }
+
+  function renderLostResults() {
+    var container = $("modal-lost-results");
+    if (lostCandidates.size === 0) {
+      container.innerHTML = '<div class="preview-fallback">No se pudo recuperar metadata de ningún candidato encontrado.</div>';
+      $("modal-lost-recover-all").disabled = true;
+      return;
+    }
+    var html = "";
+    lostCandidates.forEach(function (d) {
+      var folder = d.folderId ? state.folders.get(d.folderId) : null;
+      var folderLabel = d.folderId ? (folder ? folder.name : "carpeta " + d.folderId + " (no cargada acá)") : "raíz";
+      html +=
+        '<div class="share-row">' +
+        '<div class="who"><b>' + escapeHtml(d.name) + "</b><br/><span class=\"role\">Carpeta: " + escapeHtml(folderLabel) + "</span></div>" +
+        '<button data-recover="' + escapeHtml(d.id) + '">Recuperar</button>' +
+        "</div>";
+    });
+    container.innerHTML = html;
+    $("modal-lost-recover-all").disabled = false;
+
+    container.querySelectorAll("[data-recover]").forEach(function (btn) {
+      btn.addEventListener("click", function () { recoverLostDoc(btn.getAttribute("data-recover")); });
+    });
+  }
+
+  function recoverLostDoc(id) {
+    var d = lostCandidates.get(id);
+    if (!d) return;
+    state.documents.set(d.id, d);
+    lostCandidates.delete(id);
+    renderLostResults();
+    render();
+    toast('"' + d.name + '" recuperado en el gestor.', "success");
+  }
+
+  $("btn-find-lost").addEventListener("click", openLostModal);
+  $("modal-lost-analyze").addEventListener("click", function () { runLostAnalysis($("modal-lost-query").value.trim() || undefined); });
+  $("modal-lost-search-btn").addEventListener("click", function () {
+    var q = $("modal-lost-query").value.trim();
+    if (!q) { setAlert("modal-lost-alert", "Ingresá un texto para buscar."); return; }
+    setAlert("modal-lost-alert", "");
+    runLostAnalysis(q);
+  });
+  $("modal-lost-recover-all").addEventListener("click", function () {
+    var count = 0;
+    lostCandidates.forEach(function (d) { state.documents.set(d.id, d); count++; });
+    lostCandidates.clear();
+    renderLostResults();
+    render();
+    toast(count + " documento(s) recuperado(s) en el gestor.", "success");
   });
 
   /* ────────────────────────────────────────────────────────────
