@@ -976,31 +976,43 @@
     setContentLoading(startedAt);
     var tickTimer = setInterval(function () { updateLoadingElapsed(startedAt); }, 500);
 
-    return Promise.all([
-      api.listFolders().catch(function (e) {
+    // Carpetas y documentos se confirman en state por separado en cuanto
+    // cada uno resuelve: /api/v1/documents puede tardar minutos en
+    // paginar, y antes las carpetas (que llegan rápido) quedaban
+    // invisibles para el resto de la app —incluido el buscador de
+    // perdidos— hasta que la paginación de documentos terminaba entera.
+    var foldersDone = api.listFolders()
+      .then(function (raw) {
+        var rawFolders = asArray(raw);
+        state.folders = new Map();
+        rawFolders.forEach(function (f) {
+          var nf = normFolder(f);
+          if (nf.id) state.folders.set(nf.id, nf);
+        });
+        dbg("ok", "Carpetas listas: " + state.folders.size);
+      })
+      .catch(function (e) {
         dbg("error", "listFolders falló definitivamente: " + e.message);
         toast("No se pudieron cargar las carpetas (" + e.message + ")", "error");
-        return [];
-      }),
-      api.listDocuments().catch(function (e) {
+      });
+
+    var docsDone = api.listDocuments()
+      .then(function (raw) {
+        var rawDocs = asArray(raw);
+        state.documents = new Map();
+        rawDocs.forEach(function (d) {
+          var nd = normDoc(d);
+          if (nd.id) state.documents.set(nd.id, nd);
+        });
+        dbg("ok", "Documentos listos: " + state.documents.size);
+      })
+      .catch(function (e) {
         dbg("error", "listDocuments falló definitivamente: " + e.message);
         toast("No se pudieron cargar los archivos (" + e.message + ")", "error");
-        return [];
-      })
-    ]).then(function (results) {
+      });
+
+    return Promise.all([foldersDone, docsDone]).then(function () {
       clearInterval(tickTimer);
-      var rawFolders = asArray(results[0]);
-      var rawDocs = asArray(results[1]);
-      state.folders = new Map();
-      rawFolders.forEach(function (f) {
-        var nf = normFolder(f);
-        if (nf.id) state.folders.set(nf.id, nf);
-      });
-      state.documents = new Map();
-      rawDocs.forEach(function (d) {
-        var nd = normDoc(d);
-        if (nd.id) state.documents.set(nd.id, nd);
-      });
       state.loaded = true;
       dbg("ok", "── loadAll: listo en " + (Date.now() - startedAt) + "ms · " + state.folders.size + " carpetas, " + state.documents.size + " documentos ──");
       render();
@@ -1639,13 +1651,22 @@
 
   function resolveOwnerId() {
     var u = state.currentUser;
-    if (!u) return null;
-    var fields = ["id", "user_id", "userId", "username", "nickname", "login", "email"];
-    for (var i = 0; i < fields.length; i++) {
-      var v = u[fields[i]];
-      if (v != null && String(v).trim() !== "") return String(v);
-    }
-    return null;
+    if (!u) return [];
+    // No está confirmado en runtime qué campo espera Grid como owner_id
+    // en diagnose-kvs/read-owner-index. Se juntan todos los candidatos
+    // razonables de /api/v1/me (sin duplicados) para poder probarlos
+    // todos si el primero no alcanza, en vez de adivinar uno solo.
+    var fields = ["caller_id", "ldap", "id", "user_id", "userId", "username", "nickname", "login", "email"];
+    var seen = new Set();
+    var candidates = [];
+    fields.forEach(function (f) {
+      var v = u[f];
+      if (v != null && String(v).trim() !== "" && !seen.has(String(v))) {
+        seen.add(String(v));
+        candidates.push(String(v));
+      }
+    });
+    return candidates;
   }
 
   function openLostModal() {
@@ -1683,7 +1704,8 @@
     $("modal-lost-results").innerHTML = "";
     $("modal-lost-recover-all").disabled = true;
 
-    var ownerId = resolveOwnerId();
+    var ownerIdCandidates = resolveOwnerId();
+    dbg("info", "Buscar perdidos: owner_id candidatos desde /api/v1/me → " + JSON.stringify(ownerIdCandidates));
     var candidateIds = new Set();
     var sourceReports = [];
 
@@ -1701,16 +1723,41 @@
         });
     }
 
+    // El nombre de campo que Grid espera como owner_id en estos dos
+    // endpoints no está confirmado: se prueba cada candidato de /me en
+    // orden hasta que uno sea aceptado, en vez de asumir uno solo.
+    function tryOwnerIdEndpoint(label, apiFn, candidates) {
+      if (candidates.length === 0) {
+        sourceReports.push({ label: label, ok: false, error: "no se pudo resolver ningún owner_id candidato desde /api/v1/me" });
+        return Promise.resolve();
+      }
+      function attempt(i) {
+        if (i >= candidates.length) {
+          sourceReports.push({ label: label, ok: false, error: "probé " + candidates.length + " valor(es) de owner_id y ninguno fue aceptado" });
+          return Promise.resolve();
+        }
+        var val = candidates[i];
+        return apiFn(val)
+          .then(function (res) {
+            var before = candidateIds.size;
+            extractDocIdsDeep(res, candidateIds, 0);
+            dbg("ok", "Buscar perdidos — " + label + ' con owner_id="' + val + '": OK, ' + (candidateIds.size - before) + " ids nuevos");
+            sourceReports.push({ label: label + ' (owner_id="' + val + '")', ok: true, found: candidateIds.size - before });
+          })
+          .catch(function (e) {
+            dbg("warn", "Buscar perdidos — " + label + ' con owner_id="' + val + '" falló: ' + e.message);
+            return attempt(i + 1);
+          });
+      }
+      return attempt(0);
+    }
+
     var tasks = [
       trySource("Favoritos (/me/starred)", api.getStarred()),
-      trySource("Recientes (/me/recently-viewed)", api.getRecentlyViewed())
+      trySource("Recientes (/me/recently-viewed)", api.getRecentlyViewed()),
+      tryOwnerIdEndpoint("Diagnóstico (/documents/diagnose-kvs)", api.diagnoseKvs, ownerIdCandidates),
+      tryOwnerIdEndpoint("Índice crudo (/documents/read-owner-index)", api.readOwnerIndex, ownerIdCandidates)
     ];
-    if (ownerId) {
-      tasks.push(trySource("Diagnóstico (/documents/diagnose-kvs)", api.diagnoseKvs(ownerId)));
-      tasks.push(trySource("Índice crudo (/documents/read-owner-index)", api.readOwnerIndex(ownerId)));
-    } else {
-      sourceReports.push({ label: "Diagnóstico / índice crudo", ok: false, error: "no se pudo resolver tu owner_id desde /api/v1/me" });
-    }
     if (extraQuery) {
       tasks.push(trySource('Búsqueda de texto ("' + extraQuery + '")', api.searchDocs(extraQuery)));
     }
@@ -2048,6 +2095,7 @@
     return api.me()
       .then(function (u) {
         state.currentUser = u;
+        dbg("info", "/api/v1/me payload: " + JSON.stringify(u));
         var name = (u && (u.full_name || u.ldap || u.username || u.email)) || "Usuario";
         $("user-name").textContent = name;
         $("user-avatar").textContent = name.trim().charAt(0).toUpperCase();
