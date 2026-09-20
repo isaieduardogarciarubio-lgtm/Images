@@ -1642,10 +1642,22 @@
    * verdad pidiendo GET /api/v1/documents/{id}: si no es un
    * documento real o no es accesible, se descarta solo.
    * ──────────────────────────────────────────────────────────── */
+  // IDs de Grid observados (docs y carpetas) son tipo ULID: 26
+  // caracteres en mayúsculas/dígitos. Los folders pueden guardar su
+  // vínculo con documentos como un array de ids "pelados" en vez de
+  // objetos con una clave id/doc_id — sin este chequeo esos arrays
+  // quedaban completamente invisibles para el escaneo.
+  function looksLikeBareId(s) {
+    return typeof s === "string" && /^[0-9A-Z]{20,32}$/.test(s);
+  }
+
   function extractDocIdsDeep(obj, out, depth) {
     if (depth > 6 || obj == null) return;
     if (Array.isArray(obj)) {
-      obj.forEach(function (it) { extractDocIdsDeep(it, out, depth + 1); });
+      obj.forEach(function (it) {
+        if (looksLikeBareId(it)) out.add(it);
+        else extractDocIdsDeep(it, out, depth + 1);
+      });
       return;
     }
     if (typeof obj === "object") {
@@ -1656,6 +1668,7 @@
       Object.keys(obj).forEach(function (k) {
         var v = obj[k];
         if (v && typeof v === "object") extractDocIdsDeep(v, out, depth + 1);
+        else if (looksLikeBareId(v)) out.add(v);
       });
     }
   }
