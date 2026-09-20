@@ -330,6 +330,37 @@
   .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ── Consola de depuración ── */
+  #btn-debug-toggle { position: relative; }
+  .debug-badge {
+    position: absolute; top: -4px; right: -4px; background: var(--c-red); color: #fff;
+    font-size: 10px; line-height: 1; border-radius: 999px; padding: 2px 5px; display: none;
+  }
+  .debug-badge.visible { display: block; }
+  .debug-panel {
+    display: none; flex-direction: column; overflow: hidden;
+    position: fixed; left: 16px; bottom: 64px; width: min(560px, 92vw); max-height: 50vh;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+    box-shadow: var(--shadow); z-index: 205;
+  }
+  .debug-panel.visible { display: flex; }
+  .debug-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; background: var(--surface-2); font-size: 12px; font-weight: 700; color: var(--text-sub);
+  }
+  .debug-panel-header button { background: none; border: none; color: var(--text-sub); cursor: pointer; font-size: 12px; margin-left: 10px; }
+  .debug-panel-header button:hover { color: var(--text); }
+  .debug-panel-body {
+    flex: 1; overflow: auto; padding: 8px 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.5;
+  }
+  .debug-line { white-space: pre-wrap; word-break: break-word; border-bottom: 1px solid var(--border-soft); padding: 3px 0; }
+  .debug-line .t { color: var(--text-mut); margin-right: 6px; }
+  .debug-line.info { color: var(--text-sub); }
+  .debug-line.ok { color: var(--c-green); }
+  .debug-line.warn { color: var(--accent); }
+  .debug-line.error { color: var(--c-red); }
+
   @media (max-width: 720px) {
     .nav, .toolbar, .content { padding-left: 14px; padding-right: 14px; }
     .toolbar-actions { margin-left: 0; width: 100%; justify-content: flex-start; }
@@ -509,6 +540,20 @@
 
   <div class="toast-stack" id="toast-stack"></div>
 
+  <button class="icon-btn" id="btn-debug-toggle" title="Consola de depuración" style="position:fixed;left:16px;bottom:16px;z-index:210;">
+    🐞<span class="debug-badge" id="debug-badge"></span>
+  </button>
+  <div class="debug-panel" id="debug-panel">
+    <div class="debug-panel-header">
+      <span>Consola de depuración</span>
+      <div class="debug-panel-actions">
+        <button id="debug-clear">Limpiar</button>
+        <button id="debug-close">✕</button>
+      </div>
+    </div>
+    <div class="debug-panel-body" id="debug-panel-body"></div>
+  </div>
+
 <script>
 (function () {
   "use strict";
@@ -528,6 +573,56 @@
   };
 
   function selKey(type, id) { return type + ":" + id; }
+
+  /* ────────────────────────────────────────────────────────────
+   * Consola de depuración — visible en pantalla (🐞, esquina
+   * inferior izquierda) y espejada a console.log/warn/error.
+   * Registra cada request a Grid con método, url, duración y
+   * resultado para poder ver exactamente dónde se traba una carga.
+   * ──────────────────────────────────────────────────────────── */
+  var DEBUG_MAX_LINES = 500;
+  var debugLines = [];
+  var debugUnread = 0;
+
+  function dbg(kind, msg) {
+    var line = { t: new Date(), kind: kind, msg: msg };
+    debugLines.push(line);
+    if (debugLines.length > DEBUG_MAX_LINES) debugLines.shift();
+    renderDebugLine(line);
+    var fn = kind === "error" ? console.error : (kind === "warn" ? console.warn : console.log);
+    fn("[GridFiles]", msg);
+    var panel = document.getElementById("debug-panel");
+    if (!panel || !panel.classList.contains("visible")) {
+      debugUnread++;
+      updateDebugBadge();
+    }
+  }
+
+  function renderDebugLine(line) {
+    var body = document.getElementById("debug-panel-body");
+    if (!body) return;
+    var el = document.createElement("div");
+    el.className = "debug-line " + line.kind;
+    var hh = line.t.toLocaleTimeString([], { hour12: false });
+    el.innerHTML = '<span class="t">' + hh + "</span>" + escapeHtml(line.msg);
+    body.appendChild(el);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function updateDebugBadge() {
+    var badge = document.getElementById("debug-badge");
+    if (!badge) return;
+    if (debugUnread > 0) { badge.textContent = debugUnread > 99 ? "99+" : String(debugUnread); badge.classList.add("visible"); }
+    else { badge.classList.remove("visible"); }
+  }
+
+  function openDebugPanel() {
+    var panel = document.getElementById("debug-panel");
+    if (!panel) return;
+    panel.classList.add("visible");
+    debugUnread = 0;
+    updateDebugBadge();
+  }
 
   /* ────────────────────────────────────────────────────────────
    * Helpers UI genéricos
@@ -583,24 +678,62 @@
 
   /* ────────────────────────────────────────────────────────────
    * Cliente API Grid
+   *
+   * Cada request tiene un timeout duro: si Grid nunca responde,
+   * antes se quedaba "cargando" para siempre. Ahora se aborta y
+   * se convierte en un error visible (consola de debug + toast)
+   * a los REQUEST_TIMEOUT_MS.
    * ──────────────────────────────────────────────────────────── */
+  var REQUEST_TIMEOUT_MS = 20000;
+
   function apiFetch(url, opts) {
     opts = opts || {};
     opts.credentials = "include";
-    return fetch(url, opts).then(function (r) {
-      if (!r.ok) {
+    var method = (opts.method || "GET").toUpperCase();
+    var start = Date.now();
+    var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var timedOut = false;
+    var timer = null;
+    if (controller) {
+      opts.signal = controller.signal;
+      timer = setTimeout(function () { timedOut = true; controller.abort(); }, REQUEST_TIMEOUT_MS);
+    }
+
+    dbg("info", method + " " + url + " → enviando...");
+
+    return fetch(url, opts)
+      .then(function (r) {
+        if (timer) clearTimeout(timer);
+        var ms = Date.now() - start;
+        if (!r.ok) {
+          return r.text().then(function (t) {
+            dbg("error", method + " " + url + " → HTTP " + r.status + " (" + ms + "ms)" + (t ? " — " + t.slice(0, 120) : ""));
+            var err = new Error("HTTP " + r.status + (t ? ": " + t.slice(0, 160) : ""));
+            err.status = r.status;
+            err._logged = true;
+            throw err;
+          });
+        }
+        if (r.status === 204) { dbg("ok", method + " " + url + " → 204 (" + ms + "ms)"); return null; }
         return r.text().then(function (t) {
-          var err = new Error("HTTP " + r.status + (t ? ": " + t.slice(0, 160) : ""));
-          err.status = r.status;
-          throw err;
+          dbg("ok", method + " " + url + " → 200 (" + ms + "ms, " + (t ? t.length : 0) + " bytes)");
+          if (!t) return null;
+          try { return JSON.parse(t); } catch (e) { return t; }
         });
-      }
-      if (r.status === 204) return null;
-      return r.text().then(function (t) {
-        if (!t) return null;
-        try { return JSON.parse(t); } catch (e) { return t; }
+      })
+      .catch(function (e) {
+        if (timer) clearTimeout(timer);
+        if (e._logged) throw e;
+        var ms = Date.now() - start;
+        if (timedOut) {
+          dbg("error", method + " " + url + " → TIMEOUT: sin respuesta tras " + ms + "ms, request abortado");
+          var err2 = new Error("Sin respuesta de Grid tras " + Math.round(ms / 1000) + "s (timeout)");
+          err2.status = 0;
+          throw err2;
+        }
+        dbg("error", method + " " + url + " → " + e.message + " (" + ms + "ms)");
+        throw e;
       });
-    });
   }
 
   /* ────────────────────────────────────────────────────────────
@@ -662,6 +795,12 @@
         var canContinue = page < MAX_PAGES && newCount > 0 &&
           (cursor || hasMoreFlag || (total != null && allItems.length < total));
 
+        dbg(canContinue ? "info" : "ok",
+          "  página " + page + " de " + baseUrl + " → " + items.length + " items (" + newCount + " nuevos), acumulado " +
+          allItems.length + (total != null ? "/" + total : "") +
+          (cursor ? " · cursor presente" : "") + (hasMoreFlag ? " · has_more=true" : "") +
+          (canContinue ? " → pide siguiente página" : (page >= MAX_PAGES ? " → tope de páginas alcanzado" : " → fin del listado")));
+
         if (!canContinue) return allItems;
 
         var nextUrl = cursor ? withParam(baseUrl, "cursor", cursor) : withParam(baseUrl, "page", page + 1);
@@ -669,7 +808,11 @@
       });
     }
 
-    return step(baseUrl, 1);
+    dbg("info", "paginatedFetch: empezando " + baseUrl);
+    return step(baseUrl, 1).then(function (items) {
+      dbg("ok", "paginatedFetch: " + baseUrl + " → total final " + items.length + " items");
+      return items;
+    });
   }
 
   var api = {
@@ -784,11 +927,24 @@
    * Carga de datos
    * ──────────────────────────────────────────────────────────── */
   function loadAll() {
-    setContentLoading();
+    var startedAt = Date.now();
+    dbg("info", "── loadAll: iniciando carga de carpetas y documentos ──");
+    setContentLoading(startedAt);
+    var tickTimer = setInterval(function () { updateLoadingElapsed(startedAt); }, 500);
+
     return Promise.all([
-      api.listFolders().catch(function (e) { toast("No se pudieron cargar las carpetas (" + e.message + ")", "error"); return []; }),
-      api.listDocuments().catch(function (e) { toast("No se pudieron cargar los archivos (" + e.message + ")", "error"); return []; })
+      api.listFolders().catch(function (e) {
+        dbg("error", "listFolders falló definitivamente: " + e.message);
+        toast("No se pudieron cargar las carpetas (" + e.message + ")", "error");
+        return [];
+      }),
+      api.listDocuments().catch(function (e) {
+        dbg("error", "listDocuments falló definitivamente: " + e.message);
+        toast("No se pudieron cargar los archivos (" + e.message + ")", "error");
+        return [];
+      })
     ]).then(function (results) {
+      clearInterval(tickTimer);
       var rawFolders = asArray(results[0]);
       var rawDocs = asArray(results[1]);
       state.folders = new Map();
@@ -802,7 +958,12 @@
         if (nd.id) state.documents.set(nd.id, nd);
       });
       state.loaded = true;
+      dbg("ok", "── loadAll: listo en " + (Date.now() - startedAt) + "ms · " + state.folders.size + " carpetas, " + state.documents.size + " documentos ──");
       render();
+    }).catch(function (e) {
+      clearInterval(tickTimer);
+      dbg("error", "loadAll: error inesperado — " + e.message);
+      renderLoadError(e);
     });
   }
 
@@ -815,8 +976,35 @@
     return [];
   }
 
-  function setContentLoading() {
-    $("content").innerHTML = '<div class="loading-row"><div class="spinner"></div> Cargando...</div>';
+  function setContentLoading(startedAt) {
+    $("content").innerHTML =
+      '<div class="loading-row"><div class="spinner"></div> <span id="loading-text">Cargando...</span></div>' +
+      '<div style="text-align:center;margin-top:-6px;"><button class="btn btn-ghost" id="open-debug-from-loading" style="font-size:12px;">Ver consola de depuración</button></div>';
+    var btn = $("open-debug-from-loading");
+    if (btn) btn.addEventListener("click", openDebugPanel);
+    updateLoadingElapsed(startedAt);
+  }
+
+  function updateLoadingElapsed(startedAt) {
+    var el = $("loading-text");
+    if (!el) return;
+    var secs = Math.round((Date.now() - startedAt) / 1000);
+    el.textContent = "Cargando... (" + secs + "s)" +
+      (secs >= 8 ? " — está tardando más de lo normal, mirá 🐞 la consola de depuración" : "");
+  }
+
+  function renderLoadError(e) {
+    $("content").innerHTML =
+      '<div class="empty-state">' +
+      '<h3>No se pudo cargar el gestor</h3>' +
+      "<p>" + escapeHtml(e.message) + "</p>" +
+      '<p style="margin-top:16px;"><button class="btn btn-secondary" id="retry-load">Reintentar</button> ' +
+      '<button class="btn btn-ghost" id="open-debug-from-error">Ver consola de depuración</button></p>' +
+      "</div>";
+    var retryBtn = $("retry-load");
+    if (retryBtn) retryBtn.addEventListener("click", loadAll);
+    var dbgBtn = $("open-debug-from-error");
+    if (dbgBtn) dbgBtn.addEventListener("click", openDebugPanel);
   }
 
   /* ────────────────────────────────────────────────────────────
@@ -1611,11 +1799,23 @@
         $("user-name").textContent = name;
         $("user-avatar").textContent = name.trim().charAt(0).toUpperCase();
       })
-      .catch(function () {
+      .catch(function (e) {
+        dbg("warn", "No se pudo resolver /api/v1/me: " + e.message);
         $("user-name").textContent = "Sin identificar";
         $("user-avatar").textContent = "?";
       });
   }
+
+  $("btn-debug-toggle").addEventListener("click", function () {
+    var panel = $("debug-panel");
+    if (panel.classList.contains("visible")) panel.classList.remove("visible");
+    else openDebugPanel();
+  });
+  $("debug-close").addEventListener("click", function () { $("debug-panel").classList.remove("visible"); });
+  $("debug-clear").addEventListener("click", function () {
+    debugLines = [];
+    $("debug-panel-body").innerHTML = "";
+  });
 
   /* ────────────────────────────────────────────────────────────
    * Init
