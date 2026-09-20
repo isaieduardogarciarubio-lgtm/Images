@@ -375,6 +375,9 @@
         <button class="icon-btn" id="btn-refresh" title="Refrescar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12V6m0 6h6"/></svg>
         </button>
+        <button class="icon-btn" id="btn-sync-index" title="Si faltan documentos viejos en la lista o en la búsqueda, sincronizá el índice antes de recargar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>
+        </button>
       </div>
     </div>
 
@@ -600,10 +603,79 @@
     });
   }
 
+  /* ────────────────────────────────────────────────────────────
+   * Paginación defensiva
+   *
+   * Grid es conocido por no devolver el listado completo de
+   * documentos en una sola respuesta: docs viejos pueden faltar
+   * tanto en /api/v1/documents como en la búsqueda si el cliente
+   * confía en la primera página. El esquema real de paginación
+   * (cursor vs page, nombres de campo) no está confirmado en la
+   * Biblia más allá de los paths, así que se siguen varias
+   * convenciones posibles y se para cuando no hay progreso real
+   * (evita loops infinitos si la API ignora los params extra).
+   * ──────────────────────────────────────────────────────────── */
+  function withParam(url, key, val) {
+    return url + (url.indexOf("?") === -1 ? "?" : "&") + key + "=" + encodeURIComponent(val);
+  }
+
+  function extractItems(res) {
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.items)) return res.items;
+    if (res && Array.isArray(res.results)) return res.results;
+    if (res && Array.isArray(res.documents)) return res.documents;
+    if (res && Array.isArray(res.folders)) return res.folders;
+    if (res && Array.isArray(res.data)) return res.data;
+    return [];
+  }
+
+  function extractCursor(res) {
+    if (!res || typeof res !== "object") return null;
+    return res.next_cursor || res.nextCursor || res.cursor || res.next_page_token || res.next || null;
+  }
+
+  function paginatedFetch(baseUrl, idFields) {
+    var MAX_PAGES = 40;
+    var allItems = [];
+    var seenIds = new Set();
+
+    function idOf(raw) {
+      for (var i = 0; i < idFields.length; i++) {
+        if (raw && raw[idFields[i]] != null) return String(raw[idFields[i]]);
+      }
+      return null;
+    }
+
+    function step(url, page) {
+      return apiFetch(url).then(function (res) {
+        var items = extractItems(res);
+        var newCount = 0;
+        items.forEach(function (it) {
+          var key = idOf(it) || JSON.stringify(it);
+          if (!seenIds.has(key)) { seenIds.add(key); allItems.push(it); newCount++; }
+        });
+
+        var cursor = extractCursor(res);
+        var hasMoreFlag = res && typeof res === "object" && (res.has_more === true || res.hasMore === true);
+        var total = res && typeof res === "object" && typeof res.total === "number" ? res.total : null;
+
+        var canContinue = page < MAX_PAGES && newCount > 0 &&
+          (cursor || hasMoreFlag || (total != null && allItems.length < total));
+
+        if (!canContinue) return allItems;
+
+        var nextUrl = cursor ? withParam(baseUrl, "cursor", cursor) : withParam(baseUrl, "page", page + 1);
+        return step(nextUrl, page + 1);
+      });
+    }
+
+    return step(baseUrl, 1);
+  }
+
   var api = {
     me: function () { return apiFetch("/api/v1/me"); },
 
-    listFolders: function () { return apiFetch("/api/v1/folders"); },
+    listFolders: function () { return paginatedFetch("/api/v1/folders", ["id", "folder_id"]); },
     createFolder: function (name, parentId) {
       var body = { name: name };
       if (parentId) body.parent_id = parentId;
@@ -637,7 +709,8 @@
       });
     },
 
-    listDocuments: function () { return apiFetch("/api/v1/documents"); },
+    listDocuments: function () { return paginatedFetch("/api/v1/documents", ["id", "doc_id"]); },
+    syncOwnerIndex: function () { return apiFetch("/api/v1/documents/sync-owner-kvs-listing", { method: "POST" }); },
     createDocument: function (file, title) {
       var fd = new FormData();
       fd.append("file", file, file.name);
@@ -1500,6 +1573,22 @@
   $("sel-move").addEventListener("click", openMoveModal);
   $("sel-clear").addEventListener("click", clearSelection);
   $("btn-refresh").addEventListener("click", loadAll);
+
+  $("btn-sync-index").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    toast("Sincronizando índice de documentos...");
+    api.syncOwnerIndex()
+      .catch(function (e) {
+        var msg = (e.status === 403 || e.status === 404)
+          ? "Tu cuenta no tiene permiso para sincronizar el índice (o no está disponible acá). Se recarga igual con lo que la API devuelva."
+          : "No se pudo sincronizar el índice (" + e.message + "). Se recarga igual con lo que la API devuelva.";
+        toast(msg, "error");
+      })
+      .then(loadAll)
+      .then(function () { toast("Recarga completa.", "success"); })
+      .then(function () { btn.disabled = false; }, function () { btn.disabled = false; });
+  });
 
   /* ────────────────────────────────────────────────────────────
    * Navegación por breadcrumbs
