@@ -848,6 +848,7 @@
     me: function () { return apiFetch("/api/v1/me"); },
 
     listFolders: function () { return paginatedFetch("/api/v1/folders", ["id", "folder_id"]); },
+    getFolder: function (id) { return apiFetch("/api/v1/folders/" + id); },
     createFolder: function (name, parentId) {
       var body = { name: name };
       if (parentId) body.parent_id = parentId;
@@ -883,7 +884,12 @@
 
     listDocuments: function () { return paginatedFetch("/api/v1/documents", ["id", "doc_id"]); },
     syncOwnerIndex: function () { return apiFetch("/api/v1/documents/sync-owner-kvs-listing", { method: "POST" }); },
-    diagnoseKvs: function () { return apiFetch("/api/v1/documents/diagnose-kvs"); },
+    diagnoseKvs: function (ownerId) {
+      return apiFetch("/api/v1/documents/diagnose-kvs" + (ownerId ? "?owner_id=" + encodeURIComponent(ownerId) : ""));
+    },
+    readOwnerIndex: function (ownerId) {
+      return apiFetch("/api/v1/documents/read-owner-index" + (ownerId ? "?owner_id=" + encodeURIComponent(ownerId) : ""));
+    },
     getStarred: function () { return apiFetch("/api/v1/me/starred"); },
     getRecentlyViewed: function () { return apiFetch("/api/v1/me/recently-viewed"); },
     searchDocs: function (q) {
@@ -1631,6 +1637,17 @@
 
   var lostCandidates = new Map();
 
+  function resolveOwnerId() {
+    var u = state.currentUser;
+    if (!u) return null;
+    var fields = ["id", "user_id", "userId", "username", "nickname", "login", "email"];
+    for (var i = 0; i < fields.length; i++) {
+      var v = u[fields[i]];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+    return null;
+  }
+
   function openLostModal() {
     setAlert("modal-lost-alert", "");
     $("modal-lost-query").value = "";
@@ -1641,12 +1658,32 @@
     runLostAnalysis();
   }
 
+  function scanFoldersForDocIds(candidateIds) {
+    var folders = Array.from(state.folders.values());
+    var scanned = 0, newFound = 0;
+    return folders.reduce(function (chain, f) {
+      return chain.then(function () {
+        return api.getFolder(f.id)
+          .then(function (raw) {
+            scanned++;
+            var before = candidateIds.size;
+            extractDocIdsDeep(raw, candidateIds, 0);
+            var added = candidateIds.size - before;
+            newFound += added;
+            if (added > 0) dbg("ok", 'Buscar perdidos — carpeta "' + f.name + '": ' + added + " id(s) nuevos en su metadata");
+          })
+          .catch(function (e) { dbg("warn", "Buscar perdidos — no se pudo leer carpeta " + f.name + ": " + e.message); });
+      });
+    }, Promise.resolve()).then(function () { return { scanned: scanned, newFound: newFound }; });
+  }
+
   function runLostAnalysis(extraQuery) {
     var sourcesEl = $("modal-lost-sources");
-    sourcesEl.innerHTML = '<div class="loading-row"><div class="spinner"></div> Consultando favoritos, recientes y diagnóstico...</div>';
+    sourcesEl.innerHTML = '<div class="loading-row"><div class="spinner"></div> Consultando favoritos, recientes, diagnóstico y carpetas...</div>';
     $("modal-lost-results").innerHTML = "";
     $("modal-lost-recover-all").disabled = true;
 
+    var ownerId = resolveOwnerId();
     var candidateIds = new Set();
     var sourceReports = [];
 
@@ -1666,43 +1703,59 @@
 
     var tasks = [
       trySource("Favoritos (/me/starred)", api.getStarred()),
-      trySource("Recientes (/me/recently-viewed)", api.getRecentlyViewed()),
-      trySource("Diagnóstico (/documents/diagnose-kvs)", api.diagnoseKvs())
+      trySource("Recientes (/me/recently-viewed)", api.getRecentlyViewed())
     ];
+    if (ownerId) {
+      tasks.push(trySource("Diagnóstico (/documents/diagnose-kvs)", api.diagnoseKvs(ownerId)));
+      tasks.push(trySource("Índice crudo (/documents/read-owner-index)", api.readOwnerIndex(ownerId)));
+    } else {
+      sourceReports.push({ label: "Diagnóstico / índice crudo", ok: false, error: "no se pudo resolver tu owner_id desde /api/v1/me" });
+    }
     if (extraQuery) {
       tasks.push(trySource('Búsqueda de texto ("' + extraQuery + '")', api.searchDocs(extraQuery)));
     }
 
-    return Promise.all(tasks).then(function () {
-      sourcesEl.innerHTML = sourceReports.map(function (r) {
-        if (r.ok) return '<div class="alert success" style="margin-bottom:6px;">' + escapeHtml(r.label) + ": " + r.found + " id(s) encontrados</div>";
-        return '<div class="alert warn" style="margin-bottom:6px;">' + escapeHtml(r.label) + ": no disponible (" + escapeHtml(r.error || "") + ")</div>";
-      }).join("");
-
-      var missingIds = Array.from(candidateIds).filter(function (id) { return !state.documents.has(id); });
-      dbg("info", "Buscar perdidos: " + candidateIds.size + " ids candidatos totales, " + missingIds.length + " no están en el listado actual");
-
-      if (missingIds.length === 0) {
-        $("modal-lost-results").innerHTML = '<div class="preview-fallback">No se encontraron documentos fuera del listado actual en estas fuentes.</div>';
-        return;
-      }
-
-      $("modal-lost-results").innerHTML = '<div class="loading-row"><div class="spinner"></div> Verificando ' + missingIds.length + " candidato(s)...</div>";
-
-      return missingIds.reduce(function (chain, id) {
-        return chain.then(function () {
-          return api.getDocument(id)
-            .then(function (raw) {
-              var nd = normDoc(raw || {});
-              nd.id = nd.id || id;
-              lostCandidates.set(nd.id, nd);
-            })
-            .catch(function (e) {
-              dbg("warn", "Candidato " + id + " descartado (no es un doc válido/accesible): " + e.message);
-            });
+    return Promise.all(tasks)
+      .then(function () {
+        dbg("info", "Buscar perdidos: revisando metadata de " + state.folders.size + " carpeta(s)...");
+        return scanFoldersForDocIds(candidateIds);
+      })
+      .then(function (folderResult) {
+        sourceReports.push({
+          label: "Metadata de carpetas (" + folderResult.scanned + " revisadas)",
+          ok: true,
+          found: folderResult.newFound
         });
-      }, Promise.resolve());
-    }).then(function () {
+
+        sourcesEl.innerHTML = sourceReports.map(function (r) {
+          if (r.ok) return '<div class="alert success" style="margin-bottom:6px;">' + escapeHtml(r.label) + ": " + r.found + " id(s) encontrados</div>";
+          return '<div class="alert warn" style="margin-bottom:6px;">' + escapeHtml(r.label) + ": no disponible (" + escapeHtml(r.error || "") + ")</div>";
+        }).join("");
+
+        var missingIds = Array.from(candidateIds).filter(function (id) { return !state.documents.has(id); });
+        dbg("info", "Buscar perdidos: " + candidateIds.size + " ids candidatos totales, " + missingIds.length + " no están en el listado actual");
+
+        if (missingIds.length === 0) {
+          $("modal-lost-results").innerHTML = '<div class="preview-fallback">No se encontraron documentos fuera del listado actual en estas fuentes.</div>';
+          return;
+        }
+
+        $("modal-lost-results").innerHTML = '<div class="loading-row"><div class="spinner"></div> Verificando ' + missingIds.length + " candidato(s)...</div>";
+
+        return missingIds.reduce(function (chain, id) {
+          return chain.then(function () {
+            return api.getDocument(id)
+              .then(function (raw) {
+                var nd = normDoc(raw || {});
+                nd.id = nd.id || id;
+                lostCandidates.set(nd.id, nd);
+              })
+              .catch(function (e) {
+                dbg("warn", "Candidato " + id + " descartado (no es un doc válido/accesible): " + e.message);
+              });
+          });
+        }, Promise.resolve());
+      }).then(function () {
       renderLostResults();
     });
   }
