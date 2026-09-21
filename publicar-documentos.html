@@ -255,6 +255,12 @@
       </span>
     </div>
 
+    <div class="toolbar-row" style="margin-top:-4px;">
+      <label class="field-label" style="margin:0; white-space:nowrap;" for="pacing-input">Pausa entre requests (ms)</label>
+      <input class="input" id="pacing-input" type="number" min="0" step="50" value="400" style="width:100px; margin-bottom:0;" />
+      <span style="font-size:12px; color:var(--text-mut);">Si sigue dando 429, subí este valor. Si nunca rate-limitea, lo podés bajar.</span>
+    </div>
+
     <div class="section-label">1. Elegí el alcance</div>
     <div class="card">
       <div class="radio-row">
@@ -389,6 +395,12 @@
     updateDebugBadge();
   }
 
+  $("pacing-input").addEventListener("input", function (e) {
+    var v = parseInt(e.target.value, 10);
+    REQUEST_PACING_MS = isNaN(v) || v < 0 ? 0 : v;
+    dbg("info", "Pausa entre requests ajustada a " + REQUEST_PACING_MS + "ms.");
+  });
+
   $("btn-debug-toggle").addEventListener("click", function () {
     var panel = $("debug-panel");
     if (panel.classList.contains("visible")) panel.classList.remove("visible");
@@ -431,6 +443,11 @@
   var REQUEST_TIMEOUT_MS = 20000;
   var MAX_429_RETRIES = 8;
   var rateLimitGateUntil = 0;
+  // Pausa mínima entre requests, aplicada SIEMPRE (no solo al reaccionar a
+  // un 429) para evitar llegar al límite en primer lugar. Ajustable desde
+  // el input "Pausa entre requests" — si sigue rateLimiteando, subir este
+  // valor; si no rateLimitea nunca, se puede bajar para ir más rápido.
+  var REQUEST_PACING_MS = 400;
 
   function waitForRateLimitGate() {
     var wait = rateLimitGateUntil - Date.now();
@@ -461,6 +478,10 @@
         .then(function (r) {
           if (timer) clearTimeout(timer);
           var ms = Date.now() - start;
+
+          if (REQUEST_PACING_MS > 0) {
+            rateLimitGateUntil = Math.max(rateLimitGateUntil, Date.now() + REQUEST_PACING_MS);
+          }
 
           if (r.status === 429) {
             return r.text().then(function (t) {
@@ -873,8 +894,19 @@
       dbg("error", 'No se detectó un campo de visibilidad reconocible en los permisos de "' + d.name + '" — no se toca nada.');
       return Promise.resolve({ id: d.id, name: d.name, before: d.visibility, after: d.visibility, ok: false, error: "campo de visibilidad no reconocido" });
     }
+    var fieldSet = Object.keys(body)[0];
     return api.putPermissions(d.id, body)
-      .then(function () { return api.getPermissions(d.id); })
+      .then(function (putResult) {
+        // Si el PUT ya devuelve el recurso actualizado, ese GET de
+        // confirmación es una request de más por cada documento — la
+        // mitad del volumen que dispara el rate limit en lotes grandes.
+        // Solo se re-consulta si el PUT no trajo el campo que cambiamos.
+        if (putResult && typeof putResult === "object" && putResult[fieldSet] !== undefined) {
+          dbg("info", '"' + d.name + '": el PUT ya devolvió el permiso actualizado, no hace falta re-consultar.');
+          return putResult;
+        }
+        return api.getPermissions(d.id);
+      })
       .then(function (perms2) {
         var det2 = detectVisibility(perms2);
         var newVis = det2.isPublic === null ? "unknown" : (det2.isPublic ? "public" : "private");
