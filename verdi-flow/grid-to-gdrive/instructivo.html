@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Instructivo: Hoja → Grid → Drive → Hoja</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--line:#262b36;--tx:#e8eaf0;--mut:#9aa3b2;--ac:#ffd100;--ok:#3ecf8e;--err:#ff6b6b;--code:#0b0d11}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif}
+header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+h1{font-size:18px;margin:0}header .sub{color:var(--mut);font-size:13px}
+.prog{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mut)}
+.bar{width:160px;height:8px;background:var(--line);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .25s}
+.wrap{display:grid;grid-template-columns:270px 1fr;min-height:calc(100vh - 70px)}
+nav{border-right:1px solid var(--line);padding:12px;overflow:auto;max-height:calc(100vh - 70px);position:sticky;top:0}
+nav button{all:unset;display:flex;gap:8px;align-items:center;width:100%;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--mut);font-size:13.5px}
+nav button:hover{background:var(--card)}nav button.on{background:var(--card);color:var(--tx);outline:1px solid var(--ac)}
+nav .n{min-width:22px;height:22px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-size:11px;color:var(--tx)}
+nav button.done .n{background:var(--ok);color:#000}nav .sec{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:14px 10px 4px}
+main{padding:24px 32px;max-width:900px}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:22px;font-size:12px}
+.flow button{all:unset;cursor:pointer;padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
+.flow button.on{border-color:var(--ac);color:var(--ac)}.flow button.done{border-color:var(--ok);color:var(--ok)}.flow span{color:var(--line)}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--line);color:var(--mut);margin-bottom:8px}
+h2{margin:0 0 6px;font-size:22px}p.d{color:var(--mut);margin:0 0 18px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0}
+.step h3{margin:0 0 6px;font-size:13px;color:var(--mut);font-weight:600}
+.row{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+code,pre{font:12.5px/1.45 ui-monospace,Menlo,Consolas,monospace}
+pre{margin:6px 0 0;background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all;flex:1}
+.cp{all:unset;cursor:pointer;font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:6px;color:var(--mut);margin-top:6px;white-space:nowrap}
+.cp:hover{border-color:var(--ac);color:var(--ac)}.cp.ok{border-color:var(--ok);color:var(--ok)}
+.warn{border-left:3px solid var(--ac);background:#2a2610;padding:8px 12px;border-radius:6px;margin:10px 0;font-size:13.5px}
+.warn.e{border-color:var(--err);background:#2a1414}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px}td,th{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{color:var(--mut);font-weight:600}
+.act{display:flex;gap:10px;margin-top:22px;align-items:center;flex-wrap:wrap}
+.act button{all:unset;cursor:pointer;padding:8px 14px;border-radius:8px;border:1px solid var(--line)}.act button:hover{border-color:var(--ac)}
+.act .p{background:var(--ac);color:#000;border-color:var(--ac);font-weight:600}.act .dn.on{background:var(--ok);color:#000;border-color:var(--ok)}
+@media(max-width:760px){.wrap{grid-template-columns:1fr}nav{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}main{padding:18px}}
+</style></head><body>
+<header><div><h1>Hoja → Grid → Drive → Hoja</h1><div class="sub">Instructivo interactivo para Verdi Flows · nodo por nodo</div></div>
+<div class="prog"><span id="pt">0 / 0</span><div class="bar"><i id="pb"></i></div></div></header>
+<div class="wrap"><nav id="nav"></nav><main id="main"></main></div>
+<script>
+var X=function(s){return {t:'code',v:s}};
+var STEPS=[
+{id:'hoja',sec:'Preparación',ti:'La hoja de Sheets',tag:'Preparación',d:'Una pestaña con encabezados en la fila 1, con estos nombres exactos (en minúscula).',
+ b:[{t:'table',h:['doc_id','enlace_drive','estado'],r:[['URL (/d/<id>/view) o ID de Grid','(vacío)','(vacío)']]},
+ {t:'warn',v:'Pendiente = doc_id lleno y enlace_drive Y estado vacíos. Éxito: se escribe el enlace y estado = ok. Error: estado = error (para reintentar, borra estado).'},
+ {t:'warn',v:'Si ya tienes una pestaña con FILTER que calcula pendientes, léela en vez de filtrar en n8n y omite el nodo "Filtrar pendientes".'}]},
+{id:'t1',sec:'Triggers',ti:'Ejecución manual',tag:'Trigger',d:'Para probar con Test workflow.',
+ b:[{t:'s',h:'Configuración',v:'Add first step → "Trigger manually". Sin parámetros. Conéctalo a "Leer Hoja".'}]},
+{id:'t2',sec:'Triggers',ti:'Cada 5 minutos',tag:'Schedule Trigger',d:'Dispara el flujo de forma automática.',
+ b:[{t:'s',h:'Configuración',v:'Trigger Interval: Minutes → cada 5. Conéctalo a "Leer Hoja".'}]},
+{id:'leer',sec:'Lectura',ti:'Leer Hoja',tag:'Google Sheets · Get Row(s)',d:'Una sola lectura por ejecución para no agotar la cuota (Bug 11).',
+ b:[{t:'s',h:'1. Operación',v:'Resource: Sheet Within Document → Operation: Get Row(s).'},
+ {t:'s',h:'2. Credencial',v:'Service Account con el Sheet compartido con su email, o Application Account OAuth2.'},
+ {t:'s',h:'3. Documento y pestaña',v:'Document: By ID → ID del Sheet. Sheet: By Name → tu pestaña. Sin filtros.'},
+ {t:'warn',v:'Cada item trae row_number; se usa después para escribir de vuelta. Si aparece 429: Retry On Fail con espera ≥ 65000 ms.'}]},
+{id:'filtro',sec:'Lectura',ti:'Filtrar pendientes',tag:'Filter',d:'Deja pasar solo filas pendientes. Type Validation: Loose, combinador AND.',
+ b:[{t:'s',h:'Condición 1 · String · is not empty',c:'{{ $json.doc_id }}'},
+ {t:'s',h:'Condición 2 · String · is empty',c:'{{ $json.enlace_drive }}'},
+ {t:'s',h:'Condición 3 · String · is empty',c:'{{ $json.estado }}'}]},
+{id:'limit',sec:'Lectura',ti:'Limitar lote',tag:'Limit',d:'Evita que una corrida dure más que el trigger y se solape duplicando subidas (Bug 10).',
+ b:[{t:'s',h:'Max Items',c:'20'}]},
+{id:'param',sec:'Preparación de datos',ti:'Parámetros',tag:'Edit Fields (Set)',d:'Activa "Include Other Input Fields" (Bug 2). Escribe las expresiones a mano.',
+ b:[{t:'s',h:'grid_base_url · String',c:'https://grid.melioffice.com'},
+ {t:'s',h:'skill_version · String',c:'3.6.5'},
+ {t:'s',h:'drive_folder_id · String (vacío = raíz de Drive)',c:'PEGAR_ID_CARPETA_DRIVE'},
+ {t:'s',h:'row_number · Number',c:'={{ $json.row_number }}'},
+ {t:'s',h:'grid_doc · String',c:'={{ $json.doc_id }}'},
+ {t:'s',h:'doc_id · String (extrae el ULID de 26 caracteres)',c:"={{ (String($json.doc_id || '').match(/[0-9A-Za-z]{26}/) || [''])[0] }}"},
+ {t:'warn',v:'skill_version es obligatorio y no se puede omitir. El body de Grid lleva además skip_version_check: true para evitar el 426; contrapartida: el flujo seguirá con una versión desactualizada sin avisar.'}]},
+{id:'valid',sec:'Preparación de datos',ti:'¿Doc ID válido?',tag:'If',d:'True → Grid - Pedir descarga. False → Marcar error en Hoja.',
+ b:[{t:'s',h:'Condición · String · is not empty',c:'{{ $json.doc_id }}'}]},
+{id:'pedir',sec:'Grid',ti:'Grid - Pedir descarga',tag:'HTTP Request',d:'Pide a Grid los datos de descarga del documento.',
+ b:[{t:'s',h:'Method',c:'POST'},{t:'s',h:'URL',c:'={{ $json.grid_base_url }}/api/v1/engine/run/json'},
+ {t:'s',h:'Authentication',v:'Generic Credential Type → Header Auth (token de Grid).'},
+ {t:'s',h:'Send Body ON · Content Type JSON · Using JSON (tipéalo a mano, con "=" antes de las llaves — Bug 6)',c:'={{ { "skill_version": $json.skill_version, "skip_version_check": true, "download_doc_id": $json.doc_id } }}'},
+ {t:'s',h:'Settings',v:'On Error: Continue (using error output). Éxito → Resolver URL; error → Marcar error en Hoja.'},
+ {t:'warn',v:'Requiere VPN/red de MeLi. 401 = VPN o credencial; 403 = sin permiso sobre el doc.'}]},
+{id:'url',sec:'Grid',ti:'Resolver URL de descarga',tag:'Edit Fields (Set)',d:'Include Other Input Fields ON. Un campo String llamado download_url.',
+ b:[{t:'s',h:'download_url',c:"={{ (function(){ var d = $json.data || {}; var u = (d.download && d.download.agent_download_url) || d.agent_download_url || $json.agent_download_url || ''; if (!u) return ''; return u.indexOf('http') === 0 ? u : $('Parámetros').item.json.grid_base_url + u; })() }}"},
+ {t:'warn',v:'Aún no está confirmado en qué campo viene agent_download_url. En la primera prueba míralo en Executions y ajusta esta expresión.'}]},
+{id:'lista',sec:'Grid',ti:'¿Descarga lista?',tag:'If',d:'Grid responde HTTP 200 aunque ok sea false (Bug 17). Combinador AND. True → Descargar; False → Marcar error.',
+ b:[{t:'s',h:'Condición 1 · Boolean · is true',c:'{{ $json.ok }}'},{t:'s',h:'Condición 2 · String · is not empty',c:'{{ $json.download_url }}'}]},
+{id:'desc',sec:'Grid',ti:'Grid - Descargar archivo',tag:'HTTP Request',d:'Descarga el binario del documento.',
+ b:[{t:'s',h:'Method',c:'GET'},{t:'s',h:'URL',c:'={{ $json.download_url }}'},
+ {t:'s',h:'Authentication',v:'La misma credencial Header Auth de Grid.'},
+ {t:'s',h:'Options → Response',v:'Response Format: File · Put Output in Field: data. Sin Batching (Bug 16).'},
+ {t:'s',h:'Settings',v:'On Error: Continue (using error output); error → Marcar error en Hoja.'}]},
+{id:'drive',sec:'Drive y cierre',ti:'Drive - Subir archivo',tag:'Google Drive · File → Upload',d:'Sube el binario a la carpeta destino.',
+ b:[{t:'s',h:'Credencial',v:'Service Account (carpeta compartida con su email) o Application Account OAuth2. En team, nada de credenciales nominales.'},
+ {t:'s',h:'Input Data Field Name',c:'data'},
+ {t:'s',h:'File Name',c:"={{ $binary.data.fileName || $('Parámetros').item.json.doc_id }}"},
+ {t:'s',h:'Drive',v:'My Drive'},
+ {t:'s',h:'Parent Folder · By ID',c:"={{ $('Parámetros').item.json.drive_folder_id || 'root' }}"},
+ {t:'s',h:'Settings',v:'On Error: Continue (using error output); error → Marcar error en Hoja.'}]},
+{id:'ok',sec:'Drive y cierre',ti:'Escribir enlace en Hoja',tag:'Google Sheets · Update Row',d:'El paso que saca la fila de pendientes. Mismo Document y Sheet que "Leer Hoja". Column to match on: row_number.',
+ b:[{t:'s',h:'row_number',c:"={{ $('Parámetros').item.json.row_number }}"},
+ {t:'s',h:'enlace_drive',c:"={{ 'https://drive.google.com/file/d/' + $json.id + '/view' }}"},
+ {t:'s',h:'estado',c:'ok'},
+ {t:'warn',v:'Aquí $json es la respuesta de Drive; los datos anteriores se leen por nombre de nodo (Bug 8).'}]},
+{id:'err',sec:'Drive y cierre',ti:'Marcar error en Hoja',tag:'Google Sheets · Update Row',d:'Igual que el anterior pero con dos columnas. Recibe las salidas de error de ¿Doc ID válido?, Grid - Pedir descarga, ¿Descarga lista?, Grid - Descargar archivo y Drive - Subir archivo.',
+ b:[{t:'s',h:'row_number',c:"={{ $('Parámetros').item.json.row_number }}"},{t:'s',h:'estado',c:'error'}]},
+{id:'pub',sec:'Cierre',ti:'Probar y publicar',tag:'Final',d:'',
+ b:[{t:'s',h:'1. Probar',v:'Agrega 1–2 filas con doc_id reales y corre Test workflow. Verifica que aparezca el enlace y "ok", y que al correr de nuevo esa fila ya no se procese.'},
+ {t:'s',h:'2. Publicar',v:'Version → Create Version, luego Publish wizard. Crea credenciales de producción en el paso 2; en team lo aprueba un project admin distinto de ti.'},
+ {t:'table',h:['Síntoma','Causa probable'],r:[['Todas las filas en error','Ver Executions: 401 (VPN/credencial) o ruta de agent_download_url'],['Una fila en error','Sin permiso, doc_id mal escrito o archivo corrupto; corrige y borra estado'],['No lee filas','Encabezados distintos a doc_id/enlace_drive/estado (distingue mayúsculas, Bug 9)'],['Update no escribe','Credencial de Sheets sin permiso de edición'],['body: Field required','Falta "=" en el JSON o doc_id es undefined (Bugs 6-7)']]}]}
+];
+var done={},cur=0,nav=document.getElementById('nav'),main=document.getElementById('main');
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function copy(txt,btn){var ok=function(){btn.textContent='¡Copiado!';btn.classList.add('ok');setTimeout(function(){btn.textContent='Copiar';btn.classList.remove('ok')},1200)};
+ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(ok,fb)}else fb();
+ function fb(){var a=document.createElement('textarea');a.value=txt;document.body.appendChild(a);a.select();try{document.execCommand('copy');ok()}catch(e){}a.remove()}}
+function go(i){cur=Math.max(0,Math.min(STEPS.length-1,i));render();main.scrollIntoView({block:'start'})}
+function render(){
+ nav.textContent='';var last='';
+ STEPS.forEach(function(s,i){if(s.sec!==last){nav.appendChild(el('div','sec',s.sec));last=s.sec}
+  var b=el('button',(i===cur?'on ':'')+(done[s.id]?'done':''));b.appendChild(el('span','n',done[s.id]?'✓':String(i+1)));b.appendChild(el('span','',s.ti));b.onclick=function(){go(i)};nav.appendChild(b)});
+ var n=Object.keys(done).length;document.getElementById('pt').textContent=n+' / '+STEPS.length;document.getElementById('pb').style.width=(100*n/STEPS.length)+'%';
+ var s=STEPS[cur];main.textContent='';
+ var fl=el('div','flow');STEPS.forEach(function(x,i){if(i)fl.appendChild(el('span','','›'));var b=el('button',(i===cur?'on ':'')+(done[x.id]?'done':''),x.ti);b.onclick=function(){go(i)};fl.appendChild(b)});main.appendChild(fl);
+ main.appendChild(el('span','tag',s.tag));main.appendChild(el('h2','',(cur+1)+'. '+s.ti));if(s.d)main.appendChild(el('p','d',s.d));
+ s.b.forEach(function(b){
+  if(b.t==='warn'){main.appendChild(el('div','warn',b.v))}
+  else if(b.t==='table'){var t=el('table'),h=el('tr');b.h.forEach(function(x){h.appendChild(el('th','',x))});t.appendChild(h);(b.r||[]).forEach(function(r){var tr=el('tr');r.forEach(function(x){tr.appendChild(el('td','',x))});t.appendChild(tr)});main.appendChild(t)}
+  else{var d=el('div','step');d.appendChild(el('h3','',b.h));
+   if(b.v)d.appendChild(el('div','',b.v));
+   if(b.c){var r=el('div','row');r.appendChild(el('pre','',b.c));var cb=el('button','cp','Copiar');cb.onclick=function(){copy(b.c,cb)};r.appendChild(cb);d.appendChild(r)}
+   main.appendChild(d)}});
+ var a=el('div','act');
+ var pv=el('button','','← Anterior');pv.onclick=function(){go(cur-1)};
+ var dn=el('button','dn'+(done[s.id]?' on':''),done[s.id]?'✓ Hecho':'Marcar como hecho');dn.onclick=function(){if(done[s.id])delete done[s.id];else done[s.id]=1;render()};
+ var nx=el('button','p','Siguiente →');nx.onclick=function(){done[s.id]=1;go(cur+1)};
+ a.appendChild(pv);a.appendChild(dn);a.appendChild(nx);main.appendChild(a)}
+document.addEventListener('keydown',function(e){if(e.key==='ArrowRight')go(cur+1);if(e.key==='ArrowLeft')go(cur-1)});
+render();
+</script></body></html>
