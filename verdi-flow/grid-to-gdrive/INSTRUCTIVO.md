@@ -87,7 +87,7 @@ Pendiente de confirmar dónde viene `agent_download_url` en la respuesta; en la 
 AND: `{{ $json.ok }}` Boolean **is true** (Grid responde 200 aunque `ok` sea false — Bug 17) y `{{ $json.download_url }}` String **is not empty**. True → *Grid - Descargar archivo*; False → *Marcar error en Hoja*.
 
 ## 11. Grid - Descargar archivo (HTTP Request)
-**GET**, URL `={{ $json.download_url }}`, misma credencial Header Auth. Options → Response → Format **File**, Put Output in Field `data`. Sin Batching (Bug 16). **On Error: Continue (using error output)**; error → *Marcar error en Hoja*.
+**GET**, URL `={{ $json.download_url }}`, misma credencial **Bearer Auth**. Options → Response → Format **File**, Put Output in Field `data`. Sin Batching (Bug 16). **On Error: Continue (using error output)**; error → *Marcar error en Hoja*.
 
 ## 12. Drive - Subir archivo (Google Drive)
 1. **File → Upload**. Credencial Service Account (carpeta compartida con su email) o Application Account OAuth2.
