@@ -3185,7 +3185,15 @@ function etapaActual(s){
    (ej. "lp" o "lp|gestor" para un admin de LP). Ausente => ["gestor"]
    (compatibilidad). Valores inválidos se ignoran y NUNCA otorgan gestor. */
 function misEtapas(){
-  var raw=SESSION.usuario&&SESSION.usuario.etapa;
+  var u=SESSION.usuario||{};
+  var raw=u.etapa;
+  // Admin sin `etapa` explícita: se infiere de su área (LP / SHE) y conserva gestor,
+  // para que un admin de LP o SHE pueda aprobar su etapa sin editar el registry.
+  if((raw==null||String(raw).trim()==='') && String(u.rol||'').toLowerCase()==='admin'){
+    var ar=String(u.area||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    if(/loss\s*prevention|^lp$/.test(ar)) raw='lp|gestor';
+    else if(/\bshe\b|seguridad|safety/.test(ar)) raw='she|gestor';
+  }
   var list=(Array.isArray(raw)?raw:String(raw||'').split(/[|,;]/)).map(function(x){return String(x).trim().toLowerCase();}).filter(Boolean);
   if(!list.length) return ['gestor'];
   return list.filter(function(x,i){ return ETAPAS.indexOf(x)!==-1 && list.indexOf(x)===i; });
@@ -3940,7 +3948,9 @@ function buildActions(s){
     var waiting=etapaActual(s);
     var delW = gestor
       ? '<button class="btn btn-block btn-danger-outline" style="flex:none;padding:13px 14px" onclick="openDeleteAcceso(\''+s.id+'\')" title="Eliminar solicitud">'+ic.trash+'</button>' : '';
-    return '<div class="flow-wait">'+ic.clock+' Esperando a '+ETAPA_LABEL[waiting]+'</div>'+delW;
+    return '<div class="flow-wait" style="flex-direction:column;gap:2px">'+
+      '<span>'+ic.clock+' Esperando a '+ETAPA_LABEL[waiting]+'</span>'+
+      '<span style="font-size:11px;font-weight:500;color:var(--text-muted)">Tus etapas: '+(misEtapas().map(function(e){return ETAPA_LABEL[e];}).join(' + ')||'ninguna válida')+'</span></div>'+delW;
   }
   // Etapa intermedia (LP/SHE): rechazar o aprobar etapa, sin fecha de vencimiento.
   if(s.estatus==='pendiente' && esMiTurnoIntermedio(s)){
