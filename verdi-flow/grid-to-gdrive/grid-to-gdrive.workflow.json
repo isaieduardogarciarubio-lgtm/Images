@@ -1,0 +1,461 @@
+{
+  "name": "Grid → Google Drive",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b0565e67-172d-4ba1-a3de-5d5d7d66233e",
+      "name": "Ejecución manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "grid-a-drive",
+        "options": {}
+      },
+      "id": "364320d8-3077-4c93-94f5-af9e3d519ddd",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "eaa09c50-f24d-40ad-80f0-dbea496f07a5"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "17a1985a-e6e9-4ebc-b3ff-df6a2f8657f9",
+              "name": "grid_base_url",
+              "value": "https://grid.melioffice.com",
+              "type": "string"
+            },
+            {
+              "id": "2b898838-723d-49c3-8b86-f4843384733a",
+              "name": "skill_version",
+              "value": "3.6.3",
+              "type": "string"
+            },
+            {
+              "id": "7ae9dcb6-cd20-4ed6-81cc-c8f00db2c385",
+              "name": "grid_doc",
+              "value": "={{ ($json.body && $json.body.grid_doc) || 'PEGAR_URL_O_DOC_ID_DE_GRID' }}",
+              "type": "string"
+            },
+            {
+              "id": "1c95ac0b-6097-4705-9440-c641b6ecc4cd",
+              "name": "doc_id",
+              "value": "={{ (String(($json.body && $json.body.grid_doc) || 'PEGAR_URL_O_DOC_ID_DE_GRID').match(/[0-9A-Za-z]{26}/) || [''])[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "047fb820-c7cf-46bf-ba55-5d2a212fb4e9",
+              "name": "drive_folder_id",
+              "value": "={{ ($json.body && $json.body.drive_folder_id) || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "98eba5ec-f7ec-44b5-85a0-c353015cd1d1",
+              "name": "file_name",
+              "value": "={{ ($json.body && $json.body.file_name) || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "5d0a3818-2cef-4766-bcb9-fab3bdcc1f97",
+      "name": "Parámetros",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9c0bbccc-dce0-4270-91d2-f628151d6301",
+              "leftValue": "={{ $json.doc_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6d4a3d78-7c67-4ab6-9540-766431d5504a",
+      "name": "¿Doc ID válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        520,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ 'No pude extraer un doc_id de Grid (26 caracteres) de: ' + $json.grid_doc }}"
+      },
+      "id": "274cc0a3-6ae1-4a05-8cda-699b19ba9fb2",
+      "name": "Error: Doc ID inválido",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        780,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.grid_base_url }}/api/v1/engine/run/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"skill_version\": $json.skill_version, \"download_doc_id\": $json.doc_id } }}",
+        "options": {}
+      },
+      "id": "246e6929-7155-44fb-8d9f-c7d8a91d053c",
+      "name": "Grid - Pedir descarga",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dd1046f2-3d1a-417d-a330-ca1b501da0ad",
+              "name": "download_url",
+              "value": "={{ (function(){ var d = $json.data || {}; var u = (d.download && d.download.agent_download_url) || d.agent_download_url || $json.agent_download_url || ''; if (!u) return ''; return u.indexOf('http') === 0 ? u : $('Parámetros').item.json.grid_base_url + u; })() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "bd2dcc61-baca-47ee-92dd-2f562c4eb9fe",
+      "name": "Resolver URL de descarga",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5e398a60-7f6a-49ef-b4da-5f5e82561336",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "d9f9d1db-b8ce-425a-8d52-48363887fdde",
+              "leftValue": "={{ $json.download_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5b5753dc-12f1-4ca6-bfdb-df82f23c65f5",
+      "name": "¿Descarga lista?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ 'Grid respondió sin URL de descarga o con ok=false: ' + JSON.stringify($('Grid - Pedir descarga').item.json) }}"
+      },
+      "id": "0c908f3d-48fa-48c7-8e22-0b7660b85c25",
+      "name": "Error: Grid no devolvió descarga",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.download_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "7955c5b9-921e-4d41-98fc-9d3acb2a7e8f",
+      "name": "Grid - Descargar archivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "inputDataFieldName": "data",
+        "name": "={{ $('Parámetros').item.json.file_name || $binary.data.fileName || $('Parámetros').item.json.doc_id }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Parámetros').item.json.drive_folder_id || 'root' }}"
+        },
+        "options": {}
+      },
+      "id": "54a6330d-69af-4c98-bd7e-fce5cc670dc6",
+      "name": "Drive - Subir archivo",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1820,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d3fa6f9f-74ce-4764-846b-10d9be486d86",
+              "name": "drive_file_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "9f800be0-aaa2-4bf9-acc1-68877ed608b2",
+              "name": "drive_file_name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "05a7dfab-051c-4985-98ee-e3b5b4b57345",
+              "name": "drive_url",
+              "value": "={{ 'https://drive.google.com/file/d/' + $json.id + '/view' }}",
+              "type": "string"
+            },
+            {
+              "id": "8e2d7b8c-696c-4428-b5de-7c071ef2ffd6",
+              "name": "grid_doc_id",
+              "value": "={{ $('Parámetros').item.json.doc_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "8b6fdd80-d8a2-44dc-83ee-40017c410202",
+      "name": "Resultado",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2080,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Grid → Google Drive\n\n**Antes de publicar:**\n1. Asignar credencial *Header Auth* (token de Grid) a los 2 nodos *Grid - …*.\n2. Asignar credencial de Google Drive (Service Account u Application Account OAuth2) al nodo *Drive - Subir archivo*. Con Service Account, compartir la carpeta destino con el email de la SA.\n3. Revisar `grid_base_url` y `skill_version` en *Parámetros*.\n4. Probar con *Ejecución manual* y, en *Executions*, confirmar dónde viene `agent_download_url` en la respuesta de Grid (ajustar *Resolver URL de descarga* si hace falta).\n\n**Webhook (POST):** `{\"grid_doc\": \"<url o doc_id>\", \"drive_folder_id\": \"...\", \"file_name\": \"...\"}`",
+        "height": 340,
+        "width": 420
+      },
+      "id": "3f99bde3-209d-4c16-ade5-47572b757463",
+      "name": "Notas",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -280
+      ]
+    }
+  ],
+  "connections": {
+    "Ejecución manual": {
+      "main": [
+        [
+          {
+            "node": "Parámetros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parámetros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parámetros": {
+      "main": [
+        [
+          {
+            "node": "¿Doc ID válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Doc ID válido?": {
+      "main": [
+        [
+          {
+            "node": "Grid - Pedir descarga",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error: Doc ID inválido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grid - Pedir descarga": {
+      "main": [
+        [
+          {
+            "node": "Resolver URL de descarga",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver URL de descarga": {
+      "main": [
+        [
+          {
+            "node": "¿Descarga lista?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Descarga lista?": {
+      "main": [
+        [
+          {
+            "node": "Grid - Descargar archivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error: Grid no devolvió descarga",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grid - Descargar archivo": {
+      "main": [
+        [
+          {
+            "node": "Drive - Subir archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive - Subir archivo": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

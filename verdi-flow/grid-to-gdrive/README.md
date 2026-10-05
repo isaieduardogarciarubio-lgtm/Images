@@ -1,33 +1,30 @@
-# Flujo Verdi Flow: Grid → Google Drive
+# Verdi Flows: Grid → Google Drive
 
-Descarga un documento de Grid y lo sube a una carpeta de Google Drive.
+Workflow importable (`grid-to-gdrive.workflow.json`) que descarga un documento de Grid y lo sube a Google Drive.
 
-- `grid_to_gdrive.py`: lógica del flujo (solo requiere `requests`).
-- `flow.yaml`: definición del paso para Verdi Flow (ajustar a su esquema).
-- `test_grid_to_gdrive.py`: prueba con servidores simulados (no usa red real).
+**Importar:** Verdi Flows → Create Workflow → menú `⋮` → *Import from file...*
 
-## Uso
-
-```bash
-pip install -r requirements.txt
-export GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... GOOGLE_REFRESH_TOKEN=...
-python grid_to_gdrive.py --grid-doc "https://grid.adminml.com/d/<doc_id>/view" --folder-id <carpeta_drive>
+```
+Ejecución manual / Webhook → Parámetros → ¿Doc ID válido? → Grid - Pedir descarga
+  → Resolver URL de descarga → ¿Descarga lista? → Grid - Descargar archivo
+  → Drive - Subir archivo → Resultado (drive_url)
 ```
 
-Imprime en stdout un JSON con `id`, `name` y `webViewLink` del archivo en Drive.
+## Configuración tras importar
+1. **Credencial de Grid** (Header Auth) en los nodos *Grid - Pedir descarga* y *Grid - Descargar archivo*.
+2. **Credencial de Google Drive** en *Drive - Subir archivo*: Service Account (compartir la carpeta destino con el email de la SA) o Application Account OAuth2. En team projects no uses credenciales nominales.
+3. En *Parámetros*: revisar `grid_base_url` y `skill_version` (Grid responde 426 si la versión está desactualizada).
+4. Probar con *Ejecución manual* (pegar la URL o doc_id en `grid_doc`) y revisar *Executions*.
 
-## Requisitos
+Webhook (POST): `{"grid_doc": "<url o doc_id>", "drive_folder_id": "<opcional>", "file_name": "<opcional>"}`
 
-- **VPN corporativa activa**: Grid no usa tokens; la identidad se resuelve en el edge. Un 401 significa VPN caída.
-- El usuario debe tener permiso de lectura sobre el documento de Grid (403 si no).
-- Los bundles `site`/`live` se descargan como `.zip`.
+## Decisiones basadas en la Biblia
+- Los Set llevan *Include Other Input Fields* (Bug 2); las expresiones empiezan con `=` (Bug 6).
+- Se valida `ok == true` con un If, porque Grid responde HTTP 200 con `ok:false` (Bug 17).
+- Referencias a `Parámetros` por nombre, porque el HTTP Request reemplaza `$json` (Bug 8).
+- Sin Code node (algunas instancias solo tienen Python, Bug 14).
+- Si un nodo se comporta raro tras importar, apagar/prender el Body y retipear la expresión a mano (Bug 7).
 
-## OAuth de Google (una sola vez)
-
-1. En Google Cloud Console crea un cliente OAuth (tipo "Desktop app") y habilita la Drive API.
-2. Obtén un refresh token con scope `https://www.googleapis.com/auth/drive.file`
-   (solo permite acceder a archivos creados por esta app; si necesitas subir a una carpeta
-   que ya existe y no creó la app, usa `https://www.googleapis.com/auth/drive`).
-   Puedes usar el [OAuth Playground](https://developers.google.com/oauthplayground) con tu propio client_id/secret,
-   marcando "Use your own OAuth credentials" y "access_type=offline".
-3. Guarda los tres valores como secretos de Verdi Flow; nunca los pongas en el repositorio.
+## Pendiente de verificar en la primera ejecución
+- La ruta exacta de `agent_download_url` en la respuesta de `download_doc_id` (el nodo *Resolver URL de descarga* prueba varias rutas).
+- Que el token de Grid tenga autorizado el endpoint `/engine/run/json` y la ruta `/d/{doc_id}`.
