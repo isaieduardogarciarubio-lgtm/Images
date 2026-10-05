@@ -2309,7 +2309,7 @@ function persistAcceso(acceso){
       // pendiente reinicia el flujo desde la primera etapa.
       if(acceso.estatus==='rechazado' && tieneFlujo(acceso)){
         var f=out.flujo||{ruta:rutaDe(acceso).slice(),pasos:{}};
-        f.rechazo={etapa:miEtapa(),por:ldap,fecha:now};
+        f.rechazo={etapa:etapaActual(acceso),por:ldap,fecha:now};
         out.flujo=f;
       } else if(acceso.estatus==='pendiente'){
         delete out.flujo;
@@ -3007,7 +3007,7 @@ function enterApp(row){
   setText('greeting','Hola, '+name);
   if(init){ setText('avatar',init); setText('sbAvatar',init); }
   setText('sbName',name);
-  setText('sbArea', (row.area ? row.area : 'Área —') + (miEtapa()!=='gestor' ? ' · '+(ETAPA_LABEL[miEtapa()]||'Etapa inválida') : ''));
+  setText('sbArea', (row.area ? row.area : 'Área —') + (function(){ var m=misEtapas(); return (m.length===1&&m[0]==='gestor') ? '' : ' · '+(m.map(function(e){return ETAPA_LABEL[e];}).join(' + ')||'Etapa inválida'); })());
 
   // Sitios: el registry los guarda como array; soporta también string legado separado por '|'.
   var userSites = Array.isArray(row.sitios)
@@ -3180,22 +3180,30 @@ function etapaDeFlujo(f){
 function etapaActual(s){
   return etapaDeFlujo({ruta:rutaDe(s), pasos:(s&&s.flujo&&s.flujo.pasos)||{}});
 }
-/* Etapa del usuario en sesión. Ausente => gestor (compatibilidad). Un valor
-   inválido NO hereda poderes de gestor: devuelve '—' y no ve ni resuelve nada. */
-function miEtapa(){
-  var v=String((SESSION.usuario&&SESSION.usuario.etapa)||'').trim().toLowerCase();
-  if(!v) return 'gestor';
-  return ETAPAS.indexOf(v)!==-1 ? v : '—';
+/* Etapas del usuario en sesión. `etapa` admite una o varias separadas por "|"
+   (ej. "lp" o "lp|gestor" para un admin de LP). Ausente => ["gestor"]
+   (compatibilidad). Valores inválidos se ignoran y NUNCA otorgan gestor. */
+function misEtapas(){
+  var raw=SESSION.usuario&&SESSION.usuario.etapa;
+  var list=(Array.isArray(raw)?raw:String(raw||'').split(/[|,;]/)).map(function(x){return String(x).trim().toLowerCase();}).filter(Boolean);
+  if(!list.length) return ['gestor'];
+  return list.filter(function(x,i){ return ETAPAS.indexOf(x)!==-1 && list.indexOf(x)===i; });
 }
-/* LP/SHE sólo ven solicitudes cuya ruta los incluye; el gestor ve todo. */
+function esGestor(){ return misEtapas().indexOf('gestor')!==-1; }
+/* Quien no es gestor sólo ve solicitudes cuya ruta incluye alguna de sus etapas. */
 function visibleParaMi(s){
-  var me=miEtapa();
-  if(me==='gestor') return true;
-  return rutaDe(s).indexOf(me)!==-1;
+  if(esGestor()) return true;
+  var ruta=rutaDe(s);
+  return misEtapas().some(function(e){ return ruta.indexOf(e)!==-1; });
 }
+/* Es mi turno si la etapa actual de la solicitud es una de mis etapas. */
 function esMiTurno(s){
-  return !!s && s.estatus==='pendiente' && visibleParaMi(s) && etapaActual(s)===miEtapa();
+  return !!s && s.estatus==='pendiente' && visibleParaMi(s) && misEtapas().indexOf(etapaActual(s))!==-1;
 }
+/* Mi turno en una etapa intermedia (LP/SHE) => se resuelve con "Aprobar etapa". */
+function esMiTurnoIntermedio(s){ return esMiTurno(s) && etapaActual(s)!=='gestor'; }
+/* Mi turno en la etapa final => aceptar con vencimiento (escribe el Sheet). */
+function esMiTurnoFinal(s){ return esMiTurno(s) && etapaActual(s)==='gestor'; }
 /* Mini-stepper para tarjetas: LP ✓ › SHE › Gestor */
 function flujoPillHTML(s){
   if(!tieneFlujo(s) || s.estatus==='aceptado') return '';
@@ -3241,7 +3249,8 @@ function conFlujoFresco(ids, cb){
 /* ---- Filtro "Mi turno / En otras etapas" de la pestaña Pendientes ---- */
 var pendFilter='mio';
 function turnBarRelevante(){
-  if(miEtapa()!=='gestor') return true;
+  var m=misEtapas();
+  if(!(m.length===1 && m[0]==='gestor')) return true;
   return accesosDelSitio().some(function(s){ return s.estatus==='pendiente' && tieneFlujo(s); });
 }
 function setTurn(k){ pendFilter=k; render(); }
@@ -3287,23 +3296,24 @@ function flujoDetalleHTML(s){
 /* ---- Aprobar etapa intermedia (LP / SHE) ---- */
 var _approveIds=null;
 function siguienteEtapaLabel(s){
-  var ruta=rutaDe(s), i=ruta.indexOf(miEtapa());
+  var ruta=rutaDe(s), i=ruta.indexOf(etapaActual(s));
   return ETAPA_LABEL[ruta[i+1]]||'Gestor';
 }
 function openApproveStage(id){
   var s=getById(id); if(!s) return;
-  if(!esMiTurno(s) || miEtapa()==='gestor'){ showToast('Esta solicitud no está en tu etapa','warning'); return; }
+  if(!esMiTurnoIntermedio(s)){ showToast('Esta solicitud no está en tu etapa','warning'); return; }
   _approveIds=[id];
-  document.getElementById('approveStageTitle').textContent='Aprobar etapa '+ETAPA_LABEL[miEtapa()];
+  document.getElementById('approveStageTitle').textContent='Aprobar etapa '+ETAPA_LABEL[etapaActual(s)];
   document.getElementById('approveStageName').textContent=fullName(s);
   document.getElementById('approveStageNote').textContent='La solicitud pasará a '+siguienteEtapaLabel(s)+'. El acceso no se activa para guardias hasta que el gestor lo acepte.';
   openModal('approveStageModal');
 }
 function openBulkApproveStage(){
-  var ids=Object.keys(selectedIds).filter(function(id){ return esMiTurno(getById(id)); });
+  var ids=Object.keys(selectedIds).filter(function(id){ return esMiTurnoIntermedio(getById(id)); });
   if(!ids.length){ showToast('No hay solicitudes en tu etapa dentro de la selección','warning'); return; }
   _approveIds=ids;
-  document.getElementById('approveStageTitle').textContent='Aprobar etapa '+ETAPA_LABEL[miEtapa()];
+  var et=ids.map(function(id){return ETAPA_LABEL[etapaActual(getById(id))];}).filter(function(x,i,a){return a.indexOf(x)===i;}).join(' / ');
+  document.getElementById('approveStageTitle').textContent='Aprobar etapa '+et;
   document.getElementById('approveStageName').textContent=ids.length+' solicitud'+(ids.length===1?'':'es')+' seleccionada'+(ids.length===1?'':'s');
   document.getElementById('approveStageNote').textContent='Pasarán a la siguiente etapa. El acceso no se activa para guardias hasta que el gestor lo acepte.';
   openModal('approveStageModal');
@@ -3311,11 +3321,12 @@ function openBulkApproveStage(){
 /* Un paso = una escritura en accesos_state con verificación; el mutador aborta (null)
    si la etapa ya no es la mía o la solicitud ya fue rechazada. */
 function approveStageOne(s){
-  var me=miEtapa(), ldap=(SESSION.user&&SESSION.user.ldap)||'', now=new Date().toISOString().slice(0,10);
+  var mis=misEtapas(), ldap=(SESSION.user&&SESSION.user.ldap)||'', now=new Date().toISOString().slice(0,10);
   var ruta=rutaDe(s).slice();
   return commitUniqueField(DOC_IDS.accesos,'accesos_state',s.id,function(prev){
     var f=prev.flujo||{ruta:ruta,pasos:{}};
-    if(f.rechazo || etapaDeFlujo(f)!==me || f.ruta.indexOf(me)===-1) return null;
+    var me=etapaDeFlujo(f);
+    if(f.rechazo || me==='gestor' || mis.indexOf(me)===-1 || f.ruta.indexOf(me)===-1) return null;
     f.pasos=f.pasos||{};
     f.pasos[me]={por:ldap,fecha:now};
     return Object.assign({},prev,{flujo:f});
@@ -3525,8 +3536,8 @@ function updateBulkBar(){
   var bar=document.getElementById('bulkBar');
   if(!bar) return;
   bar.style.display = selectMode ? 'flex' : 'none';
-  var soloGestor=miEtapa()==='gestor';
-  var ba=document.getElementById('bulkAcceptBtn'); if(ba) ba.textContent=soloGestor?'Aceptar':'Aprobar';
+  var soloGestor=esGestor();
+  var ba=document.getElementById('bulkAcceptBtn'); if(ba) ba.textContent=soloGestor?(misEtapas().length>1?'Aprobar / Aceptar':'Aceptar'):'Aprobar';
   ['bulkExpiryBtn','bulkDeleteBtn'].forEach(function(bid){ var b=document.getElementById(bid); if(b) b.style.display=soloGestor?'':'none'; });
   var count=Object.keys(selectedIds).length;
   var countEl=document.getElementById('bulkCount');
@@ -3922,20 +3933,20 @@ function qrThumb(){
 
 /* ===== Actions ===== */
 function buildActions(s){
-  var me=miEtapa();
+  var gestor=esGestor();
   // Flujo por etapas: sin turno => sólo lectura (el gestor conserva eliminar).
   if(s.estatus==='pendiente' && tieneFlujo(s) && !esMiTurno(s)){
     var waiting=etapaActual(s);
-    var delW = me==='gestor'
+    var delW = gestor
       ? '<button class="btn btn-block btn-danger-outline" style="flex:none;padding:13px 14px" onclick="openDeleteAcceso(\''+s.id+'\')" title="Eliminar solicitud">'+ic.trash+'</button>' : '';
     return '<div class="flow-wait">'+ic.clock+' Esperando a '+ETAPA_LABEL[waiting]+'</div>'+delW;
   }
   // Etapa intermedia (LP/SHE): rechazar o aprobar etapa, sin fecha de vencimiento.
-  if(s.estatus==='pendiente' && me!=='gestor'){
+  if(s.estatus==='pendiente' && esMiTurnoIntermedio(s)){
     return '<button class="btn btn-block btn-danger-outline" onclick="openReject(\''+s.id+'\')">'+ic.x+' Rechazar</button>'+
-           '<button class="btn btn-block btn-primary" onclick="openApproveStage(\''+s.id+'\')">'+ic.check+' Aprobar ('+ETAPA_LABEL[me]+')</button>';
+           '<button class="btn btn-block btn-primary" onclick="openApproveStage(\''+s.id+'\')">'+ic.check+' Aprobar ('+ETAPA_LABEL[etapaActual(s)]+')</button>';
   }
-  if(me!=='gestor'){
+  if(!gestor){
     return '<div class="flow-wait">Sólo lectura</div>';
   }
   if(s.estatus==='pendiente'){
@@ -3964,7 +3975,7 @@ function confirmRevert(){
 }
 function revert(id){
   var s=getById(id); if(!s) return;
-  if(miEtapa()!=='gestor'){ showToast('Sólo el gestor puede revertir','warning'); return; }
+  if(!esGestor()){ showToast('Sólo el gestor puede revertir','warning'); return; }
   s.estatus='pendiente'; s.motivoRechazo=null; s.fechaVencimiento=null; s.flujo=null;
   persistAcceso(s);
   closeDetail(); setTab('pendiente'); showToast('Solicitud revertida a pendiente','info');
@@ -4086,7 +4097,7 @@ function viewExpiredConflict(){
 function openAccept(id){
   _bulkIds=null;
   var s=getById(id);
-  if(!s || miEtapa()!=='gestor' || !esMiTurno(s)){ showToast('Esta solicitud no está en tu etapa','warning'); return; }
+  if(!s || !esMiTurnoFinal(s)){ showToast('Esta solicitud no está en tu etapa','warning'); return; }
   var conflict=findAccesoConflict(s&&s.curp, s&&s.sitio, id);
   if(conflict.active){ showAcceptConflict(conflict.active); return; }
   pendingAction=id;
@@ -4106,8 +4117,11 @@ function openAccept(id){
   openModal('acceptModal');
 }
 function openBulkAccept(){
-  if(miEtapa()!=='gestor'){ openBulkApproveStage(); return; }
-  var ids=Object.keys(selectedIds).filter(function(id){ return esMiTurno(getById(id)); });
+  var sel=Object.keys(selectedIds).filter(function(id){ return esMiTurno(getById(id)); });
+  var nInt=sel.filter(function(id){ return esMiTurnoIntermedio(getById(id)); }).length;
+  if(nInt && nInt===sel.length){ openBulkApproveStage(); return; }
+  if(nInt){ showToast('Selecciona por separado las de etapa intermedia y las de aceptación final','warning'); return; }
+  var ids=sel;
   if(!ids.length){ showToast('No hay solicitudes pendientes en la selección','warning'); return; }
   _bulkIds=ids;
   _acceptExpiredConflictId=null;
@@ -4133,7 +4147,7 @@ function _confirmAcceptNow(val){
     var ids=_bulkIds; _bulkIds=null;
     closeModal('acceptModal');
     bulkProcess(ids, function(s){
-      if(miEtapa()!=='gestor' || !esMiTurno(s)) return 'ya no está en tu etapa (el flujo cambió)';
+      if(!esMiTurnoFinal(s)) return 'ya no está en tu etapa (el flujo cambió)';
       // Re-chequeo al procesar (no al abrir el modal): el dataset pudo
       // cambiar entre que se seleccionó el lote y que se confirmó.
       var conflict=findAccesoConflict(s.curp, s.sitio, s.id).active;
@@ -4144,7 +4158,7 @@ function _confirmAcceptNow(val){
     return;
   }
   var s=getById(pendingAction);
-  if(!s || miEtapa()!=='gestor' || !esMiTurno(s)){ closeModal('acceptModal'); showToast('Esta solicitud ya no está en tu etapa','warning'); render(); return; }
+  if(!s || !esMiTurnoFinal(s)){ closeModal('acceptModal'); showToast('Esta solicitud ya no está en tu etapa','warning'); render(); return; }
   // Mismo re-chequeo defensivo que en el lote — openAccept() ya filtró
   // esto al abrir el modal, pero la solicitud pudo cambiar mientras
   // estaba abierto.
@@ -4496,7 +4510,7 @@ function buscarAccesos(){
   var mySites=(Array.isArray(SESSION.usuario&&SESSION.usuario.sitios)?SESSION.usuario.sitios:String((SESSION.usuario&&SESSION.usuario.sitios)||'').split('|')).filter(Boolean);
   searchResults=solicitudes.filter(function(s){
     if(!visibleParaMi(s)) return false;
-    if(miEtapa()!=='gestor' && mySites.indexOf(s.sitio)===-1) return false;
+    if(!esGestor() && mySites.indexOf(s.sitio)===-1) return false;
     var haystack = campo==='qr'   ? (s.qr||'') :
                    campo==='curp' ? (s.curp||'') :
                    (s.correo||'');
