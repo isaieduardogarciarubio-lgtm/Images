@@ -133,12 +133,6 @@
               "type": "string"
             },
             {
-              "id": "5ad825d8-e5df-4b78-890e-c2d743b09168",
-              "name": "skill_version",
-              "value": "3.6.5",
-              "type": "string"
-            },
-            {
               "id": "0eb65eec-7ade-43bc-888e-f0c25d01fb83",
               "name": "drive_folder_id",
               "value": "",
@@ -212,96 +206,7 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $json.grid_base_url }}/api/v1/engine/run/json",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBearerAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { \"skill_version\": $json.skill_version, \"skip_version_check\": true, \"download_doc_id\": $json.doc_id } }}",
-        "options": {}
-      },
-      "onError": "continueErrorOutput",
-      "id": "e199c061-ff5a-4f76-b413-41eacab41957",
-      "name": "Grid - Pedir descarga",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1560,
-        140
-      ]
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "eeca2fbe-3174-4718-8a6a-d0996ef96c26",
-              "name": "download_url",
-              "value": "={{ (function(){ var d = $json.data || {}; var u = (d.download && d.download.agent_download_url) || d.agent_download_url || $json.agent_download_url || ''; if (!u) return ''; return u.indexOf('http') === 0 ? u : $('Parámetros').item.json.grid_base_url + u; })() }}",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": true,
-        "options": {}
-      },
-      "id": "81191df4-f9d2-452a-ae5b-239f4da2e44f",
-      "name": "Resolver URL de descarga",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        1820,
-        140
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "af677bc1-783e-4a3f-8223-9fc72c09c5c0",
-              "leftValue": "={{ $json.ok }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "91c85efd-264e-44bc-8f4a-a66cdc9c6e79",
-              "leftValue": "={{ $json.download_url }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "64c5a9e3-ea93-4489-afed-f763f8be0ffd",
-      "name": "¿Descarga lista?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        2080,
-        140
-      ]
-    },
-    {
-      "parameters": {
-        "url": "={{ $json.download_url }}",
+        "url": "={{ $json.grid_base_url + '/d/' + $json.doc_id + '?dl=1' }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBearerAuth",
         "options": {
@@ -319,7 +224,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        2340,
+        1560,
         100
       ]
     },
@@ -554,53 +459,6 @@
       ]
     },
     "¿Doc ID válido?": {
-      "main": [
-        [
-          {
-            "node": "Grid - Pedir descarga",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Marcar error en Hoja",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Grid - Pedir descarga": {
-      "main": [
-        [
-          {
-            "node": "Resolver URL de descarga",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Marcar error en Hoja",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Resolver URL de descarga": {
-      "main": [
-        [
-          {
-            "node": "¿Descarga lista?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "¿Descarga lista?": {
       "main": [
         [
           {
