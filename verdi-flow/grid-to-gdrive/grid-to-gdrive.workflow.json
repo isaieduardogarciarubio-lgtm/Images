@@ -49,7 +49,7 @@
       "id": "2ba359b3-8ff7-416d-8f28-a502103b8f3d",
       "name": "Leer Hoja",
       "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
+      "typeVersion": 4.7,
       "position": [
         260,
         200
@@ -129,7 +129,7 @@
             {
               "id": "a1d7736f-eaec-4797-a442-006c433440d2",
               "name": "grid_base_url",
-              "value": "https://grid.melioffice.com",
+              "value": "http://grid.melisystems.com",
               "type": "string"
             },
             {
@@ -213,19 +213,26 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.grid_base_url }}/api/v1/engine/run/json",
+        "url": "={{ $json.grid_base_url }}/api/v1/engine/run",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "genericAuthType": "httpBearerAuth",
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { \"skill_version\": $json.skill_version, \"skip_version_check\": true, \"download_doc_id\": $json.doc_id } }}",
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "config",
+              "value": "={{ JSON.stringify({skill_version: $json.skill_version, skip_version_check: true, download_doc_id: $json.doc_id}) }}"
+            }
+          ]
+        },
         "options": {}
       },
       "onError": "continueErrorOutput",
       "id": "e199c061-ff5a-4f76-b413-41eacab41957",
       "name": "Grid - Pedir descarga",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "typeVersion": 4.3,
       "position": [
         1560,
         140
@@ -303,7 +310,7 @@
       "parameters": {
         "url": "={{ $json.download_url }}",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "genericAuthType": "httpBearerAuth",
         "options": {
           "response": {
             "response": {
@@ -317,7 +324,7 @@
       "id": "749d970c-77e5-4926-ba3d-7796da92a15c",
       "name": "Grid - Descargar archivo",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "typeVersion": 4.3,
       "position": [
         2340,
         100
@@ -410,7 +417,7 @@
       "id": "9fe998b5-e12f-4322-a183-9c46ec01bf60",
       "name": "Escribir enlace en Hoja",
       "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
+      "typeVersion": 4.7,
       "position": [
         2860,
         40
@@ -464,7 +471,7 @@
       "id": "a163016a-df54-4848-a6a8-7ad8b87805f4",
       "name": "Marcar error en Hoja",
       "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
+      "typeVersion": 4.7,
       "position": [
         2860,
         340

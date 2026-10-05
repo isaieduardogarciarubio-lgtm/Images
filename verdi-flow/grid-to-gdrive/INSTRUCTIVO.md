@@ -51,7 +51,7 @@ Tres condiciones con **AND**, *Type Validation:* Loose:
 
 | Name | Type | Value |
 |---|---|---|
-| `grid_base_url` | String | `https://grid.melioffice.com` |
+| `grid_base_url` | String | `http://grid.melisystems.com` (el mismo host que usas en tu flujo de fotos) |
 | `skill_version` | String | `3.6.5` |
 | `drive_folder_id` | String | ID de la carpeta destino de Drive (vacío = raíz) |
 | `row_number` | Number | `={{ $json.row_number }}` |
@@ -66,12 +66,15 @@ Tres condiciones con **AND**, *Type Validation:* Loose:
 `{{ $json.doc_id }}` → String → **is not empty**. True → *Grid - Pedir descarga*; False → *Marcar error en Hoja*.
 
 ## 8. Grid - Pedir descarga (HTTP Request)
-1. **POST**, URL `={{ $json.grid_base_url }}/api/v1/engine/run/json`.
-2. Authentication: *Generic Credential Type* → *Header Auth* (token de Grid).
-3. **Send Body** ON → JSON → Using JSON, tipeado a mano:
-   `={{ { "skill_version": $json.skill_version, "skip_version_check": true, "download_doc_id": $json.doc_id } }}`
-4. **Settings → On Error: Continue (using error output)**. Salida de éxito → *Resolver URL*; salida de error → *Marcar error en Hoja*.
-5. Requiere VPN/red de MeLi. 401 = VPN; 403 = sin permiso sobre el doc.
+Mismo estilo que tu nodo *Subir a Grid* (typeVersion 4.3), pero pidiendo la descarga:
+1. **POST**, URL `={{ $json.grid_base_url }}/api/v1/engine/run` (el endpoint que ya tiene autorizado tu token en el gateway).
+2. Authentication: *Generic Credential Type* → **Bearer Auth** (la misma credencial que usa *Subir a Grid*).
+3. **Send Body** ON → Body Content Type **Form-Data (multipart)** → un parámetro:
+   - Name: `config`
+   - Value: `={{ JSON.stringify({skill_version: $json.skill_version, skip_version_check: true, download_doc_id: $json.doc_id}) }}`
+   - Sin parámetro `file`: aquí no se sube nada, solo se consulta.
+4. **Settings → On Error: Continue (using error output)**. Éxito → Resolver URL; error → Marcar error en Hoja.
+5. Si Grid se queja de que falta el archivo, prueba la variante `/api/v1/engine/run/json` con body JSON `={{ { "skill_version": $json.skill_version, "skip_version_check": true, "download_doc_id": $json.doc_id } }}`; ojo: esa ruta puede no estar autorizada para tu token en el gateway (Bug 23).
 
 ## 9. Resolver URL de descarga (Set)
 **Include Other Input Fields** ON. Campo String `download_url`:
