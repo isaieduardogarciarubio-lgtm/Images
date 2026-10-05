@@ -451,7 +451,9 @@ main{flex:1;overflow-y:auto;padding:0 16px 90px;}
 #sortBar{display:flex;gap:6px;padding:2px 0 8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
 #sortBar::-webkit-scrollbar{display:none;}
 /* Flujo de aprobación por etapas (LP → SHE → Gestor) — sólo aparece en empresas con ruta. */
-#turnBar{display:flex;gap:6px;padding:0 0 8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+#filterRow{display:flex;align-items:flex-start;gap:12px;}
+#filterRow #sortBar{flex:1 1 auto;min-width:0;}
+#turnBar{display:flex;gap:6px;padding:2px 0 8px;margin-left:auto;flex:0 1 auto;max-width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;justify-content:flex-end;}
 #turnBar:empty{display:none;}
 #turnBar::-webkit-scrollbar{display:none;}
 .flow-pill{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px;font-size:11px;font-weight:600;color:var(--text-2);}
@@ -919,8 +921,7 @@ body.gating .sidebar,body.gating #mainArea{display:none!important;}
     </div>
     <div id="diag-info" style="font-size:11px;color:var(--primary);padding:4px 2px;font-family:monospace"></div>
     <div class="eyebrow" id="listEyebrow">Solicitudes</div>
-    <div id="sortBar"></div>
-    <div id="turnBar"></div>
+    <div id="filterRow"><div id="sortBar"></div><div id="turnBar"></div></div>
   </div>
   </div>
 
