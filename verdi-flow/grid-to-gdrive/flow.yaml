@@ -1,0 +1,26 @@
+# Definición del flujo para Verdi Flow (ajusta nombres de campos al esquema real de tu orquestador).
+name: grid-to-gdrive
+description: Descarga un archivo de Grid y lo sube a Google Drive.
+
+inputs:
+  grid_doc:        { type: string, required: true,  description: "URL (/d/<id>/view) o doc_id de Grid" }
+  drive_folder_id: { type: string, required: false, description: "Carpeta destino en Drive" }
+  file_name:       { type: string, required: false, description: "Nombre en Drive (por defecto el de Grid)" }
+
+secrets:
+  - GOOGLE_CLIENT_ID
+  - GOOGLE_CLIENT_SECRET
+  - GOOGLE_REFRESH_TOKEN
+
+steps:
+  - id: grid_to_drive
+    run: python grid_to_gdrive.py
+    env:
+      GRID_DOC: "{{ inputs.grid_doc }}"
+      DRIVE_FOLDER_ID: "{{ inputs.drive_folder_id }}"
+      DRIVE_FILE_NAME: "{{ inputs.file_name }}"
+    requires: [corporate-vpn]   # Grid solo es accesible desde la red/VPN de MeLi
+    output: json                # stdout: {grid_doc_id, id, name, webViewLink}
+
+outputs:
+  drive_url: "{{ steps.grid_to_drive.output.webViewLink }}"
