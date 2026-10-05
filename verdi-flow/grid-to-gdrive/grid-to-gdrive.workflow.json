@@ -135,7 +135,7 @@
             {
               "id": "5ad825d8-e5df-4b78-890e-c2d743b09168",
               "name": "skill_version",
-              "value": "3.6.3",
+              "value": "3.6.5",
               "type": "string"
             },
             {
@@ -218,7 +218,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"skill_version\": $json.skill_version, \"download_doc_id\": $json.doc_id } }}",
+        "jsonBody": "={{ { \"skill_version\": $json.skill_version, \"skip_version_check\": true, \"download_doc_id\": $json.doc_id } }}",
         "options": {}
       },
       "onError": "continueErrorOutput",

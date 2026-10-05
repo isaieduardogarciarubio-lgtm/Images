@@ -52,7 +52,7 @@ Tres condiciones con **AND**, *Type Validation:* Loose:
 | Name | Type | Value |
 |---|---|---|
 | `grid_base_url` | String | `https://grid.melioffice.com` |
-| `skill_version` | String | `3.6.3` |
+| `skill_version` | String | `3.6.5` |
 | `drive_folder_id` | String | ID de la carpeta destino de Drive (vacío = raíz) |
 | `row_number` | Number | `={{ $json.row_number }}` |
 | `grid_doc` | String | `={{ $json.doc_id }}` |
@@ -60,7 +60,7 @@ Tres condiciones con **AND**, *Type Validation:* Loose:
 
 (`\|\|` es escape de Markdown; en n8n se escribe `||`.)
 
-**Sobre `skill_version`:** es obligatorio en cada llamada al motor de Grid; no se puede omitir. Si no coincide con la vigente Grid responde **426**. Verifica la actual con `GET https://grid.melioffice.com/skill/version?current_version=3.6.3`. (`skip_version_check: true` existe, pero solo debe usarse si aceptas explícitamente correr con una versión desactualizada.)
+**Sobre `skill_version`:** el campo es obligatorio en cada llamada al motor de Grid; no se puede omitir. Como en tus otros flujos (`skill_version: '3.6.5'`), el body del nodo 8 lleva también `skip_version_check: true`, para que Grid no responda 426 cuando la versión de la skill cambie. Contrapartida: el flujo seguirá corriendo con una versión desactualizada sin avisar; si quieres que falle al desactualizarse, quita `skip_version_check` y mantén `skill_version` al día (`GET https://grid.melioffice.com/skill/version?current_version=3.6.5`).
 
 ## 7. ¿Doc ID válido? (If)
 `{{ $json.doc_id }}` → String → **is not empty**. True → *Grid - Pedir descarga*; False → *Marcar error en Hoja*.
@@ -69,7 +69,7 @@ Tres condiciones con **AND**, *Type Validation:* Loose:
 1. **POST**, URL `={{ $json.grid_base_url }}/api/v1/engine/run/json`.
 2. Authentication: *Generic Credential Type* → *Header Auth* (token de Grid).
 3. **Send Body** ON → JSON → Using JSON, tipeado a mano:
-   `={{ { "skill_version": $json.skill_version, "download_doc_id": $json.doc_id } }}`
+   `={{ { "skill_version": $json.skill_version, "skip_version_check": true, "download_doc_id": $json.doc_id } }}`
 4. **Settings → On Error: Continue (using error output)**. Salida de éxito → *Resolver URL*; salida de error → *Marcar error en Hoja*.
 5. Requiere VPN/red de MeLi. 401 = VPN; 403 = sin permiso sobre el doc.
 
