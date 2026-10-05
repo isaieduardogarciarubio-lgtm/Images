@@ -1,9 +1,9 @@
 {
-  "name": "Grid → Google Drive",
+  "name": "Hoja → Grid → Drive → Hoja",
   "nodes": [
     {
       "parameters": {},
-      "id": "b0565e67-172d-4ba1-a3de-5d5d7d66233e",
+      "id": "969840c1-6d45-419a-bfed-3b0bd8e3bab6",
       "name": "Ejecución manual",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
@@ -14,58 +14,152 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "grid-a-drive",
-        "options": {}
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
       },
-      "id": "364320d8-3077-4c93-94f5-af9e3d519ddd",
-      "name": "Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
+      "id": "05262135-7571-4e3b-ab11-850cc77205d2",
+      "name": "Cada 5 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
       "position": [
         0,
         300
-      ],
-      "webhookId": "eaa09c50-f24d-40ad-80f0-dbea496f07a5"
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PEGAR_ID_DEL_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Hoja1"
+        },
+        "options": {}
+      },
+      "id": "2ba359b3-8ff7-416d-8f28-a502103b8f3d",
+      "name": "Leer Hoja",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "14bf8893-5ef0-4961-9996-53f35a36f34d",
+              "leftValue": "={{ $json.doc_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "44eca730-026f-49f3-999c-e9fe19dd8fd7",
+              "leftValue": "={{ $json.enlace_drive }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c9c0eb9c-8194-4f68-b01f-f12b4a5a32e1",
+              "leftValue": "={{ $json.estado }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a7d67b34-a81b-44ca-92fe-e37d5c57d7e7",
+      "name": "Filtrar pendientes",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        520,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 20
+      },
+      "id": "6bf10c35-c6ec-4365-8dfa-4f2fc6ef9776",
+      "name": "Limitar lote",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        780,
+        200
+      ]
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "17a1985a-e6e9-4ebc-b3ff-df6a2f8657f9",
+              "id": "a1d7736f-eaec-4797-a442-006c433440d2",
               "name": "grid_base_url",
               "value": "https://grid.melioffice.com",
               "type": "string"
             },
             {
-              "id": "2b898838-723d-49c3-8b86-f4843384733a",
+              "id": "5ad825d8-e5df-4b78-890e-c2d743b09168",
               "name": "skill_version",
               "value": "3.6.3",
               "type": "string"
             },
             {
-              "id": "7ae9dcb6-cd20-4ed6-81cc-c8f00db2c385",
-              "name": "grid_doc",
-              "value": "={{ ($json.body && $json.body.grid_doc) || 'PEGAR_URL_O_DOC_ID_DE_GRID' }}",
-              "type": "string"
-            },
-            {
-              "id": "1c95ac0b-6097-4705-9440-c641b6ecc4cd",
-              "name": "doc_id",
-              "value": "={{ (String(($json.body && $json.body.grid_doc) || 'PEGAR_URL_O_DOC_ID_DE_GRID').match(/[0-9A-Za-z]{26}/) || [''])[0] }}",
-              "type": "string"
-            },
-            {
-              "id": "047fb820-c7cf-46bf-ba55-5d2a212fb4e9",
+              "id": "0eb65eec-7ade-43bc-888e-f0c25d01fb83",
               "name": "drive_folder_id",
-              "value": "={{ ($json.body && $json.body.drive_folder_id) || '' }}",
+              "value": "",
               "type": "string"
             },
             {
-              "id": "98eba5ec-f7ec-44b5-85a0-c353015cd1d1",
-              "name": "file_name",
-              "value": "={{ ($json.body && $json.body.file_name) || '' }}",
+              "id": "b82f6709-e8bf-4b60-95fc-80a413a1d4dc",
+              "name": "row_number",
+              "value": "={{ $json.row_number }}",
+              "type": "number"
+            },
+            {
+              "id": "f82e9d06-d90b-4a86-a56b-409ee15b425e",
+              "name": "grid_doc",
+              "value": "={{ $json.doc_id }}",
+              "type": "string"
+            },
+            {
+              "id": "0ee1dfc1-e9db-4328-9af9-2cc58ef7d716",
+              "name": "doc_id",
+              "value": "={{ (String($json.doc_id || '').match(/[0-9A-Za-z]{26}/) || [''])[0] }}",
               "type": "string"
             }
           ]
@@ -73,12 +167,12 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "5d0a3818-2cef-4766-bcb9-fab3bdcc1f97",
+      "id": "d4a350ab-dfe0-43e3-b9ca-276a91b85535",
       "name": "Parámetros",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        260,
+        1040,
         200
       ]
     },
@@ -93,7 +187,7 @@
           },
           "conditions": [
             {
-              "id": "9c0bbccc-dce0-4270-91d2-f628151d6301",
+              "id": "da75a20a-6d16-4b9b-95e6-b63eb59baecc",
               "leftValue": "={{ $json.doc_id }}",
               "rightValue": "",
               "operator": {
@@ -107,26 +201,13 @@
         },
         "options": {}
       },
-      "id": "6d4a3d78-7c67-4ab6-9540-766431d5504a",
+      "id": "92cc59c1-baa3-48bc-a2d5-b08885212151",
       "name": "¿Doc ID válido?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        520,
+        1300,
         200
-      ]
-    },
-    {
-      "parameters": {
-        "errorMessage": "={{ 'No pude extraer un doc_id de Grid (26 caracteres) de: ' + $json.grid_doc }}"
-      },
-      "id": "274cc0a3-6ae1-4a05-8cda-699b19ba9fb2",
-      "name": "Error: Doc ID inválido",
-      "type": "n8n-nodes-base.stopAndError",
-      "typeVersion": 1,
-      "position": [
-        780,
-        360
       ]
     },
     {
@@ -140,12 +221,13 @@
         "jsonBody": "={{ { \"skill_version\": $json.skill_version, \"download_doc_id\": $json.doc_id } }}",
         "options": {}
       },
-      "id": "246e6929-7155-44fb-8d9f-c7d8a91d053c",
+      "onError": "continueErrorOutput",
+      "id": "e199c061-ff5a-4f76-b413-41eacab41957",
       "name": "Grid - Pedir descarga",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        780,
+        1560,
         140
       ]
     },
@@ -154,7 +236,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "dd1046f2-3d1a-417d-a330-ca1b501da0ad",
+              "id": "eeca2fbe-3174-4718-8a6a-d0996ef96c26",
               "name": "download_url",
               "value": "={{ (function(){ var d = $json.data || {}; var u = (d.download && d.download.agent_download_url) || d.agent_download_url || $json.agent_download_url || ''; if (!u) return ''; return u.indexOf('http') === 0 ? u : $('Parámetros').item.json.grid_base_url + u; })() }}",
               "type": "string"
@@ -164,12 +246,12 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "bd2dcc61-baca-47ee-92dd-2f562c4eb9fe",
+      "id": "81191df4-f9d2-452a-ae5b-239f4da2e44f",
       "name": "Resolver URL de descarga",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1040,
+        1820,
         140
       ]
     },
@@ -184,7 +266,7 @@
           },
           "conditions": [
             {
-              "id": "5e398a60-7f6a-49ef-b4da-5f5e82561336",
+              "id": "af677bc1-783e-4a3f-8223-9fc72c09c5c0",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -194,7 +276,7 @@
               }
             },
             {
-              "id": "d9f9d1db-b8ce-425a-8d52-48363887fdde",
+              "id": "91c85efd-264e-44bc-8f4a-a66cdc9c6e79",
               "leftValue": "={{ $json.download_url }}",
               "rightValue": "",
               "operator": {
@@ -208,26 +290,13 @@
         },
         "options": {}
       },
-      "id": "5b5753dc-12f1-4ca6-bfdb-df82f23c65f5",
+      "id": "64c5a9e3-ea93-4489-afed-f763f8be0ffd",
       "name": "¿Descarga lista?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1300,
+        2080,
         140
-      ]
-    },
-    {
-      "parameters": {
-        "errorMessage": "={{ 'Grid respondió sin URL de descarga o con ok=false: ' + JSON.stringify($('Grid - Pedir descarga').item.json) }}"
-      },
-      "id": "0c908f3d-48fa-48c7-8e22-0b7660b85c25",
-      "name": "Error: Grid no devolvió descarga",
-      "type": "n8n-nodes-base.stopAndError",
-      "typeVersion": 1,
-      "position": [
-        1560,
-        300
       ]
     },
     {
@@ -244,12 +313,13 @@
           }
         }
       },
-      "id": "7955c5b9-921e-4d41-98fc-9d3acb2a7e8f",
+      "onError": "continueErrorOutput",
+      "id": "749d970c-77e5-4926-ba3d-7796da92a15c",
       "name": "Grid - Descargar archivo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1560,
+        2340,
         100
       ]
     },
@@ -258,7 +328,7 @@
         "resource": "file",
         "operation": "upload",
         "inputDataFieldName": "data",
-        "name": "={{ $('Parámetros').item.json.file_name || $binary.data.fileName || $('Parámetros').item.json.doc_id }}",
+        "name": "={{ $binary.data.fileName || $('Parámetros').item.json.doc_id }}",
         "driveId": {
           "__rl": true,
           "mode": "list",
@@ -272,70 +342,147 @@
         },
         "options": {}
       },
-      "id": "54a6330d-69af-4c98-bd7e-fce5cc670dc6",
+      "onError": "continueErrorOutput",
+      "id": "cbfa6610-28ec-4489-bd3e-dc3fbb0f4ce0",
       "name": "Drive - Subir archivo",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        1820,
+        2600,
         100
       ]
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PEGAR_ID_DEL_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Hoja1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Parámetros').item.json.row_number }}",
+            "enlace_drive": "={{ 'https://drive.google.com/file/d/' + $json.id + '/view' }}",
+            "estado": "ok"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
             {
-              "id": "d3fa6f9f-74ce-4764-846b-10d9be486d86",
-              "name": "drive_file_id",
-              "value": "={{ $json.id }}",
-              "type": "string"
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             },
             {
-              "id": "9f800be0-aaa2-4bf9-acc1-68877ed608b2",
-              "name": "drive_file_name",
-              "value": "={{ $json.name }}",
-              "type": "string"
+              "id": "enlace_drive",
+              "displayName": "enlace_drive",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             },
             {
-              "id": "05a7dfab-051c-4985-98ee-e3b5b4b57345",
-              "name": "drive_url",
-              "value": "={{ 'https://drive.google.com/file/d/' + $json.id + '/view' }}",
-              "type": "string"
-            },
-            {
-              "id": "8e2d7b8c-696c-4428-b5de-7c071ef2ffd6",
-              "name": "grid_doc_id",
-              "value": "={{ $('Parámetros').item.json.doc_id }}",
-              "type": "string"
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
           ]
         },
-        "includeOtherFields": false,
         "options": {}
       },
-      "id": "8b6fdd80-d8a2-44dc-83ee-40017c410202",
-      "name": "Resultado",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "id": "9fe998b5-e12f-4322-a183-9c46ec01bf60",
+      "name": "Escribir enlace en Hoja",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
       "position": [
-        2080,
-        100
+        2860,
+        40
       ]
     },
     {
       "parameters": {
-        "content": "## Grid → Google Drive\n\n**Antes de publicar:**\n1. Asignar credencial *Header Auth* (token de Grid) a los 2 nodos *Grid - …*.\n2. Asignar credencial de Google Drive (Service Account u Application Account OAuth2) al nodo *Drive - Subir archivo*. Con Service Account, compartir la carpeta destino con el email de la SA.\n3. Revisar `grid_base_url` y `skill_version` en *Parámetros*.\n4. Probar con *Ejecución manual* y, en *Executions*, confirmar dónde viene `agent_download_url` en la respuesta de Grid (ajustar *Resolver URL de descarga* si hace falta).\n\n**Webhook (POST):** `{\"grid_doc\": \"<url o doc_id>\", \"drive_folder_id\": \"...\", \"file_name\": \"...\"}`",
-        "height": 340,
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PEGAR_ID_DEL_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Hoja1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Parámetros').item.json.row_number }}",
+            "estado": "error"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a163016a-df54-4848-a6a8-7ad8b87805f4",
+      "name": "Marcar error en Hoja",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2860,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Hoja → Grid → Drive → Hoja\n\nColumnas de la hoja: `doc_id` (URL o ID de Grid), `enlace_drive`, `estado`.\nPendiente = `doc_id` lleno y `enlace_drive` + `estado` vacíos.\n\nAntes de publicar: credenciales de Grid (Header Auth), Google Drive y Google Sheets; ID del Sheet y pestaña en los 3 nodos de Sheets; `skill_version` en *Parámetros*.",
+        "height": 260,
         "width": 420
       },
-      "id": "3f99bde3-209d-4c16-ade5-47572b757463",
+      "id": "fddf3faf-5b67-484d-840a-57b926139c0d",
       "name": "Notas",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         0,
-        -280
+        -300
       ]
     }
   ],
@@ -344,14 +491,47 @@
       "main": [
         [
           {
-            "node": "Parámetros",
+            "node": "Leer Hoja",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Webhook": {
+    "Cada 5 minutos": {
+      "main": [
+        [
+          {
+            "node": "Leer Hoja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Hoja": {
+      "main": [
+        [
+          {
+            "node": "Filtrar pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar pendientes": {
+      "main": [
+        [
+          {
+            "node": "Limitar lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limitar lote": {
       "main": [
         [
           {
@@ -384,7 +564,7 @@
         ],
         [
           {
-            "node": "Error: Doc ID inválido",
+            "node": "Marcar error en Hoja",
             "type": "main",
             "index": 0
           }
@@ -396,6 +576,13 @@
         [
           {
             "node": "Resolver URL de descarga",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar error en Hoja",
             "type": "main",
             "index": 0
           }
@@ -424,7 +611,7 @@
         ],
         [
           {
-            "node": "Error: Grid no devolvió descarga",
+            "node": "Marcar error en Hoja",
             "type": "main",
             "index": 0
           }
@@ -439,6 +626,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Marcar error en Hoja",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -446,7 +640,14 @@
       "main": [
         [
           {
-            "node": "Resultado",
+            "node": "Escribir enlace en Hoja",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar error en Hoja",
             "type": "main",
             "index": 0
           }

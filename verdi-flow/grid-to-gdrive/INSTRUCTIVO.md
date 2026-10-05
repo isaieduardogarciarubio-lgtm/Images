@@ -1,131 +1,127 @@
-# Instructivo: armar el flujo Grid → Google Drive nodo por nodo
+# Instructivo: Hoja de Sheets → Grid → Google Drive → Hoja (nodo por nodo)
 
-Sirve para construir el workflow a mano en Verdi Flows (o para corregir un nodo si el import falla).
-Todas las expresiones se escriben **a mano** en el campo con modo *Expression* (no pegadas), y siempre empiezan con `=` o `{{`.
+Lee de un Google Sheet los `doc_id` de Grid pendientes, sube cada archivo a Drive y escribe el enlace de Drive en la misma fila; con el enlace escrito la fila deja de ser pendiente.
+Las expresiones se escriben **a mano** en modo *Expression* (no pegadas) y empiezan con `=` o `{{`.
 
-**Antes de empezar:** Verdi Flows → *Create Workflow* → ponle nombre `Grid → Google Drive` (al guardar el nombre queda bloqueado para ti si es un proyecto de equipo).
+## La hoja
+Una pestaña con encabezados en la fila 1 (nombres exactos, en minúscula):
 
-Orden final:
+| doc_id | enlace_drive | estado |
+|---|---|---|
+| `https://grid.adminml.com/d/01J.../view` o `01J...` | (vacío) | (vacío) |
+
+- **Pendiente** = `doc_id` lleno y `enlace_drive` **y** `estado` vacíos.
+- Éxito: el flujo escribe el enlace en `enlace_drive` y `ok` en `estado`.
+- Error: el flujo escribe `error` en `estado` (así no reintenta para siempre ni duplica subidas). Para reintentar, borra `estado`.
+- Si tienes una pestaña con `FILTER` que ya calcula pendientes, léela en vez de filtrar en n8n y borra *Filtrar pendientes*.
+
+## Orden final
 ```
 [Ejecución manual] ─┐
-                    ├→ Parámetros → ¿Doc ID válido? ─sí→ Grid - Pedir descarga → Resolver URL de descarga
-[Webhook] ──────────┘                       └no→ Error: Doc ID inválido
-  → ¿Descarga lista? ─sí→ Grid - Descargar archivo → Drive - Subir archivo → Resultado
-                     └no→ Error: Grid no devolvió descarga
+                    ├→ Leer Hoja → Filtrar pendientes → Limitar lote → Parámetros → ¿Doc ID válido?
+[Cada 5 minutos] ───┘
+  ─sí→ Grid - Pedir descarga → Resolver URL de descarga → ¿Descarga lista? ─sí→ Grid - Descargar archivo
+       → Drive - Subir archivo → Escribir enlace en Hoja
+  Cualquier fallo (no válido, error de Grid/Drive, ok=false) → Marcar error en Hoja
 ```
 
----
+## 1. Ejecución manual / 2. Cada 5 minutos (triggers)
+1. **Trigger manually** (sin configuración, para probar).
+2. **Schedule Trigger** → Interval: *Minutes*, cada `5`.
+3. Ambos se conectan a *Leer Hoja*.
 
-## 1. Ejecución manual (trigger)
-1. *+Add first step* → buscar **Trigger manually**.
-2. Sin configuración. Sirve para probar con *Test workflow*.
+## 3. Leer Hoja (Google Sheets)
+1. Nodo **Google Sheets** → Resource *Sheet Within Document* → Operation **Get Row(s)**.
+2. Credencial de Google (Service Account con el Sheet compartido con su email, o Application Account OAuth2).
+3. **Document:** By ID → ID del Sheet. **Sheet:** By Name → tu pestaña.
+4. Sin filtros. Una sola lectura por ejecución evita el 429 de cuota (Bug 11); si aparece, activa *Retry On Fail* con espera ≥ 65000 ms.
+5. Cada item trae además `row_number`, que usaremos para escribir de vuelta.
 
-## 2. Webhook (trigger)
-1. Botón `+` → buscar **Webhook**.
-2. **HTTP Method:** `POST`. **Path:** `grid-a-drive`. **Respond:** por defecto.
-3. Body esperado (todo opcional salvo `grid_doc`):
-   ```json
-   {"grid_doc": "https://grid.adminml.com/d/<id>/view", "drive_folder_id": "<carpeta>", "file_name": "reporte.csv"}
-   ```
-4. Los dos triggers se conectan al mismo nodo *Parámetros*.
+## 4. Filtrar pendientes (Filter)
+Tres condiciones con **AND**, *Type Validation:* Loose:
+1. `{{ $json.doc_id }}` → String → **is not empty**
+2. `{{ $json.enlace_drive }}` → String → **is empty**
+3. `{{ $json.estado }}` → String → **is empty**
 
-## 3. Parámetros (Edit Fields / Set)
-1. Agregar nodo **Edit Fields (Set)**; renombrar a `Parámetros`.
-2. **Mode:** Manual Mapping. Activar **Include Other Input Fields** (si no, se pierden los demás campos — Bug 2).
-3. Agregar 6 campos, todos tipo *String*:
+## 5. Limitar lote (Limit)
+**Max Items:** `20`. Evita que una corrida dure más que los 5 minutos y se solape con la siguiente duplicando subidas (Bug 10).
 
-| Name | Value |
+## 6. Parámetros (Edit Fields / Set)
+**Include Other Input Fields** ON. Campos:
+
+| Name | Type | Value |
+|---|---|---|
+| `grid_base_url` | String | `https://grid.melioffice.com` |
+| `skill_version` | String | `3.6.3` |
+| `drive_folder_id` | String | ID de la carpeta destino de Drive (vacío = raíz) |
+| `row_number` | Number | `={{ $json.row_number }}` |
+| `grid_doc` | String | `={{ $json.doc_id }}` |
+| `doc_id` | String | `={{ (String($json.doc_id \|\| '').match(/[0-9A-Za-z]{26}/) \|\| [''])[0] }}` |
+
+(`\|\|` es escape de Markdown; en n8n se escribe `||`.)
+
+**Sobre `skill_version`:** es obligatorio en cada llamada al motor de Grid; no se puede omitir. Si no coincide con la vigente Grid responde **426**. Verifica la actual con `GET https://grid.melioffice.com/skill/version?current_version=3.6.3`. (`skip_version_check: true` existe, pero solo debe usarse si aceptas explícitamente correr con una versión desactualizada.)
+
+## 7. ¿Doc ID válido? (If)
+`{{ $json.doc_id }}` → String → **is not empty**. True → *Grid - Pedir descarga*; False → *Marcar error en Hoja*.
+
+## 8. Grid - Pedir descarga (HTTP Request)
+1. **POST**, URL `={{ $json.grid_base_url }}/api/v1/engine/run/json`.
+2. Authentication: *Generic Credential Type* → *Header Auth* (token de Grid).
+3. **Send Body** ON → JSON → Using JSON, tipeado a mano:
+   `={{ { "skill_version": $json.skill_version, "download_doc_id": $json.doc_id } }}`
+4. **Settings → On Error: Continue (using error output)**. Salida de éxito → *Resolver URL*; salida de error → *Marcar error en Hoja*.
+5. Requiere VPN/red de MeLi. 401 = VPN; 403 = sin permiso sobre el doc.
+
+## 9. Resolver URL de descarga (Set)
+**Include Other Input Fields** ON. Campo String `download_url`:
+```
+={{ (function(){ var d = $json.data || {}; var u = (d.download && d.download.agent_download_url) || d.agent_download_url || $json.agent_download_url || ''; if (!u) return ''; return u.indexOf('http') === 0 ? u : $('Parámetros').item.json.grid_base_url + u; })() }}
+```
+Pendiente de confirmar dónde viene `agent_download_url` en la respuesta; en la primera prueba míralo en *Executions*.
+
+## 10. ¿Descarga lista? (If)
+AND: `{{ $json.ok }}` Boolean **is true** (Grid responde 200 aunque `ok` sea false — Bug 17) y `{{ $json.download_url }}` String **is not empty**. True → *Grid - Descargar archivo*; False → *Marcar error en Hoja*.
+
+## 11. Grid - Descargar archivo (HTTP Request)
+**GET**, URL `={{ $json.download_url }}`, misma credencial Header Auth. Options → Response → Format **File**, Put Output in Field `data`. Sin Batching (Bug 16). **On Error: Continue (using error output)**; error → *Marcar error en Hoja*.
+
+## 12. Drive - Subir archivo (Google Drive)
+1. **File → Upload**. Credencial Service Account (carpeta compartida con su email) o Application Account OAuth2.
+2. **Input Data Field Name:** `data`.
+3. **File Name:** `={{ $binary.data.fileName || $('Parámetros').item.json.doc_id }}`
+4. **Drive:** My Drive. **Parent Folder:** By ID → `={{ $('Parámetros').item.json.drive_folder_id || 'root' }}`
+5. **On Error: Continue (using error output)**; error → *Marcar error en Hoja*.
+
+## 13. Escribir enlace en Hoja (Google Sheets)
+Este es el paso que saca la fila de pendientes.
+1. **Google Sheets → Update Row**, mismo Document y Sheet que *Leer Hoja*.
+2. **Column to match on:** `row_number`.
+3. **Values to Send** (Map Each Column Manually):
+
+| Columna | Valor |
 |---|---|
-| `grid_base_url` | `https://grid.melioffice.com` |
-| `skill_version` | `3.6.3` |
-| `grid_doc` | `={{ ($json.body && $json.body.grid_doc) \|\| 'PEGAR_URL_O_DOC_ID_DE_GRID' }}` |
-| `doc_id` | `={{ (String(($json.body && $json.body.grid_doc) \|\| 'PEGAR_URL_O_DOC_ID_DE_GRID').match(/[0-9A-Za-z]{26}/) \|\| [''])[0] }}` |
-| `drive_folder_id` | `={{ ($json.body && $json.body.drive_folder_id) \|\| '' }}` |
-| `file_name` | `={{ ($json.body && $json.body.file_name) \|\| '' }}` |
+| `row_number` | `={{ $('Parámetros').item.json.row_number }}` |
+| `enlace_drive` | `={{ 'https://drive.google.com/file/d/' + $json.id + '/view' }}` |
+| `estado` | `ok` |
 
-(En la tabla `\|\|` es solo escape de Markdown: en n8n se escribe `||`.)
+Se usa `$json.id` porque aquí `$json` es la respuesta de Drive; los datos anteriores se leen por nombre de nodo (Bug 8).
 
-Para pruebas manuales, reemplaza `PEGAR_URL_O_DOC_ID_DE_GRID` por la URL o doc_id real. El `doc_id` es el ULID de 26 caracteres de la URL `/d/<id>/view`.
-
-## 4. ¿Doc ID válido? (If)
-1. Nodo **If**. Condición: valor `{{ $json.doc_id }}` → tipo *String* → **is not empty**.
-2. Salida **true** → *Grid - Pedir descarga*. Salida **false** → *Error: Doc ID inválido*.
-
-## 5. Error: Doc ID inválido (Stop and Error)
-1. Nodo **Stop and Error**, *Error Type:* Error Message.
-2. Mensaje: `={{ 'No pude extraer un doc_id de Grid (26 caracteres) de: ' + $json.grid_doc }}`
-
-## 6. Grid - Pedir descarga (HTTP Request)
-1. Nodo **HTTP Request**.
-2. **Method:** `POST`. **URL:** `={{ $json.grid_base_url }}/api/v1/engine/run/json`
-3. **Authentication:** *Generic Credential Type* → *Header Auth* → crear/seleccionar la credencial con el token de Grid.
-4. **Send Body:** ON. **Body Content Type:** JSON. **Specify Body:** Using JSON.
-5. **JSON** (tipéalo a mano, con el `=` antes de las llaves dobles — Bug 6):
-   ```
-   ={{ { "skill_version": $json.skill_version, "download_doc_id": $json.doc_id } }}
-   ```
-6. Requiere VPN/red de MeLi. Un 426 significa que `skill_version` está desactualizada.
-
-## 7. Resolver URL de descarga (Set)
-1. Nodo **Edit Fields (Set)**, **Include Other Input Fields** ON.
-2. Un campo *String* `download_url`:
-   ```
-   ={{ (function(){ var d = $json.data || {}; var u = (d.download && d.download.agent_download_url) || d.agent_download_url || $json.agent_download_url || ''; if (!u) return ''; return u.indexOf('http') === 0 ? u : $('Parámetros').item.json.grid_base_url + u; })() }}
-   ```
-   Prueba varias rutas porque no está confirmado dónde viene `agent_download_url`. Si la primera ejecución falla aquí, abre *Executions*, mira la respuesta de *Grid - Pedir descarga* y ajusta la ruta.
-
-## 8. ¿Descarga lista? (If)
-Dos condiciones con **AND** (Grid responde HTTP 200 aunque `ok` sea false — Bug 17):
-1. `{{ $json.ok }}` → tipo *Boolean* → **is true**.
-2. `{{ $json.download_url }}` → *String* → **is not empty**.
-
-True → *Grid - Descargar archivo*. False → *Error: Grid no devolvió descarga*.
-
-## 9. Error: Grid no devolvió descarga (Stop and Error)
-Mensaje: `={{ 'Grid respondió sin URL de descarga o con ok=false: ' + JSON.stringify($('Grid - Pedir descarga').item.json) }}`
-
-## 10. Grid - Descargar archivo (HTTP Request)
-1. **Method:** `GET`. **URL:** `={{ $json.download_url }}`
-2. **Authentication:** la misma credencial Header Auth de Grid.
-3. **Options → Add option → Response** → **Response Format:** `File`, **Put Output in Field:** `data`.
-4. No actives *Batching* (Bug 16).
-
-## 11. Drive - Subir archivo (Google Drive)
-1. Nodo **Google Drive** → Resource **File** → Operation **Upload**.
-2. **Credential:** Service Account (compartir antes la carpeta destino con el email de la SA) o Application Account OAuth2. En proyectos de equipo no uses credenciales nominales.
-3. **Input Data Field Name:** `data`.
-4. **File Name:**
-   ```
-   ={{ $('Parámetros').item.json.file_name || $binary.data.fileName || $('Parámetros').item.json.doc_id }}
-   ```
-5. **Drive:** My Drive. **Parent Folder:** modo *By ID* →
-   `={{ $('Parámetros').item.json.drive_folder_id || 'root' }}`
-6. Si el nombre debe llevar extensión y Grid no la manda, ponla en `file_name` (Drive no la deduce del contenido — Bug 21).
-
-## 12. Resultado (Set)
-1. Nodo **Edit Fields (Set)**, **Include Other Input Fields** OFF (solo queremos la salida limpia).
-2. Campos *String*:
-
-| Name | Value |
-|---|---|
-| `drive_file_id` | `={{ $json.id }}` |
-| `drive_file_name` | `={{ $json.name }}` |
-| `drive_url` | `={{ 'https://drive.google.com/file/d/' + $json.id + '/view' }}` |
-| `grid_doc_id` | `={{ $('Parámetros').item.json.doc_id }}` |
+## 14. Marcar error en Hoja (Google Sheets)
+Igual que el 13 pero solo dos columnas: `row_number` = `={{ $('Parámetros').item.json.row_number }}` y `estado` = `error`. Recibe las salidas de error de los nodos 7, 8, 10, 11 y 12.
 
 ---
 
 ## Probar y publicar
-1. Pon una URL/doc_id real en *Parámetros* y pulsa **Test workflow**.
-2. Si algo falla, revisa *Executions* nodo por nodo (inputs/outputs).
-3. Crea una versión (*Version → Create Version*) y publica con el **Publish wizard**: crea las credenciales de producción en el paso 2 y, en team, pide a un project admin distinto de ti que apruebe.
+1. Agrega 1–2 filas de prueba con `doc_id` reales y corre **Test workflow**.
+2. Verifica en la hoja que aparezca el enlace y `ok`, y que al correr otra vez esa fila ya no se procese.
+3. Crea una versión y publica con el Publish wizard (crea las credenciales de producción en el paso 2; en team lo aprueba un project admin distinto de ti).
 
 ## Errores frecuentes
 | Síntoma | Causa probable |
 |---|---|
-| 401 en nodos Grid | Sin VPN o credencial mal asignada |
-| 403 | No tienes permiso de lectura sobre el doc, o el gateway no autoriza esa ruta para tu token |
-| 426 | `skill_version` desactualizada |
-| `body: Field required` | Falta el `=` al inicio del JSON o `doc_id` quedó `undefined` (Bugs 6-7) |
-| Drive: 404 / "File not found" con carpeta válida | Carpeta no compartida con la Service Account, o espacio de más en la expresión (Bug 3) |
-| Campo vacío sin error | Revisar mayúsculas/minúsculas del nombre (Bug 9) |
+| Todas las filas terminan en `error` | Revisa *Executions*: 401 (VPN/credencial), 426 (`skill_version`), o ruta de `agent_download_url` |
+| Una fila queda en `error` | Doc sin permiso, doc_id mal escrito o archivo corrupto; corrige y borra `estado` |
+| No lee ninguna fila | Encabezados distintos a `doc_id`/`enlace_drive`/`estado` (distingue mayúsculas, Bug 9) |
+| Update no escribe | Credencial de Sheets sin permiso de edición sobre el Sheet |
+| `body: Field required` | Falta `=` en el JSON o `doc_id` es `undefined` (Bugs 6-7) |
