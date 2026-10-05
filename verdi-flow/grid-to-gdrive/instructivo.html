@@ -61,7 +61,7 @@ var STEPS=[
 {id:'limit',sec:'Lectura',ti:'Limitar lote',tag:'Limit',d:'Evita que una corrida dure más que el trigger y se solape duplicando subidas (Bug 10).',
  b:[{t:'s',h:'Max Items',c:'20'}]},
 {id:'param',sec:'Preparación de datos',ti:'Parámetros',tag:'Edit Fields (Set)',d:'Activa "Include Other Input Fields" (Bug 2). Escribe las expresiones a mano.',
- b:[{t:'s',h:'grid_download_url · String (host que sirve /d/...; el gateway melisystems dio 405)',c:'https://grid.melioffice.com'},
+ b:[{t:'s',h:'grid_base_url · String (confirmado con el probe)',c:'http://grid.melisystems.com'},
  {t:'s',h:'drive_folder_id · String (vacío = raíz de Drive)',c:'PEGAR_ID_CARPETA_DRIVE'},
  {t:'s',h:'row_number · Number',c:'={{ $json.row_number }}'},
  {t:'s',h:'grid_doc · String',c:'={{ $json.doc_id }}'},
@@ -69,12 +69,12 @@ var STEPS=[
  {t:'warn',v:'Este flujo ya no llama al motor de Grid (/engine/run), solo descarga con GET /d/{doc_id}?dl=1, así que no usa skill_version.'}]},
 {id:'valid',sec:'Preparación de datos',ti:'¿Doc ID válido?',tag:'If',d:'True → Grid - Descargar archivo. False → Marcar error en Hoja.',
  b:[{t:'s',h:'Condición · String · is not empty',c:'{{ $json.doc_id }}'}]},
-{id:'desc',sec:'Grid',ti:'Grid - Descargar archivo',tag:'HTTP Request',d:'Descarga el binario del documento.',
- b:[{t:'s',h:'Method',c:'GET'},{t:'s',h:'URL (Grid devuelve los bytes directamente)',c:"={{ $json.grid_download_url + '/d/' + $json.doc_id + '?dl=1' }}"},
- {t:'s',h:'Authentication',v:'La misma credencial Bearer Auth de Grid.'},
+{id:'desc',sec:'Grid',ti:'Grid - Descargar archivo',tag:'HTTP Request',d:'Confirmado con el probe: GET /d/{doc_id}?dl=1 en el gateway melisystems responde 200 con los bytes.',
+ b:[{t:'s',h:'Method (si era POST responde 405)',c:'GET'},{t:'s',h:'URL',c:"={{ $json.grid_base_url + '/d/' + $json.doc_id + '?dl=1' }}"},
+ {t:'s',h:'Authentication',v:'Generic Credential Type → Bearer Auth (la misma de "Subir a Grid").'},
+ {t:'s',h:'Send Body',v:'OFF.'},
  {t:'s',h:'Options → Response',v:'Response Format: File · Put Output in Field: data. Sin Batching (Bug 16).'},
- {t:'s',h:'Settings',v:'On Error: Continue (using error output); error → Marcar error en Hoja.'},
- {t:'warn',v:'Si melioffice no es accesible desde Verdi, prueba GET {gateway}/api/v1/documents/{doc_id}/download (ruta /api/v1 que tu token sí alcanza): devuelve agent_download_url y, para archivos grandes, object_storage_signed_url.'}]},
+ {t:'s',h:'Settings',v:'On Error: Continue (using error output); error → Marcar error en Hoja.'}]},
 {id:'drive',sec:'Drive y cierre',ti:'Drive - Subir archivo',tag:'Google Drive · File → Upload',d:'Sube el binario a la carpeta destino.',
  b:[{t:'s',h:'Credencial',v:'Service Account (carpeta compartida con su email) o Application Account OAuth2. En team, nada de credenciales nominales.'},
  {t:'s',h:'Input Data Field Name',c:'data'},
@@ -92,7 +92,7 @@ var STEPS=[
 {id:'pub',sec:'Cierre',ti:'Probar y publicar',tag:'Final',d:'',
  b:[{t:'s',h:'1. Probar',v:'Agrega 1–2 filas con doc_id reales y corre Test workflow. Verifica que aparezca el enlace y "ok", y que al correr de nuevo esa fila ya no se procese.'},
  {t:'s',h:'2. Publicar',v:'Version → Create Version, luego Publish wizard. Crea credenciales de producción en el paso 2; en team lo aprueba un project admin distinto de ti.'},
- {t:'table',h:['Síntoma','Causa probable'],r:[['Todas las filas en error','Ver Executions: 401 (credencial) o 403/404 (gateway sin autorizar /d/{doc_id})'],['Una fila en error','Sin permiso, doc_id mal escrito o archivo corrupto; corrige y borra estado'],['No lee filas','Encabezados distintos a doc_id/enlace_drive/estado (distingue mayúsculas, Bug 9)'],['Update no escribe','Credencial de Sheets sin permiso de edición'],['body: Field required','Falta "=" en el JSON o doc_id es undefined (Bugs 6-7)']]}]}
+ {t:'table',h:['Síntoma','Causa probable'],r:[['Todas las filas en error','Ver Executions: 405 (nodo de descarga en POST en vez de GET) o 401/403 (credencial/permiso)'],['Una fila en error','Sin permiso, doc_id mal escrito o archivo corrupto; corrige y borra estado'],['No lee filas','Encabezados distintos a doc_id/enlace_drive/estado (distingue mayúsculas, Bug 9)'],['Update no escribe','Credencial de Sheets sin permiso de edición'],['body: Field required','Falta "=" en el JSON o doc_id es undefined (Bugs 6-7)']]}]}
 ];
 var done={},cur=0,nav=document.getElementById('nav'),main=document.getElementById('main');
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
