@@ -1,0 +1,682 @@
+{
+  "name": "Probe Grid (rutas de descarga)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "fcdeea6c-ecd0-44b4-b3c2-3bbca17f7232",
+      "name": "Ejecución manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70b46b82-28e1-4a2a-af48-f285f26db382",
+              "name": "doc_id",
+              "value": "PEGAR_DOC_ID_DE_UN_ARCHIVO_PEQUEÑO",
+              "type": "string"
+            },
+            {
+              "id": "7cf88a7d-b1fd-42d4-9d45-384d70ac0644",
+              "name": "gateway",
+              "value": "http://grid.melisystems.com",
+              "type": "string"
+            },
+            {
+              "id": "aa47292f-56e7-436b-9044-55b7977b5ed3",
+              "name": "office",
+              "value": "https://grid.melioffice.com",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "b22d7bb7-07a8-4c6d-bd12-3ff43191bfdd",
+      "name": "Parámetros prueba",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.gateway + '/api/v1/documents/' + $json.doc_id + '/download' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "f34a97a4-43c2-42fb-b6d8-7a62ad59d690",
+      "name": "Prueba A",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        520,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d82212cf-9085-4322-8535-ccc20ef7e7c6",
+              "name": "prueba",
+              "value": "A: GET gateway /api/v1/documents/{id}/download",
+              "type": "string"
+            },
+            {
+              "id": "48797633-882c-4ff1-994b-baf3716f8754",
+              "name": "status",
+              "value": "={{ $json.statusCode || 'SIN RESPUESTA: ' + JSON.stringify($json.error || $json).slice(0,200) }}",
+              "type": "string"
+            },
+            {
+              "id": "1eff6737-0f2a-4b12-b14a-1584931e1631",
+              "name": "content_type",
+              "value": "={{ ($json.headers && $json.headers['content-type']) || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "dca9c54a-1507-473b-90c1-af0681af808a",
+              "name": "respuesta",
+              "value": "={{ String($json.body || '').slice(0,600) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "69d3c815-61f3-4524-94a0-5cd9fcf05c93",
+      "name": "Resumen A",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.gateway + '/api/v1/documents/' + $json.doc_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "5436c2a8-e4ad-4886-949d-5e57b47d54ea",
+      "name": "Prueba B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        520,
+        140
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5b0d4b4d-0dfb-4ed9-9e99-3ef84649d624",
+              "name": "prueba",
+              "value": "B: GET gateway /api/v1/documents/{id}",
+              "type": "string"
+            },
+            {
+              "id": "147b7512-be75-424f-a6e5-b9eef97ccee3",
+              "name": "status",
+              "value": "={{ $json.statusCode || 'SIN RESPUESTA: ' + JSON.stringify($json.error || $json).slice(0,200) }}",
+              "type": "string"
+            },
+            {
+              "id": "3502cd24-75a7-4e08-ac97-a5ab07d910e1",
+              "name": "content_type",
+              "value": "={{ ($json.headers && $json.headers['content-type']) || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "bf7d1573-2604-44a6-8452-9c60d09317bd",
+              "name": "respuesta",
+              "value": "={{ String($json.body || '').slice(0,600) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "515af8f8-89e4-4dd8-8984-fea89226a55e",
+      "name": "Resumen B",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.gateway + '/d/' + $json.doc_id + '?dl=1' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "3dc6a1cc-107b-4154-ab13-024f4072d0a9",
+      "name": "Prueba C",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        520,
+        280
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e90e269b-58e8-41a0-971c-83736df56dd6",
+              "name": "prueba",
+              "value": "C: GET gateway /d/{id}?dl=1",
+              "type": "string"
+            },
+            {
+              "id": "aa21b929-b598-45f0-8f18-559e593fcd82",
+              "name": "status",
+              "value": "={{ $json.statusCode || 'SIN RESPUESTA: ' + JSON.stringify($json.error || $json).slice(0,200) }}",
+              "type": "string"
+            },
+            {
+              "id": "463bc01a-256a-47d2-bc1a-4df30328bac7",
+              "name": "content_type",
+              "value": "={{ ($json.headers && $json.headers['content-type']) || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "d038c448-0d1e-44e5-b628-28813dd7d2fd",
+              "name": "respuesta",
+              "value": "={{ String($json.body || '').slice(0,600) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "64602357-e7a1-4138-b3ba-1ee29d8c48d0",
+      "name": "Resumen C",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.office + '/d/' + $json.doc_id + '?dl=1' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "f98ed076-c263-4797-b01b-e641d5690cae",
+      "name": "Prueba D",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        520,
+        420
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "77c6f0ea-f725-4ffc-a424-6f231f1e4c7a",
+              "name": "prueba",
+              "value": "D: GET melioffice /d/{id}?dl=1",
+              "type": "string"
+            },
+            {
+              "id": "93cbf683-4d4f-427a-bbb7-ab2185f0b791",
+              "name": "status",
+              "value": "={{ $json.statusCode || 'SIN RESPUESTA: ' + JSON.stringify($json.error || $json).slice(0,200) }}",
+              "type": "string"
+            },
+            {
+              "id": "384f434d-a534-477b-9270-44428764fe33",
+              "name": "content_type",
+              "value": "={{ ($json.headers && $json.headers['content-type']) || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "85dfb95e-ac0f-4c6d-b9db-310239262242",
+              "name": "respuesta",
+              "value": "={{ String($json.body || '').slice(0,600) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "e026298c-1c04-489e-a016-bd6bbd65da74",
+      "name": "Resumen D",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.office + '/api/v1/documents/' + $json.doc_id + '/download' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "3fc7274b-d1b8-4e4c-bca9-db107ce783e8",
+      "name": "Prueba E",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        520,
+        560
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b3143f48-0a49-4883-aedd-2b7bdc672f38",
+              "name": "prueba",
+              "value": "E: GET melioffice /api/v1/documents/{id}/download",
+              "type": "string"
+            },
+            {
+              "id": "1ced0017-4d0d-4d95-9feb-06e8426f7153",
+              "name": "status",
+              "value": "={{ $json.statusCode || 'SIN RESPUESTA: ' + JSON.stringify($json.error || $json).slice(0,200) }}",
+              "type": "string"
+            },
+            {
+              "id": "29c7efcc-5990-479f-bfdb-0f07b7ab30af",
+              "name": "content_type",
+              "value": "={{ ($json.headers && $json.headers['content-type']) || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "04bd2f67-2a92-4bf9-bf3a-163c5ecfa18d",
+              "name": "respuesta",
+              "value": "={{ String($json.body || '').slice(0,600) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "badcd52f-fd3f-4140-8272-6fa375942b2b",
+      "name": "Resumen E",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.gateway + '/api/v1/engine/run/json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"skill_version\": \"3.6.5\", \"skip_version_check\": true, \"download_doc_id\": $json.doc_id } }}"
+      },
+      "id": "91ecd982-a96f-49aa-8dee-9e6fc4d67a4c",
+      "name": "Prueba F",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        520,
+        700
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "58611f3d-1525-4f93-8023-4d0b9952ba24",
+              "name": "prueba",
+              "value": "F: POST gateway /api/v1/engine/run/json (download_doc_id)",
+              "type": "string"
+            },
+            {
+              "id": "9da8d603-9f6c-4c2a-bc72-2553a602cb19",
+              "name": "status",
+              "value": "={{ $json.statusCode || 'SIN RESPUESTA: ' + JSON.stringify($json.error || $json).slice(0,200) }}",
+              "type": "string"
+            },
+            {
+              "id": "611cba08-b8db-45bd-bb7b-c4ab7d2f88ca",
+              "name": "content_type",
+              "value": "={{ ($json.headers && $json.headers['content-type']) || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "61e22460-4b43-466c-aa68-793764fb4353",
+              "name": "respuesta",
+              "value": "={{ String($json.body || '').slice(0,600) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "75bb723a-903d-4f47-a6d0-60fbe0d2adfa",
+      "name": "Resumen F",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 6
+      },
+      "id": "cc0c544f-2687-4637-a600-9d2008cb1d83",
+      "name": "Resultados",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Probe de rutas de Grid\n1. Pon un `doc_id` de un archivo **pequeño** en *Parámetros prueba*.\n2. Asigna tu credencial **Bearer Auth** de Grid a los 6 nodos *Prueba X*.\n3. Ejecuta y revisa el nodo *Resultados* (una fila por prueba: status, content_type, respuesta).\n4. Copia la tabla (sin tokens) y compártela.",
+        "height": 220,
+        "width": 380
+      },
+      "id": "39f747cc-b49b-436f-8802-55616c3b1996",
+      "name": "Notas",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -120
+      ]
+    }
+  ],
+  "connections": {
+    "Ejecución manual": {
+      "main": [
+        [
+          {
+            "node": "Parámetros prueba",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parámetros prueba": {
+      "main": [
+        [
+          {
+            "node": "Prueba A",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prueba B",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prueba C",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prueba D",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prueba E",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prueba F",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prueba A": {
+      "main": [
+        [
+          {
+            "node": "Resumen A",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen A": {
+      "main": [
+        [
+          {
+            "node": "Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prueba B": {
+      "main": [
+        [
+          {
+            "node": "Resumen B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen B": {
+      "main": [
+        [
+          {
+            "node": "Resultados",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Prueba C": {
+      "main": [
+        [
+          {
+            "node": "Resumen C",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen C": {
+      "main": [
+        [
+          {
+            "node": "Resultados",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Prueba D": {
+      "main": [
+        [
+          {
+            "node": "Resumen D",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen D": {
+      "main": [
+        [
+          {
+            "node": "Resultados",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Prueba E": {
+      "main": [
+        [
+          {
+            "node": "Resumen E",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen E": {
+      "main": [
+        [
+          {
+            "node": "Resultados",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Prueba F": {
+      "main": [
+        [
+          {
+            "node": "Resumen F",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen F": {
+      "main": [
+        [
+          {
+            "node": "Resultados",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
