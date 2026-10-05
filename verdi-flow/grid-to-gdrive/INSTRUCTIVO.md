@@ -50,7 +50,7 @@ Tres condiciones con **AND**, *Type Validation:* Loose:
 
 | Name | Type | Value |
 |---|---|---|
-| `grid_base_url` | String | `http://grid.melisystems.com` (el mismo host que usas en tu flujo de fotos) |
+| `grid_download_url` | String | `https://grid.melioffice.com` (host que sirve las descargas `/d/...`; el gateway `grid.melisystems.com` respondió 405 en esa ruta) |
 | `drive_folder_id` | String | ID de la carpeta destino de Drive (vacío = raíz) |
 | `row_number` | Number | `={{ $json.row_number }}` |
 | `grid_doc` | String | `={{ $json.doc_id }}` |
@@ -64,7 +64,7 @@ Tres condiciones con **AND**, *Type Validation:* Loose:
 `{{ $json.doc_id }}` → String → **is not empty**. True → *Grid - Descargar archivo*; False → *Marcar error en Hoja*.
 
 ## 8. Grid - Descargar archivo (HTTP Request)
-**GET**, URL `={{ $json.grid_base_url + '/d/' + $json.doc_id + '?dl=1' }}` (Grid devuelve los bytes directamente; no hace falta pedir la URL al motor), misma credencial **Bearer Auth**. Options → Response → Format **File**, Put Output in Field `data`. Sin Batching (Bug 16). **On Error: Continue (using error output)**; error → *Marcar error en Hoja*.
+**GET**, URL `={{ $json.grid_download_url + '/d/' + $json.doc_id + '?dl=1' }}` (Grid devuelve los bytes directamente; no hace falta pedir la URL al motor). Si `grid.melioffice.com` no es accesible desde Verdi, prueba `GET {gateway}/api/v1/documents/{doc_id}/download` (ruta `/api/v1`, que tu token sí alcanza): devuelve `agent_download_url` y, para archivos grandes, `object_storage_signed_url`, misma credencial **Bearer Auth**. Options → Response → Format **File**, Put Output in Field `data`. Sin Batching (Bug 16). **On Error: Continue (using error output)**; error → *Marcar error en Hoja*.
 
 ## 9. Drive - Subir archivo (Google Drive)
 1. **File → Upload**. Credencial Service Account (carpeta compartida con su email) o Application Account OAuth2.
@@ -100,7 +100,7 @@ Igual que el 13 pero solo dos columnas: `row_number` = `={{ $('Parámetros').ite
 ## Errores frecuentes
 | Síntoma | Causa probable |
 |---|---|
-| Todas las filas terminan en `error` | Revisa *Executions*: 401 (credencial/VPN), 403/404 (el gateway no autoriza `/d/{doc_id}` para tu token) |
+| Todas las filas terminan en `error` | Revisa *Executions*: 401 (credencial/VPN), 403/404/405 (el host o gateway no sirve/autoriza `/d/{doc_id}`; ver nodo 8) |
 | Una fila queda en `error` | Doc sin permiso, doc_id mal escrito o archivo corrupto; corrige y borra `estado` |
 | No lee ninguna fila | Encabezados distintos a `doc_id`/`enlace_drive`/`estado` (distingue mayúsculas, Bug 9) |
 | Update no escribe | Credencial de Sheets sin permiso de edición sobre el Sheet |

@@ -128,8 +128,8 @@
           "assignments": [
             {
               "id": "a1d7736f-eaec-4797-a442-006c433440d2",
-              "name": "grid_base_url",
-              "value": "http://grid.melisystems.com",
+              "name": "grid_download_url",
+              "value": "https://grid.melioffice.com",
               "type": "string"
             },
             {
@@ -206,7 +206,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $json.grid_base_url + '/d/' + $json.doc_id + '?dl=1' }}",
+        "url": "={{ $json.grid_download_url + '/d/' + $json.doc_id + '?dl=1' }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBearerAuth",
         "options": {
