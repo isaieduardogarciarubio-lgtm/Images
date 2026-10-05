@@ -2,6 +2,8 @@
 
 Workflow importable (`grid-to-gdrive.workflow.json`) que descarga un documento de Grid y lo sube a Google Drive.
 
+**Instructivo nodo por nodo:** ver `INSTRUCTIVO.md`.
+
 **Importar:** Verdi Flows → Create Workflow → menú `⋮` → *Import from file...*
 
 ```
