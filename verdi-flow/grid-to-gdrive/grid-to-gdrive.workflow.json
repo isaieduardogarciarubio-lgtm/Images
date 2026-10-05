@@ -213,19 +213,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.grid_base_url }}/api/v1/engine/run",
+        "url": "={{ $json.grid_base_url }}/api/v1/engine/run/json",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBearerAuth",
         "sendBody": true,
-        "contentType": "multipart-form-data",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "config",
-              "value": "={{ JSON.stringify({skill_version: $json.skill_version, skip_version_check: true, download_doc_id: $json.doc_id}) }}"
-            }
-          ]
-        },
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"skill_version\": $json.skill_version, \"skip_version_check\": true, \"download_doc_id\": $json.doc_id } }}",
         "options": {}
       },
       "onError": "continueErrorOutput",

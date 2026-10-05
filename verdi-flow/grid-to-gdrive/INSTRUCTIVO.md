@@ -66,15 +66,13 @@ Tres condiciones con **AND**, *Type Validation:* Loose:
 `{{ $json.doc_id }}` → String → **is not empty**. True → *Grid - Pedir descarga*; False → *Marcar error en Hoja*.
 
 ## 8. Grid - Pedir descarga (HTTP Request)
-Mismo estilo que tu nodo *Subir a Grid* (typeVersion 4.3), pero pidiendo la descarga:
-1. **POST**, URL `={{ $json.grid_base_url }}/api/v1/engine/run` (el endpoint que ya tiene autorizado tu token en el gateway).
+1. **POST**, URL `={{ $json.grid_base_url }}/api/v1/engine/run/json`. Sin archivo, Grid exige la ruta `/json`; `/engine/run` (multipart) responde **422 "Invalid JSON body"** si no hay `file`.
 2. Authentication: *Generic Credential Type* → **Bearer Auth** (la misma credencial que usa *Subir a Grid*).
-3. **Send Body** ON → Body Content Type **Form-Data (multipart)** → un parámetro:
-   - Name: `config`
-   - Value: `={{ JSON.stringify({skill_version: $json.skill_version, skip_version_check: true, download_doc_id: $json.doc_id}) }}`
-   - Sin parámetro `file`: aquí no se sube nada, solo se consulta.
+3. **Send Body** ON → Body Content Type **JSON** → Specify Body **Using JSON**, tipeado a mano (con `=` antes de las llaves dobles — Bug 6):
+   `={{ { "skill_version": $json.skill_version, "skip_version_check": true, "download_doc_id": $json.doc_id } }}`
 4. **Settings → On Error: Continue (using error output)**. Éxito → Resolver URL; error → Marcar error en Hoja.
-5. Si Grid se queja de que falta el archivo, prueba la variante `/api/v1/engine/run/json` con body JSON `={{ { "skill_version": $json.skill_version, "skip_version_check": true, "download_doc_id": $json.doc_id } }}`; ojo: esa ruta puede no estar autorizada para tu token en el gateway (Bug 23).
+5. Si responde 403/404 en esa ruta, el gateway no la tiene autorizada para tu token (Bug 23): hay que pedir que habiliten `/api/v1/engine/run/json`.
+6. Si ves 422 "body: Field required", suele ser `doc_id` `undefined` (JSON.stringify elimina la clave, Bug 6).
 
 ## 9. Resolver URL de descarga (Set)
 **Include Other Input Fields** ON. Campo String `download_url`:
