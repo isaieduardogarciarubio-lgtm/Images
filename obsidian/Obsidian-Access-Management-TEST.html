@@ -452,22 +452,25 @@ main{flex:1;overflow-y:auto;padding:0 16px 90px;}
 #sortBar::-webkit-scrollbar{display:none;}
 /* Flujo de aprobación por etapas (LP → SHE → Gestor) — sólo aparece en empresas con ruta. */
 /* ---- TEST: panel "Ver como" (sólo el dueño de la app / DEV_ALLOWED) ---- */
-#personaBox{position:fixed;left:8px;bottom:80px;z-index:9000;width:290px;max-width:calc(100vw - 16px);background:var(--bg,#fff);color:var(--text,#111);border:1px solid var(--border-strong);border-radius:var(--r-md);box-shadow:0 8px 28px rgba(0,0,0,.18);font-size:12px;display:none;}
-@media (min-width:768px){#personaBox{top:300px;bottom:auto;width:224px;}}
-#personaBox.sim{border-color:var(--warning);box-shadow:0 8px 28px rgba(247,168,0,.35);}
-#personaBox .pb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;font-weight:700;cursor:pointer;}
+#personaBox{position:fixed;left:8px;bottom:76px;z-index:95;width:290px;max-width:calc(100vw - 16px);max-height:calc(100vh - 100px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--border-strong);border-radius:var(--r-md);box-shadow:0 8px 28px rgba(0,0,0,.25);font-size:12px;display:none;}
+@media (min-width:768px){#personaBox{bottom:164px;width:224px;}}
+#personaBox.sim{border-color:var(--warning);box-shadow:0 0 0 2px var(--warning-bd),0 8px 28px rgba(0,0,0,.25);}
+#personaBox .pb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+#personaBox .pb-head span:first-child{overflow:hidden;text-overflow:ellipsis;}
 #personaBox .pb-body{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px;}
 #personaBox.collapsed .pb-body{display:none;}
-#personaBox input{width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:8px;font-size:13px;background:var(--surface);color:inherit;}
+#personaBox input{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border-strong);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);}
 #personaBox .pb-row{display:flex;gap:6px;}
-#personaBox button.pb-btn{flex:1;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border-strong);background:transparent;color:inherit;}
+#personaBox button.pb-btn{flex:1;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border-strong);background:transparent;color:var(--text);}
 #personaBox button.pb-btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
-#personaBox .pb-info{line-height:1.45;color:var(--text-2);}
+#personaBox .pb-info{line-height:1.45;color:var(--text-2);word-break:break-word;}
 #personaBox .pb-note{font-size:11px;color:var(--warning);font-weight:600;}
+body.sim-mode::before{content:'';position:fixed;top:0;left:0;right:0;height:4px;background:var(--warning);z-index:96;pointer-events:none;}
 #filterRow{display:flex;align-items:flex-start;gap:12px;}
 #filterRow #sortBar{flex:1 1 auto;min-width:0;}
 #turnBar{display:flex;gap:6px;padding:2px 0 8px;margin-left:auto;flex:0 1 auto;max-width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;justify-content:flex-end;}
 #turnBar:empty{display:none;}
+@media (max-width:560px){#filterRow{flex-wrap:wrap;gap:0;}#filterRow #sortBar{flex:1 1 100%;}#turnBar{margin-left:0;justify-content:flex-start;}}
 #turnBar::-webkit-scrollbar{display:none;}
 .flow-pill{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px;font-size:11px;font-weight:600;color:var(--text-2);}
 .flow-pill .fs{padding:2px 8px;border-radius:var(--r-full);border:1px solid var(--border-strong);line-height:1.3;white-space:nowrap;}
@@ -1284,7 +1287,7 @@ body.gating .sidebar,body.gating #mainArea{display:none!important;}
 </div>
 
 <!-- TEST: personificar un usuario del registry. Simulación local: NO escribe en el Sheet ni en Grid. -->
-<div id="personaBox">
+<div id="personaBox" class="collapsed">
   <div class="pb-head" onclick="document.getElementById('personaBox').classList.toggle('collapsed')">
     <span id="personaTitle">👁 Ver como…</span><span id="personaChevron">▾</span>
   </div>
@@ -1452,6 +1455,10 @@ var GridClient = (function(){
   }
 
   function call(path,opts){
+    // TEST/SIM: ninguna escritura (método != GET) sale a Grid; devuelve una respuesta vacía exitosa.
+    if(typeof SIM!=='undefined' && SIM && String((opts&&opts.method)||'GET').toUpperCase()!=='GET'){
+      return Promise.resolve(new Response('{}',{status:200,headers:{'Content-Type':'application/json'}}));
+    }
     if(isSheetPath(path)){
       return enqueueSheet(function(){ return rawCall(path,opts,0); });
     }
@@ -1969,6 +1976,7 @@ function readStateBucket(docId, name){
    `uniqueKey`, así dos gestores editando dos solicitudes distintas nunca
    compiten entre sí (a diferencia de un PUT del bucket completo). */
 function patchStateBucket(docId, name, patchObj, ifUpdatedAt){
+  if(SIM) return Promise.resolve({ok:true}); // TEST/SIM: sin escrituras reales (p. ej. el borrado)
   return fetch('/api/v1/documents/'+docId+'/states/'+name,{
     method:'PATCH',credentials:'include',
     headers:{'Content-Type':'application/json'},
@@ -3043,14 +3051,15 @@ function enterApp(row){
   setText('greeting','Hola, '+name);
   if(init){ setText('avatar',init); setText('sbAvatar',init); }
   setText('sbName',name);
-  setText('sbArea', (row.area ? row.area : 'Área —') + (function(){ var m=misEtapas(); return (m.length===1&&m[0]==='gestor') ? '' : ' · '+(m.map(function(e){return ETAPA_LABEL[e];}).join(' + ')||'Etapa inválida'); })());
+  setText('sbArea', areaConEtapa(row));
 
   // Sitios: el registry los guarda como array; soporta también string legado separado por '|'.
   var userSites = Array.isArray(row.sitios)
     ? row.sitios.filter(Boolean)
     : (row.sitios||'').split('|').filter(Boolean);
   if(!userSites.length) userSites = ENUMS.sitio.slice(); // fallback admin sin sitios asignados
-  USER_SITES = listSitios(userSites); _colegasCache = {};
+  userSites = listSitios(userSites);
+  USER_SITES = userSites.slice(); _colegasCache = {};
   activeSite = userSites[0];
   buildSiteSelectors(userSites);
 
@@ -3249,6 +3258,7 @@ function simCommit(docId, name, key, mutatorFn){
   var rec = mutatorFn(JSON.parse(JSON.stringify(prev)));
   if(rec==null) return Promise.resolve({ok:false,aborted:true,error:'abortado: el estado cambió'});
   if(docId===DOC_IDS.accesos) accesosMap[key]=rec;
+  else if(docId===DOC_IDS.usuarios) REGISTRY_DATA[key]=rec;
   return Promise.resolve({ok:true,record:rec});
 }
 function personaKeys(){ return Object.keys(REGISTRY_DATA||{}); }
@@ -3290,8 +3300,9 @@ function aplicarPersonaUI(row){
   setText('greeting','Hola, '+name);
   if(init){ setText('avatar',init); setText('sbAvatar',init); }
   setText('sbName',name);
-  setText('sbArea', (row.area ? row.area : 'Área —') + (function(){ var m=misEtapas(); return (m.length===1&&m[0]==='gestor') ? '' : ' · '+(m.map(function(e){return ETAPA_LABEL[e];}).join(' + ')||'Etapa inválida'); })());
+  setText('sbArea', areaConEtapa(row));
   var userSites=listSitios(row.sitios); if(!userSites.length) userSites=ENUMS.sitio.slice();
+  userSites=listSitios(userSites);
   USER_SITES=userSites.slice(); _colegasCache={};
   activeSite=userSites[0]; buildSiteSelectors(userSites);
   selectMode=false; selectedIds={}; pendFilter='mio'; _bulkIds=null;
@@ -3306,8 +3317,11 @@ function personificarDesdeInput(){
   SIM=true;
   SESSION.user={ldap:row.ldap,username:row.ldap,email:row.email||'',full_name:row.nombre||row.ldap,name:row.nombre||row.ldap};
   SESSION.usuario=row;
-  var box=document.getElementById('personaBox'); box.classList.add('sim'); box.classList.remove('collapsed');
-  document.getElementById('personaTitle').textContent='👁 Viendo como '+(row.nombre||row.ldap);
+  var box=document.getElementById('personaBox'); box.classList.add('sim'); box.classList.add('collapsed');
+  document.body.classList.add('sim-mode');
+  var estP=normIdentity(row.estatus);
+  document.getElementById('personaTitle').textContent=((estP&&estP!=='aceptado')?'⚠ ':'👁 ')+'Viendo como '+(row.nombre||row.ldap);
+  if(estP&&estP!=='aceptado') showToast('Ojo: este registro está “'+row.estatus+'”; en producción vería la pantalla de '+(estP==='pendiente'?'espera':'rechazo')+', no la app.','warning');
   document.getElementById('personaInfo').innerHTML=personaInfoHTML(row);
   document.getElementById('personaNote').style.display='';
   aplicarPersonaUI(row);
@@ -3315,14 +3329,26 @@ function personificarDesdeInput(){
 }
 function salirPersona(){
   if(!REAL_SESSION) return;
-  SESSION.user=REAL_SESSION.user; SESSION.usuario=REAL_SESSION.usuario; REAL_SESSION=null;
-  SIM=false;
-  var box=document.getElementById('personaBox'); box.classList.remove('sim');
-  document.getElementById('personaTitle').textContent='👁 Ver como…';
-  document.getElementById('personaInfo').textContent='Elige un usuario registrado para ver la app como él.';
-  document.getElementById('personaNote').style.display='none';
-  aplicarPersonaUI(SESSION.usuario);
-  refrescarDatos(); // descarta lo simulado y recarga lo real
+  var btn=document.querySelector('#personaBox .pb-btn:not(.primary)');
+  if(btn){ btn.disabled=true; btn.textContent='Restaurando…'; }
+  // SIM sigue activo hasta que lleguen los datos reales: así nada simulado puede escribirse como real.
+  loadSolicitudes(function(err){
+    if(err){
+      if(btn){ btn.disabled=false; btn.textContent='Volver a mi usuario'; }
+      showToast('No se pudieron recargar los datos reales; sigues en simulación.','error_');
+      return;
+    }
+    SESSION.user=REAL_SESSION.user; SESSION.usuario=REAL_SESSION.usuario; REAL_SESSION=null;
+    SIM=false;
+    var box=document.getElementById('personaBox'); box.classList.remove('sim'); box.classList.add('collapsed');
+    document.body.classList.remove('sim-mode');
+    document.getElementById('personaTitle').textContent='👁 Ver como…';
+    document.getElementById('personaInfo').textContent='Elige un usuario registrado para ver la app como él.';
+    document.getElementById('personaNote').style.display='none';
+    if(btn){ btn.disabled=false; btn.textContent='Volver a mi usuario'; }
+    aplicarPersonaUI(SESSION.usuario);
+    showToast('Simulación terminada: datos reales recargados','success');
+  });
 }
 
 /* ---- Visibilidad por sitio + área + líder -----------------------------------
@@ -3348,10 +3374,10 @@ function emailsEnTexto(t){ return (String(t||'').toLowerCase().match(/[^\s,;<>"'
 /* Correos de mi área con acceso al sitio dado (yo incluido). */
 function colegasEmails(sitio){
   var area=normArea(SESSION.usuario&&SESSION.usuario.area);
-  var key=area+'|'+sitio;
+  var me=normMail((SESSION.user&&SESSION.user.email)||(SESSION.usuario&&SESSION.usuario.email));
+  var key=area+'|'+sitio+'|'+me;
   if(_colegasCache[key]) return _colegasCache[key];
   var set={};
-  var me=normMail((SESSION.user&&SESSION.user.email)||(SESSION.usuario&&SESSION.usuario.email));
   if(me) set[me]=true;
   Object.keys(REGISTRY_DATA||{}).forEach(function(k){
     var u=REGISTRY_DATA[k]; if(!u) return;
@@ -3381,6 +3407,13 @@ function esMiTurno(s){
 function esMiTurnoIntermedio(s){ return esMiTurno(s) && etapaActual(s)!=='gestor'; }
 /* Mi turno en la etapa final => aceptar con vencimiento (escribe el Sheet). */
 function esMiTurnoFinal(s){ return esMiTurno(s) && etapaActual(s)==='gestor'; }
+/* "Área · Etapas" para la barra lateral; omite la etapa si repite el área (LP · LP) o es sólo gestor. */
+function areaConEtapa(row){
+  var base=row.area ? row.area : 'Área —';
+  var m=misEtapas();
+  if(m.length===1 && (m[0]==='gestor' || normArea(ETAPA_LABEL[m[0]])===normArea(row.area))) return base;
+  return base+' · '+(m.map(function(e){return ETAPA_LABEL[e];}).join(' + ')||'Etapa inválida');
+}
 /* Mini-stepper para tarjetas: LP ✓ › SHE › Gestor */
 function flujoPillHTML(s){
   if(!tieneFlujo(s) || s.estatus==='aceptado') return '';
