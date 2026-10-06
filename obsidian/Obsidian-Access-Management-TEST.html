@@ -124,7 +124,10 @@ body,.card,.panel,.modal,.sidebar,.d-section,.search-wrap,
   display:flex;align-items:center;gap:8px;background:var(--card);
   border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;
 }
-.search-wrap input{border:none;outline:none;flex:1;background:transparent;color:var(--text);}
+.search-wrap{min-width:0;}
+.search-wrap input{border:none;outline:none;flex:1;min-width:0;width:100%;background:transparent;color:var(--text);}
+.toolbar-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;}
+@media (max-width:560px){.toolbar-row{flex-wrap:wrap;}.toolbar-row .search-wrap{flex:1 1 100%!important;}}
 .search-wrap input::placeholder{color:var(--text-muted);}
 .eyebrow{
   font-size:11px;font-weight:600;color:var(--text-muted);
@@ -398,7 +401,7 @@ html.vt-running *{transition:none!important;}
 
 /* ── Main area (columna centrada en móvil) ──────────────────────── */
 #mainArea{
-  flex:1;display:flex;flex-direction:column;
+  flex:1;min-width:0;display:flex;flex-direction:column;
   min-height:100vh;max-width:480px;margin:0 auto;
   background:var(--page);position:relative;
 }
@@ -639,17 +642,18 @@ body.sim-mode::before{content:'';position:fixed;top:0;left:0;right:0;height:4px;
    se neutraliza para que el footprint visual sea EXACTAMENTE 260 x 372. */
 #qrmBadge>div{width:260px;height:372px;padding:0!important;display:flex;align-items:stretch;justify-content:center;}
 #qrmBadge .gafete-card{width:260px;height:372px;min-width:260px;max-width:260px;min-height:372px;max-height:372px;}
-.qrm-close{position:absolute;top:12px;right:12px;background:var(--surface);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--text-2);}
+.qrm-close{position:absolute;top:10px;right:10px;z-index:2;background:var(--surface);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--text-2);}
 .qrm-name{font-size:14px;font-weight:800;color:var(--text);text-align:center;line-height:1.2;}
 .qrm-id{font-size:10px;color:var(--text-2);font-weight:600;letter-spacing:.5px;text-align:center;}
 .qrm-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;width:100%;}
 .qrm-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--border);cursor:pointer;font-size:10px;font-weight:700;color:var(--text-2);}
 .qrm-btn:hover{background:var(--primary-bg);border-color:var(--primary);color:var(--primary);}
 .qrm-btn svg{width:20px;height:20px;fill:currentColor;}
-.qrm-edit-trigger{width:100%;justify-content:center;}
-.qrm-box{max-height:92vh;overflow-y:auto;box-sizing:border-box;}
+.qrm-edit-trigger{width:100%;justify-content:center;min-height:36px;}
+.qrm-box{max-height:92vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;scrollbar-gutter:stable both-edges;padding-top:56px;max-width:340px;width:min(340px,calc(100vw - 16px));}
 @media(max-width:340px){
-  .qrm-box{width:calc(100vw - 12px);padding-left:14px;padding-right:14px;}
+  .qrm-box{padding-left:10px;padding-right:10px;}
+  #qrmBadge{transform:scale(.92);transform-origin:top center;margin-bottom:-26px;}
 }
 .photo-editor-panel{display:none;width:100%;flex-direction:column;align-items:center;gap:14px;}
 .photo-editor-panel.open{display:flex;}
@@ -691,10 +695,12 @@ body.sim-mode::before{content:'';position:fixed;top:0;left:0;right:0;height:4px;
 /* ── Modal (ajustes propios sobre la base compartida) ───────────── */
 .modal{border-radius:var(--r-lg);max-width:380px;padding:20px;max-height:90vh;}
 .modal-div{height:1px;background:var(--border);margin:16px 0;}
-.modal-actions{display:flex;gap:10px;margin-top:20px;}
+.modal-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;}
+.modal-actions .btn{min-width:0;}
+@media (max-width:360px){.modal-actions{flex-direction:column-reverse;}.modal-actions .btn{flex:1 1 auto;width:100%;}}
 .quick-chips{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
 .quick-chips button{
-  padding:6px 12px;border-radius:var(--r-full);
+  min-height:34px;padding:7px 14px;border-radius:var(--r-full);
   background:var(--primary-bg);color:var(--primary);font-size:13px;font-weight:600;
   border:1px solid var(--primary-light);
 }
@@ -734,6 +740,8 @@ body.gating .sidebar,body.gating #mainArea{display:none!important;}
   display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto;
 }
 .gate.open{display:flex;}
+.gate-card,.gate-card *{min-width:0;overflow-wrap:anywhere;}
+#devToggle{min-height:32px;min-width:44px;}
 .gate-card{
   background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
   width:100%;max-width:420px;padding:28px 24px;text-align:center;
@@ -893,7 +901,7 @@ body.gating .sidebar,body.gating #mainArea{display:none!important;}
   </header>
 
   <div class="subhead">
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+    <div class="toolbar-row">
       <div class="search-wrap" style="flex:1;margin-bottom:0" id="searchInputWrap">
         <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M380-320q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l224 224q11 11 11 28t-11 28q-11 11-28 11t-28-11L532-372q-30 24-69 38t-83 14Zm0-80q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
         <input id="searchInput" type="text" placeholder="Buscar por nombre, empresa o sitio…" oninput="render()">
@@ -3487,16 +3495,24 @@ function renderTurnBar(){
 function flujoDetalleHTML(s){
   var ruta=rutaDe(s), pasos=(s.flujo&&s.flujo.pasos)||{}, rech=s.flujo&&s.flujo.rechazo;
   var cur=s.estatus==='pendiente' ? etapaActual(s) : null;
+  var hayRegistro=Object.keys(pasos).length>0 || !!rech;
+  // Resuelta antes del flujo por etapas (o sin registro): no hay nada que mostrar.
+  if(s.estatus!=='pendiente' && !hayRegistro) return '';
+  function quien(o){ return [o&&o.por, o&&o.fecha?fmtDate(o.fecha):''].filter(Boolean).map(function(x){return esc(x);}).join(' · '); }
   var rows=ruta.map(function(e){
-    var k=(e==='gestor'?ic.user:ic.check)+' '+ETAPA_LABEL[e], v;
+    var done=(e!=='gestor' && !!pasos[e]) || (e==='gestor' && s.estatus==='aceptado');
+    var k=(done?ic.check:(rech&&rech.etapa===e?ic.x:ic.clock))+' '+ETAPA_LABEL[e], v;
     if(e!=='gestor' && pasos[e]){
-      v='<span style="color:var(--success)">Aprobó</span> · '+esc(pasos[e].por||'—')+' · '+fmtDate(pasos[e].fecha);
+      v='<span style="color:var(--success)">Aprobó</span>'+(quien(pasos[e])?' · '+quien(pasos[e]):'');
     } else if(e==='gestor' && s.estatus==='aceptado'){
-      v='<span style="color:var(--success)">Aprobó</span> · '+esc(s.resueltosPor||'—')+' · '+fmtDate(s.fechaResolucion);
+      var qg=quien({por:s.resueltosPor,fecha:s.fechaResolucion});
+      v='<span style="color:var(--success)">Aprobó</span>'+(qg?' · '+qg:'');
     } else if(rech && rech.etapa===e){
-      v='<span style="color:var(--error)">Rechazó</span> · '+esc(rech.por||'—')+' · '+fmtDate(rech.fecha);
+      v='<span style="color:var(--error)">Rechazó</span>'+(quien(rech)?' · '+quien(rech):'');
     } else if(cur===e){
       v='<span style="color:var(--primary)">En revisión</span>';
+    } else if(s.estatus!=='pendiente'){
+      v='<span style="color:var(--text-muted)">Sin registro</span>';
     } else {
       v='<span style="color:var(--text-muted)">En espera</span>';
     }
@@ -3859,8 +3875,9 @@ function buildBadge(s){
   var curp=esc(rawCurp);
   var wmText=esc(Array(40).join(rawCurp+' '));
   var nombre=esc(((s.nombre||'')+' '+(s.apPaterno||'')+' '+(s.apMaterno||'')).trim().toUpperCase());
-  var empresa=esc((s.empresa||'—').substring(0,20));
-  var puesto=esc((s.puesto||'—').substring(0,20));
+  function cut(t,n){ t=String(t||'—'); return t.length>n ? t.substring(0,n-1).trimEnd()+'…' : t; }
+  var empresa=esc(cut(s.empresa,22));
+  var puesto=esc(cut(s.puesto,22));
   return '<div style="display:flex;justify-content:center;padding:8px 0 4px">'+
     '<div class="gafete-card">'+
       '<div class="gafete-lanyard"></div>'+
