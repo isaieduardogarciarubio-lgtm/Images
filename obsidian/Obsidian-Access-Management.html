@@ -2867,6 +2867,7 @@ function bootstrap(){
 
     return fetchUsuarios().then(function(result){
       var registryData = result.data || {};
+      REGISTRY_DATA = registryData; _colegasCache = {};
       var row = findUsuario(registryData, user);
 
       // Bypass de arranque en frío: SÓLO si el registry está literalmente vacío.
@@ -3015,6 +3016,7 @@ function enterApp(row){
     ? row.sitios.filter(Boolean)
     : (row.sitios||'').split('|').filter(Boolean);
   if(!userSites.length) userSites = ENUMS.sitio.slice(); // fallback admin sin sitios asignados
+  USER_SITES = listSitios(userSites); _colegasCache = {};
   activeSite = userSites[0];
   buildSiteSelectors(userSites);
 
@@ -3199,11 +3201,55 @@ function misEtapas(){
   return list.filter(function(x,i){ return ETAPAS.indexOf(x)!==-1 && list.indexOf(x)===i; });
 }
 function esGestor(){ return misEtapas().indexOf('gestor')!==-1; }
-/* Quien no es gestor sólo ve solicitudes cuya ruta incluye alguna de sus etapas. */
+/* ---- Visibilidad por sitio + área + líder -----------------------------------
+   Reglas (aplican igual a admin y gestor de la app):
+   1. Sólo solicitudes de los sitios asignados al usuario (USER_SITES).
+   2. Área LP: ve todo lo de sus sitios.
+   3. Cualquier otra área (incluida SHE): ve las solicitudes cuyo "Correo líder que
+      justifique el ingreso" es él mismo o un colega (misma área y el sitio de la
+      solicitud entre sus sitios, estatus aceptado en el registry).
+   4. Excepción SHE: ve SIEMPRE (todo estatus) las solicitudes de empresas con flujo
+      cuya ruta incluye SHE en sus sitios, aunque no estén asignadas a él ni a un colega. */
+var USER_SITES = [];       // se llena en enterApp()
+var REGISTRY_DATA = {};    // user_registry completo, se llena en bootstrap()
+var _colegasCache = {};
+function normMail(v){ return String(v||'').trim().toLowerCase(); }
+function listSitios(v){
+  return (Array.isArray(v)?v:String(v||'').split('|')).map(function(x){return String(x).trim().toUpperCase();}).filter(Boolean);
+}
+function normArea(v){ return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase(); }
+function areaEsLP(a){ a=normArea(a); return a==='LP' || a==='LOSS PREVENTION'; }
+function areaEsSHE(a){ a=normArea(a); return a==='SHE'; }
+function emailsEnTexto(t){ return (String(t||'').toLowerCase().match(/[^\s,;<>"']+@[^\s,;<>"']+/g)||[]); }
+/* Correos de mi área con acceso al sitio dado (yo incluido). */
+function colegasEmails(sitio){
+  var area=normArea(SESSION.usuario&&SESSION.usuario.area);
+  var key=area+'|'+sitio;
+  if(_colegasCache[key]) return _colegasCache[key];
+  var set={};
+  var me=normMail((SESSION.user&&SESSION.user.email)||(SESSION.usuario&&SESSION.usuario.email));
+  if(me) set[me]=true;
+  Object.keys(REGISTRY_DATA||{}).forEach(function(k){
+    var u=REGISTRY_DATA[k]; if(!u) return;
+    var st=normIdentity(u.estatus);
+    if(st && st!=='aceptado' && st!=='activo' && st!=='active') return;
+    if(normArea(u.area)!==area || !area) return;
+    if(listSitios(u.sitios).indexOf(sitio)===-1) return;
+    var em=normMail(u.email); if(em) set[em]=true;
+  });
+  _colegasCache[key]=set;
+  return set;
+}
 function visibleParaMi(s){
-  if(esGestor()) return true;
-  var ruta=rutaDe(s);
-  return misEtapas().some(function(e){ return ruta.indexOf(e)!==-1; });
+  if(!s) return false;
+  var sitio=String(s.sitio||'').toUpperCase();
+  if(USER_SITES.indexOf(sitio)===-1) return false;
+  var area=SESSION.usuario&&SESSION.usuario.area;
+  if(areaEsLP(area)) return true;
+  var colegas=colegasEmails(sitio);
+  if(emailsEnTexto(s.liderJustifica).some(function(e){ return colegas[e]; })) return true;
+  if((areaEsSHE(area) || misEtapas().indexOf('she')!==-1) && tieneFlujo(s) && rutaDe(s).indexOf('she')!==-1) return true;
+  return false;
 }
 /* Es mi turno si la etapa actual de la solicitud es una de mis etapas. */
 function esMiTurno(s){
@@ -4517,11 +4563,9 @@ function buscarAccesos(){
   var campo=detectSearchField(valor);
 
   var v=valor.toLowerCase();
-  // LP/SHE: la búsqueda se limita a sus sitios asignados y a empresas con flujo que los incluya.
-  var mySites=(Array.isArray(SESSION.usuario&&SESSION.usuario.sitios)?SESSION.usuario.sitios:String((SESSION.usuario&&SESSION.usuario.sitios)||'').split('|')).filter(Boolean);
+  // La búsqueda respeta las mismas reglas de visibilidad (sitio + área + líder).
   searchResults=solicitudes.filter(function(s){
     if(!visibleParaMi(s)) return false;
-    if(!esGestor() && mySites.indexOf(s.sitio)===-1) return false;
     var haystack = campo==='qr'   ? (s.qr||'') :
                    campo==='curp' ? (s.curp||'') :
                    (s.correo||'');
