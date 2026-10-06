@@ -3207,7 +3207,7 @@ function esGestor(){ return misEtapas().indexOf('gestor')!==-1; }
    2. Área LP: ve todo lo de sus sitios.
    3. Cualquier otra área (incluida SHE): ve las solicitudes cuyo "Correo líder que
       justifique el ingreso" es él mismo o un colega (misma área y el sitio de la
-      solicitud entre sus sitios, estatus aceptado en el registry).
+      solicitud entre sus sitios; sin importar su estatus: una baja sigue contando).
    4. Excepción SHE: ve SIEMPRE (todo estatus) las solicitudes de empresas con flujo
       cuya ruta incluye SHE en sus sitios, aunque no estén asignadas a él ni a un colega. */
 var USER_SITES = [];       // se llena en enterApp()
@@ -3231,8 +3231,6 @@ function colegasEmails(sitio){
   if(me) set[me]=true;
   Object.keys(REGISTRY_DATA||{}).forEach(function(k){
     var u=REGISTRY_DATA[k]; if(!u) return;
-    var st=normIdentity(u.estatus);
-    if(st && st!=='aceptado' && st!=='activo' && st!=='active') return;
     if(normArea(u.area)!==area || !area) return;
     if(listSitios(u.sitios).indexOf(sitio)===-1) return;
     var em=normMail(u.email); if(em) set[em]=true;
