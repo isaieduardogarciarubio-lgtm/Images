@@ -84,6 +84,16 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
 }
 .pill b{color:var(--text-primary);font-weight:600;}
 .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--kinetic-gold);flex:none;}
+.pill.pill-err{border-color:rgba(255,92,108,.35);color:#FFB3BB;}
+.pill.pill-err .dot{background:var(--err);}
+.pill-action{
+  font-family:inherit;font-size:12px;font-weight:600;margin-left:6px;
+  background:transparent;border:1px solid rgba(255,92,108,.45);color:#FFB3BB;
+  border-radius:var(--radius-pill);padding:3px 10px;cursor:pointer;
+}
+.pill-action:hover{border-color:var(--err);color:var(--text-primary);}
+.cat-age{font-size:11px;color:var(--text-muted);letter-spacing:.01em;}
+.cat-age.warn{color:var(--warn);}
 
 .btn-refresh{
   width:38px;height:38px;flex:none;border-radius:50%;
@@ -158,8 +168,6 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
 .btn-primary svg{stroke:var(--text-on-accent);}
 .btn-ghost{background:var(--surface-mid);border-color:var(--border-specular);color:var(--text-primary);}
 .btn-ghost:hover{border-color:var(--border-specular-strong);}
-.btn-quiet{background:transparent;color:var(--text-muted);}
-.btn-quiet:hover{color:var(--text-primary);background:var(--surface-mid);}
 .btn:disabled{opacity:.4;cursor:not-allowed;filter:none;}
 .btn-block{width:100%;}
 
@@ -252,15 +260,15 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
 .notice.warn{border-color:rgba(255,158,69,.32);background:rgba(255,158,69,.08);color:#FFCF9E;}
 .notice.err{border-color:rgba(255,92,108,.32);background:rgba(255,92,108,.08);color:#FFB3BB;}
 .notice svg{flex:none;margin-top:1px;}
+.classify-grid{display:grid;gap:8px;margin:0 0 18px;}
 
 @media(max-width:560px){
-  .card{padding:20px 18px;}
   .panel-body{padding:22px 20px 26px;}
   .v-photo-wrap{height:200px;}
   .verdict h2{font-size:19px;}
 }
 </style>
-<script>(function(){function _ok(r,onOk){return r.json().then(function(b){if(!r.ok)throw b;onOk(b);return b;});}window.GRID=window.GRID||{};window.GRID.docId="01M2EWM4BEMGAADH0H7JH4WJ78";window.GRID._stateUpdatedAt='';window.GRID._stateUpdatedAtByName=window.GRID._stateUpdatedAtByName||{};window.GRID.states={get:function(name){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n)).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},set:function(name,data,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},patch:function(name,patchData,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});}};window.GRID.state={get:function(){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state').then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},set:function(data,ifUpdatedAt){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},patch:function(patchData,ifUpdatedAt){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});}};}());</script><script>(function(){function _ok(r,onOk){return r.json().then(function(b){if(!r.ok)throw b;onOk(b);return b;});}window.GRID=window.GRID||{};window.GRID.docId="01M2EWM4BEMGAADH0H7JH4WJ78";window.GRID._stateUpdatedAt='';window.GRID._stateUpdatedAtByName=window.GRID._stateUpdatedAtByName||{};window.GRID.states={get:function(name){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n)).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},set:function(name,data,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},patch:function(name,patchData,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});}};window.GRID.state={get:function(){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state').then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},set:function(data,ifUpdatedAt){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},patch:function(patchData,ifUpdatedAt){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});}};}());</script><script>(function(){function _ok(r,onOk){return r.json().then(function(b){if(!r.ok)throw b;onOk(b);return b;});}window.GRID=window.GRID||{};window.GRID.docId="01M2EWM4BEMGAADH0H7JH4WJ78";window.GRID._stateUpdatedAt='';window.GRID._stateUpdatedAtByName=window.GRID._stateUpdatedAtByName||{};window.GRID.states={get:function(name){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n)).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},set:function(name,data,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},patch:function(name,patchData,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});}};window.GRID.state={get:function(){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state').then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},set:function(data,ifUpdatedAt){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},patch:function(patchData,ifUpdatedAt){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});}};}());</script></head>
+</head>
 <body>
 
 <!-- ═══ Isotipo: «El Portal Tezcatl Bisecado» — Obsidian v2026.1 §2 ═══
@@ -305,6 +313,7 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
     <div class="wrap">
       <div class="spinner"></div>
       <h2 style="font-family:var(--font-ui);font-size:18px;font-weight:600">Comprobando acceso…</h2>
+      <p id="boot-msg" style="color:var(--text-muted);font-size:13px;margin-top:8px;max-width:400px;margin-left:auto;margin-right:auto"></p>
     </div>
   </div>
 </div>
@@ -331,10 +340,15 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
       <div class="brand-txt">
         <h1 id="scan-sitio">—</h1>
         <p id="scan-user">—</p>
+        <p class="cat-age" id="catalog-age" aria-live="polite"></p>
       </div>
     </div>
     <span class="pill" id="outbox-pill" style="display:none" title="Eventos aún no confirmados en Grid">
       <span class="dot"></span><b id="outbox-count">0</b>&nbsp;por sincronizar
+    </span>
+    <span class="pill pill-err" id="dead-pill" style="display:none" title="Registros que no se pudieron sincronizar">
+      <span class="dot"></span><b id="dead-count">0</b>&nbsp;registros con error
+      <button type="button" class="pill-action" id="dead-retry">Reintentar</button>
     </span>
     <button class="btn-refresh" id="btn-fullscreen" title="Pantalla completa" aria-label="Activar pantalla completa" aria-pressed="false">
       <svg class="ico-expand" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -410,27 +424,133 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
 
 <script>
 "use strict";
+/* ============================================================================
+   OBSIDIAN SHARED v1 — mantener IDÉNTICO en Access Management, Admin Panel y Scan.
+   Si cambias algo aquí, cámbialo en las 3 apps.
+   ============================================================================ */
+var OBS_TZ = 'America/Mexico_City';
+var OBS_FETCH_TIMEOUT_MS = 25000;
+var OBS_RETRY_AFTER_MAX_MS = 60000;
+
+/* Clave normalizada para comparar sitios/áreas/zonas: sin acentos, trim,
+   espacios colapsados, mayúsculas. Solo para COMPARAR, nunca para escribir. */
+function obsNormKey(s){
+  return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+/* Fecha de calendario estricta, siempre DÍA-PRIMERO (México).
+   Acepta: serial de Sheets (número), ISO YYYY-MM-DD[...], DD/MM/YYYY, DD/MM/YY,
+   DD-MM-YYYY, DD.MM.YYYY. Cualquier otra cosa -> null (sin Date.parse). */
+function obsParseFechaMX(v){
+  if (v == null) return null;
+  var y, m, d;
+  if (typeof v === 'number' && isFinite(v) && v > 20000 && v < 80000) {
+    var dt = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 86400000);
+    y = dt.getUTCFullYear(); m = dt.getUTCMonth() + 1; d = dt.getUTCDate();
+  } else {
+    var s = String(v).trim(), r;
+    if (!s) return null;
+    if ((r = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|[T\s])/.exec(s))) { y = +r[1]; m = +r[2]; d = +r[3]; }
+    else if ((r = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})(?:$|\s)/.exec(s))) {
+      d = +r[1]; m = +r[2]; y = +r[3]; if (r[3].length === 2) y += 2000;
+    } else return null;
+  }
+  if (m < 1 || m > 12 || d < 1) return null;
+  var dim = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  if (d > dim) return null;
+  var iso = y + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  return { y: y, m: m, d: d, ord: y * 10000 + m * 100 + d, iso: iso };
+}
+
+/* Hoy (o la fecha de un Date) en zona México, mismo formato que obsParseFechaMX. */
+function obsTodayMX(date){
+  var p = new Intl.DateTimeFormat('en-CA', { timeZone: OBS_TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(date || new Date()); // YYYY-MM-DD
+  return obsParseFechaMX(p);
+}
+
+/* fetch con timeout. Un timeout se rechaza como TypeError-like {name:'TimeoutError'}
+   para que la capa de red lo trate como error de red (ambiguo en escrituras). */
+function obsFetchWithTimeout(fetchImpl, url, opts, ms){
+  opts = opts || {};
+  if (typeof AbortController === 'undefined') return fetchImpl(url, opts);
+  var ac = new AbortController(), timer = setTimeout(function(){ ac.abort(); }, ms || OBS_FETCH_TIMEOUT_MS);
+  if (opts.signal) { try { opts.signal.addEventListener('abort', function(){ ac.abort(); }); } catch (_) {} }
+  var o = {}; for (var k in opts) o[k] = opts[k]; o.signal = ac.signal;
+  return fetchImpl(url, o).then(function(r){ clearTimeout(timer); return r; }, function(e){
+    clearTimeout(timer);
+    if (ac.signal.aborted) { var t = new Error('timeout ' + (ms || OBS_FETCH_TIMEOUT_MS) + 'ms'); t.name = 'TimeoutError'; t.network = true; throw t; }
+    throw e;
+  });
+}
+
+/* Retry-After (segundos o fecha HTTP) -> ms, con tope. */
+function obsRetryAfterMsCapped(h, fallbackMs){
+  var ms = NaN;
+  if (h != null && h !== '') {
+    var n = Number(h);
+    ms = isFinite(n) ? n * 1000 : (Date.parse(h) - Date.now());
+  }
+  if (!isFinite(ms) || ms < 0) ms = fallbackMs || 2000;
+  return Math.min(ms, OBS_RETRY_AFTER_MAX_MS);
+}
+
+/* Clasificación de status HTTP. */
+function obsIsPermanentHttp(status){ return status >= 400 && status < 500 && status !== 408 && status !== 409 && status !== 429; }
+
+/* Escape para HTML (texto y atributos con comillas dobles o simples). */
+function obsEscHtml(s){
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* Valor de texto libre que no puede empezar como fórmula de Sheets. */
+function obsLooksLikeFormula(s){ return /^[=+\-@\t\r]/.test(String(s == null ? '' : s)); }
+
+/* Contrato de build: Meta.build_contract puede listar varios builds separados por '|'. */
+function obsBuildAccepted(metaValue, buildId){
+  return String(metaValue == null ? '' : metaValue).split('|').map(function(x){ return x.trim(); })
+    .filter(Boolean).indexOf(buildId) >= 0;
+}
+/* ============================== /OBSIDIAN SHARED v1 ========================= */
+
 /* ══════════════════════════════════════════════════════════════════
    CONFIGURACIÓN — Ecosistema Grid
    ══════════════════════════════════════════════════════════════════ */
+/* Contrato de build: debe aparecer en Meta.build_contract del libro de
+   Usuarios (CFG.ADMIN_SHEET_ID, Meta!A:D — el mismo Meta que leen Access
+   Management y Admin Panel). NO cambiar sin coordinar con las otras apps. */
+var OBS_BUILD_ID = 'obsidian-2026.10.06.4';
+/* Versión visible de esta app (badge inferior derecho). */
+var OBS_APP_VERSION = 'obsidian-scan-v3.1.0';
+
+var OBS_USERS_HEADERS = ['ldap','email','nombre','rol_app','estatus_app','areas','sitios','etapas','permiso_guardia','guardia_sitios','guardia_estatus','fecha_registro','fecha_resolucion','resuelto_por','origen'];
+var OBS_SCAN_HEADERS  = ['id','write_id','qr','nombre','empresa','sitio','resultado','razon','guardia_hash','guardia_source_field','ts','tz','app'];
+var OBS_META_HEADERS  = ['clave','valor','actualizado_en','notas'];
+var OBS_SITES_HEADERS = ['sitio','activo','origen'];
+var OBS_STABLE_MS = 650;   // espera de la segunda lectura de durabilidad (§15.18)
+
 var CFG = {
-  DOC_ADMIN:      "01KWWVPQ6S6RDW2213S9911CDS",           // resuelve OAuth del owner para Sheets
-  DOC_ACCESOS:    "01KVX6DQMZJRFQMNJ15HKBT4ZP",           // eventos de ingreso
+  DOC_ADMIN:      "01KWWVPQ6S6RDW2213S9911CDS",           // resuelve OAuth del owner para Sheets (ACL de lectura y escritura)
   SHEET_ID:       "1YpDd-1ketJfGu3gyoQ-qU85F3972CyK_tAy9gHoutXA",
   SHEET_RANGE:    "Respuestas de formulario 1",
-  SHEET_RANGE_FOTOS: "Publicados",   // Nuevo_QR -> view_url (mismo libro, otra pestaña)
-  TZ:             "America/Mexico_City",
+  SHEET_RANGE_FOTOS: "Publicados_activos",   // nuevo_qr -> doc_id (+ view_url opcional); misma pestaña que Access Management
+  TZ:             OBS_TZ,
   ADMIN_SHEET_ID:  "1Lb_c0yPjVCLGYl-Tx9dVn9ESAbpE_PubPvKN1FWyhf8",
   USERS_TAB:       "Usuarios",
   SITES_TAB:       "Sitios",
+  META_TAB:        "Meta",
   SCAN_SHEET_ID:   "1WE7vhQIy7uV_lw3j5e_7xQazELH102WtvEsO9eOZPE8",
   SCAN_TAB:        "Ingresos",
 
-  STABILITY_MS:   500,   // espera de la segunda lectura de durabilidad (§15.18)
-  MAX_ATTEMPTS:   6,     // reintentos del ciclo optimista
-  SUPPRESS_MS:    3000,  // ventana anti-rebote del mismo código
+  MAX_ATTEMPTS:        6,    // reintentos del ciclo optimista dentro de una escritura
+  OUTBOX_MAX_ATTEMPTS: 8,    // ciclos de drenado antes de mover un registro a "con error"
+  SUPPRESS_MS:    3000,      // ventana anti-rebote del mismo código
   ESTATUS_OK:     "aceptado",
   GUARDIA_OK:     "aceptado",
+  PHOTO_TIMEOUT_MS: 10000,   // por cada fetch de la foto (metadata y blob)
+  BOOT_MAX_RETRIES: 6,       // reintentos de arranque ante red/429/5xx/timeout
 
   /* Gate de producción: sólo guardias aceptados en Usuarios Sheet.
      El sitio se asigna desde Admin Panel y Scan nunca lo elige. */
@@ -442,7 +562,10 @@ var CFG = {
      implica releer la hoja completa; 5 min es muy conservador frente al
      único dato de carga que tenemos (ráfaga de 20 lecturas a ~2/seg sin
      fallo, §16.9) — esto es ~600x más lento que eso. */
-  CATALOG_REFRESH_MS: 5 * 60 * 1000
+  CATALOG_REFRESH_MS: 5 * 60 * 1000,
+  /* A partir de esta edad el catálogo se considera desactualizado: los
+     veredictos "permitido" muestran un aviso para confirmar con gestor. */
+  CATALOG_STALE_MS:  15 * 60 * 1000
 };
 
 function fnv1a(str){
@@ -494,39 +617,37 @@ async function sha256Hex(str){
   return "nc_" + fnv1a(str) + fnv1a(str.split("").reverse().join(""));
 }
 
-/* ── Fecha en zona del sitio ──────────────────────────────────────
-   Toda comparación de vencimiento ocurre en America/Mexico_City,
-   no en la zona del dispositivo, que puede estar mal configurada. */
-function partsInTz(date){
-  var fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: CFG.TZ, year: "numeric", month: "2-digit", day: "2-digit"
-  });
-  var p = {};
-  fmt.formatToParts(date).forEach(function(x){ if (x.type !== "literal") p[x.type] = x.value; });
-  return { y: +p.year, m: +p.month, d: +p.day };
+/* ── Privacidad en logs (§15.17 regla 17) ─────────────────────────
+   La consola nunca imprime QR completos, nombres, ldap ni correos:
+   del QR sólo los últimos 4 caracteres; de un error, su tipo y mensaje
+   recortado con correos enmascarados. */
+function redactQR(qr){
+  var s = String(qr == null ? "" : qr);
+  return s ? "…" + s.slice(-4) : "(vacío)";
 }
-function todayOrdinal(){
-  var p = partsInTz(new Date());
-  return p.y * 10000 + p.m * 100 + p.d;
+function redactErr(e){
+  if (e == null) return "(sin detalle)";
+  var s = (e.name && e.name !== "Error" ? e.name + ": " : "") + String(e.message || e);
+  return s.replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+/g, "<correo>").slice(0, 160);
 }
 
-/* ── Semana ISO-8601 con week-year ────────────────────────────────
-   El week-year importa: entre el 29-dic y el 3-ene la semana ISO
-   pertenece al año vecino. Usar getFullYear() ahí mezcla buckets. */
-function isoWeekParts(date){
-  var p = partsInTz(date);
-  var t = new Date(Date.UTC(p.y, p.m - 1, p.d));
-  var day = t.getUTCDay() || 7;
-  t.setUTCDate(t.getUTCDate() + 4 - day);
-  var yStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  var week = Math.ceil((((t - yStart) / 86400000) + 1) / 7);
-  return { year: t.getUTCFullYear(), week: week };
+/* Error de esquema/configuración (no transitorio): bloquea el arranque. */
+function obsAssertHeaders(row, expected, tab){
+  var got = (row || []).map(function(x){ return String(x == null ? "" : x).trim(); });
+  var e;
+  if (got.length < expected.length) { e = new Error(tab + ": esquema incompleto"); e.code = "schema"; e.tab = tab; throw e; }
+  for (var i = 0; i < expected.length; i++) {
+    if (got[i] !== expected[i]) {
+      e = new Error(tab + ": columna " + (i + 1) + " esperada \"" + expected[i] + "\", recibida \"" + (got[i] || "(vacía)") + "\"");
+      e.code = "schema"; e.tab = tab; throw e;
+    }
+  }
 }
 
 /* ── Normalización ───────────────────────────────────────────────── */
 function norm(s){
   return String(s == null ? "" : s).trim().toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    .normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 /* Payload del QR: puede llegar desnudo, envuelto en URL o en JSON. */
@@ -550,135 +671,145 @@ function normalizeQR(raw){
   return s.toUpperCase();
 }
 
-/* Fecha de vencimiento: DD/MM/AAAA, AAAA-MM-DD o serial de Google. */
-function parseVencimiento(v){
-  var s = String(v == null ? "" : v).trim();
-  if (!s) return null;
+/* Fecha {y,m,d} de obsParseFechaMX -> DD/MM/AAAA para mostrar. */
+function fechaLabel(f){
+  return f ? ("0" + f.d).slice(-2) + "/" + ("0" + f.m).slice(-2) + "/" + f.y : "";
+}
 
-  var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) return { ord: +m[1]*10000 + +m[2]*100 + +m[3], label: m[3].padStart(2,"0")+"/"+m[2].padStart(2,"0")+"/"+m[1] };
-
-  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
-  if (m) {
-    var d = +m[1], mo = +m[2];
-    if (d > 12 && mo <= 12) { /* inequívoco DD/MM */ }
-    else if (mo > 12) { var t = d; d = mo; mo = t; }   /* venía MM/DD */
-    return { ord: +m[3]*10000 + mo*100 + d, label: ("0"+d).slice(-2)+"/"+("0"+mo).slice(-2)+"/"+m[3] };
-  }
-
-  if (/^\d+(\.\d+)?$/.test(s)) {                        /* serial de Sheets */
-    var serial = Math.floor(parseFloat(s));
-    if (serial > 20000 && serial < 80000) {
-      var dt = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
-      var y = dt.getUTCFullYear(), mm = dt.getUTCMonth()+1, dd = dt.getUTCDate();
-      return { ord: y*10000 + mm*100 + dd, label: ("0"+dd).slice(-2)+"/"+("0"+mm).slice(-2)+"/"+y };
-    }
-  }
-  var p = Date.parse(s);
-  if (!isNaN(p)) {
-    var q = partsInTz(new Date(p));
-    return { ord: q.y*10000 + q.m*100 + q.d, label: ("0"+q.d).slice(-2)+"/"+("0"+q.m).slice(-2)+"/"+q.y };
-  }
-  return null;
+/* Promesa con tope de tiempo. Si la original resuelve tarde, onLate
+   recibe el valor (p.ej. para revocar un object URL que ya nadie usa). */
+function conTimeout(p, ms, onLate){
+  return new Promise(function(resolve, reject){
+    var vencido = false;
+    var t = setTimeout(function(){
+      vencido = true;
+      var e = new Error("timeout " + ms + "ms"); e.name = "TimeoutError"; e.network = true;
+      reject(e);
+    }, ms);
+    p.then(function(v){
+      if (vencido) { if (onLate) { try { onLate(v); } catch (_) {} } return; }
+      clearTimeout(t); resolve(v);
+    }, function(e){
+      if (vencido) return;
+      clearTimeout(t); reject(e);
+    });
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   GridClient — transporte + gate global de 429
+   GridClient — transporte + gate global de 429 (§15.17 regla 8)
+   Todas las llamadas a /api/v1/sheets/ pasan por una cola serializada
+   con separación mínima entre arranques; todas las peticiones llevan
+   timeout (obsFetchWithTimeout). Un timeout cuenta como error de red:
+   en GET se reintenta con backoff; en POST (append) es un commit
+   ambiguo que WriteQueue resuelve releyendo el write_id (§15.18).
    ══════════════════════════════════════════════════════════════════ */
 var GridClient = (function(){
-  var gateUntil = 0;   // gate global por Retry-After (§15.17 regla 8)
+  var gateUntil = 0, tail = Promise.resolve(), lastStart = 0, GAP = 700;
 
-  async function waitGate(){
-    var now = Date.now();
-    if (gateUntil > now) {
-      var ms = gateUntil - now;
-      await sleep(ms);
-    }
-  }
+  function waitGate(){ return gateUntil > Date.now() ? sleep(gateUntil - Date.now()) : Promise.resolve(); }
 
   function openGate(res){
-    var ra = parseInt(res.headers.get("Retry-After") || "", 10);
-    var ms = isNaN(ra) ? 2000 : Math.min(ra * 1000, 30000);
-    gateUntil = Math.max(gateUntil, Date.now() + ms);
+    var ms = obsRetryAfterMsCapped(res.headers.get("Retry-After"), 2000);
+    gateUntil = Math.max(gateUntil, Date.now() + Math.max(1000, ms));
     return ms;
   }
 
-  async function call(path, opts){
-    await waitGate();
-    var res = await fetch(path, Object.assign({ credentials: "include" }, opts || {}));
-    if (res.status === 429) {
-      var ms = openGate(res);
-      var err = new Error("rate_limited"); err.status = 429; err.waitMs = ms;
+  function schedule(task){
+    function run(){
+      var gap = Math.max(0, lastStart + GAP - Date.now());
+      return (gap ? sleep(gap) : Promise.resolve()).then(function(){ lastStart = Date.now(); return task(); });
+    }
+    var p = tail.then(run, run);
+    tail = p.catch(function(){});
+    return p;
+  }
+
+  function isSheet(path){ return /^\/api\/v1\/sheets\//.test(String(path || "")); }
+
+  /* Cualquier rechazo de fetch (incluido el timeout) se marca como error
+     de red, para distinguirlo de un error de programación al arrancar. */
+  function netFetch(url, opts, ms){
+    return obsFetchWithTimeout(fetch, url, Object.assign({ credentials: "include" }, opts || {}), ms)
+      .catch(function(err){ if (err && typeof err === "object") err.network = true; throw err; });
+  }
+
+  function backoff(attempt){ return sleep(Math.min(12000, 700 * Math.pow(2, attempt))); }
+
+  function raw(path, opts, attempt){
+    attempt = attempt || 0;
+    var method = String((opts && opts.method) || "GET").toUpperCase();
+    return waitGate().then(function(){ return netFetch(path, opts, OBS_FETCH_TIMEOUT_MS); }).then(function(res){
+      if (res.status === 429 && attempt < 6) {
+        var ms = openGate(res);
+        console.warn("[Scan] 429: gate global " + Math.ceil(ms / 1000) + " s");
+        return waitGate().then(function(){ return sleep(150 + Math.floor(Math.random() * 300)); })
+          .then(function(){ return raw(path, opts, attempt + 1); });
+      }
+      if ((res.status === 502 || res.status === 503 || res.status === 504) && method === "GET" && attempt < 4) {
+        return backoff(attempt).then(function(){ return raw(path, opts, attempt + 1); });
+      }
+      return res;
+    }, function(err){
+      if (method === "GET" && attempt < 4) return backoff(attempt).then(function(){ return raw(path, opts, attempt + 1); });
       throw err;
-    }
-    return res;
-  }
-
-  /* Grid ha devuelto el contenido bajo data | state | value según ruta. */
-  function unwrap(body){
-    if (!body || typeof body !== "object") return { data: {}, updated_at: null };
-    if (body.data  !== undefined) return { data: body.data  || {}, updated_at: body.updated_at || null };
-    if (body.state !== undefined) return { data: body.state || {}, updated_at: body.updated_at || null };
-    if (body.value !== undefined) return { data: body.value || {}, updated_at: body.updated_at || null };
-    return { data: body, updated_at: body.updated_at || null };
-  }
-
-
-  async function readSheet(sheetId, docId, range){
-    var url = "/api/v1/sheets/" + encodeURIComponent(sheetId) +
-              "?doc_id=" + encodeURIComponent(docId) +
-              "&range=" + encodeURIComponent(range);
-    var res = await call(url);
-    if (res.status === 403) { var e = new Error("permission_denied"); e.status = 403; e.docId = docId; throw e; }
-    if (!res.ok) {
-      var e2 = new Error("sheet_read_" + res.status);
-      e2.status = res.status;
-      try { var body = await res.json(); e2.detail = body && (body.detail || body.error); } catch (ignore) {}
-      throw e2;
-    }
-    var body = await res.json();
-    var rows = body.values || (body.data && body.data.values) || body.rows ||
-               (Array.isArray(body) ? body : []);
-    return Array.isArray(rows) ? rows : [];
-  }
-
-  async function appendSheet(sheetId, docId, range, values){
-    var res = await call("/api/v1/sheets/" + encodeURIComponent(sheetId) + "/append?doc_id=" + encodeURIComponent(docId), {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ range: range, values: values })
     });
-    if (!res.ok) { var e = new Error("sheet_append_" + res.status); e.status = res.status; throw e; }
-    return res.json().catch(function(){ return {ok:true}; });
   }
 
-  async function me(){
-    var res = await call("/api/v1/me");
-    if (!res.ok) { var e = new Error("me_" + res.status); e.status = res.status; throw e; }
-    return await res.json();
+  function call(path, opts){ return isSheet(path) ? schedule(function(){ return raw(path, opts, 0); }) : raw(path, opts, 0); }
+
+  function values(body){ return body && (body.values || (body.data && body.data.values) || body.rows) || (Array.isArray(body) ? body : []); }
+
+  function readSheet(sheetId, docId, range){
+    var path = "/api/v1/sheets/" + encodeURIComponent(sheetId) + "?doc_id=" + encodeURIComponent(docId) + "&range=" + encodeURIComponent(range);
+    return call(path).then(function(r){
+      if (r.status === 403) { var e = new Error("permission_denied"); e.status = 403; e.docId = docId; e.range = range; throw e; }
+      if (!r.ok) {
+        var e2 = new Error("sheet_read_" + r.status); e2.status = r.status; e2.range = range; e2.sheetId = sheetId;
+        return r.json().catch(function(){ return null; }).then(function(b){ e2.detail = b && (b.detail || b.error); throw e2; });
+      }
+      return r.json();
+    }).then(function(b){ var rows = values(b); return Array.isArray(rows) ? rows : []; });
+  }
+
+  function appendSheet(sheetId, docId, range, rows){
+    var path = "/api/v1/sheets/" + encodeURIComponent(sheetId) + "/append?doc_id=" + encodeURIComponent(docId);
+    return call(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ range: range, values: rows }) })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ return { res: r, body: b }; }); });
+  }
+
+  function me(){
+    return call("/api/v1/me").then(function(r){
+      if (!r.ok) { var e = new Error("me_" + r.status); e.status = r.status; throw e; }
+      return r.json();
+    });
   }
 
   /* El método real para bajar el archivo: GET /documents/{id}/download
      NO sirve el binario directo — devuelve metadata JSON con
      download_url (o agent_download_url), que hay que volver a
-     fetchear para obtener el blob real. Confirmado por una app
-     hermana en el mismo Grid que ya lo usa para su logo de header;
-     no es una suposición nuestra. El segundo fetch es a una URL
-     firmada aparte, por eso no pasa por call() ni por el gate 429
-     — es tráfico distinto al de la API de Grid. */
+     fetchear para obtener el blob real. El segundo fetch es a una URL
+     firmada aparte, por eso no pasa por el gate 429 — es tráfico
+     distinto al de la API de Grid. Ambos fetch llevan su propio timeout
+     corto (CFG.PHOTO_TIMEOUT_MS) y sin reintentos: la foto es una ayuda
+     visual y el guardia no debe quedarse esperando. */
   async function downloadDocumentAsObjectUrl(docId){
-    var metaRes = await call("/api/v1/documents/" + encodeURIComponent(docId) + "/download");
+    await waitGate();
+    var metaRes = await netFetch("/api/v1/documents/" + encodeURIComponent(docId) + "/download", null, CFG.PHOTO_TIMEOUT_MS);
+    if (metaRes.status === 429) openGate(metaRes);
     if (!metaRes.ok) { var e = new Error("download_meta_" + metaRes.status); e.status = metaRes.status; throw e; }
     var meta = await metaRes.json();
-    var url = meta.download_url || meta.agent_download_url;
+    var url = meta && (meta.download_url || meta.agent_download_url);
     if (!url) { throw new Error("sin download_url en la respuesta"); }
 
-    var blobRes = await fetch(url, { credentials: "include" });
+    var blobRes = await netFetch(url, null, CFG.PHOTO_TIMEOUT_MS);
     if (!blobRes.ok) { var e2 = new Error("download_blob_" + blobRes.status); e2.status = blobRes.status; throw e2; }
     var blob = await blobRes.blob();
     return URL.createObjectURL(blob);
   }
+
   return {
-    readSheet: readSheet, appendSheet: appendSheet, me: me,
+    call: call, readSheet: readSheet, appendSheet: appendSheet, me: me,
     downloadDocumentAsObjectUrl: downloadDocumentAsObjectUrl
   };
 })();
@@ -705,25 +836,40 @@ var Identity = (function(){
 })();
 
 /* Resuelve {campo: índiceDeColumna} a partir de una fila de encabezados y
-   una lista [campo, [patrones...]] EN ORDEN DE PRIORIDAD DE CAMPO. Dentro
-   de un mismo campo, los patrones también tienen prioridad entre sí: se
-   agota el patrón más específico contra TODAS las columnas antes de
-   probar el siguiente, en vez de tomar la primera columna (de izquierda a
-   derecha) que matchee CUALQUIER patrón del campo.
+   una lista [campo, [nombresExactos...], [patrones...]] EN ORDEN DE
+   PRIORIDAD DE CAMPO.
 
-   Sin esto, una columna ajena que matchea un patrón genérico del campo
-   (p.ej. "credencial" o "codigo") puede robarle el campo a la columna
-   correcta si aparece antes en la hoja, aunque exista otra columna que
-   matchee el patrón específico (p.ej. "\bqr\b" sobre "Nuevo_QR") — eso
-   deja el índice construido con los valores de la columna equivocada, y
-   cada búsqueda por el código real falla en silencio como "no existe".
-   Usada por Catalog y Photos, que comparten exactamente este problema. */
+   Pasada 1 — coincidencia EXACTA (encabezado normalizado == nombre): se
+   reservan primero todas las columnas con nombre exacto, para que un
+   patrón genérico de otro campo nunca le robe su columna a un campo que
+   la nombra literalmente (p.ej. "Nuevo_QR" para qr, "Sitio" para sitio).
+
+   Pasada 2 — patrones, sólo para los campos sin coincidencia exacta.
+   Dentro de un campo, se agota el patrón más específico contra TODAS las
+   columnas antes de probar el siguiente, en vez de tomar la primera
+   columna (de izquierda a derecha) que matchee CUALQUIER patrón.
+
+   El guión bajo cuenta como carácter de palabra para \b, así que
+   "Nuevo_QR" se leería como un solo token: aquí "_" se reemplaza por
+   espacio antes de comparar. Usada por Catalog y Photos. */
 function resolveColumnsByPriority(headerRow, fieldPatterns){
   var used = {};
   var map = {};
-  var headers = headerRow.map(function(h){ return norm(h).replace(/_/g, " "); });
+  var headers = (headerRow || []).map(function(h){ return norm(h).replace(/_/g, " ").replace(/\s+/g, " ").trim(); });
+
   fieldPatterns.forEach(function(entry){
-    var field = entry[0], patterns = entry[1];
+    var field = entry[0], exactos = entry[1] || [];
+    for (var x = 0; x < exactos.length && map[field] === undefined; x++) {
+      for (var j = 0; j < headers.length; j++) {
+        if (used[j] || !headers[j]) continue;
+        if (headers[j] === exactos[x]) { map[field] = j; used[j] = true; break; }
+      }
+    }
+  });
+
+  fieldPatterns.forEach(function(entry){
+    var field = entry[0], patterns = entry[2] || [];
+    if (map[field] !== undefined) return;
     for (var p = 0; p < patterns.length; p++) {
       var encontrada = -1;
       for (var j = 0; j < headers.length; j++) {
@@ -738,49 +884,48 @@ function resolveColumnsByPriority(headerRow, fieldPatterns){
 
 /* ══════════════════════════════════════════════════════════════════
    MÓDULO 2 · Catálogo vía Sheets proxy
-   Snapshot único por sesión, indexado en memoria (§16.10).
+   Snapshot indexado en memoria (§16.10), refrescado en segundo plano.
 
    La pestaña real es una respuesta de Google Form ("Respuestas de
    formulario 1"): el orden de columnas lo define el orden en que se
    crearon las preguntas, no un contrato fijo. Por eso las columnas se
-   resuelven por NOMBRE de encabezado (con coincidencia flexible por
-   palabra clave), nunca por posición fija — así un reordenamiento o
-   una pregunta nueva en el Form no rompe el mapeo silenciosamente.
+   resuelven por NOMBRE de encabezado (exacto primero, luego patrón),
+   nunca por posición fija.
+
+   Encabezados reales conocidos (Access Management): uniqueid, Marca
+   temporal, Correo electrónico, Nombre, Apellido paterno, Apellido
+   materno, Empresa, Puesto, Sitio, CURP, Foto, INE, Pasaporte, Correo
+   líder que justifique el ingreso, Nacionalidad, ¿Eres driver?,
+   Aceptado o rechazado, Rechazo, Fecha de vencimiento, Nuevo_QR.
    ══════════════════════════════════════════════════════════════════ */
 var Catalog = (function(){
   var index = null, count = 0, loadedAt = null, colMap = null;
 
-  /* Orden de prioridad: los patrones más específicos van primero para
-     que "apellido paterno" no se lo robe el patrón genérico de nombre.
-     "estatus" busca específicamente "Aceptado o rechazado" — la hoja
-     real también tiene una columna "Estado" (otra cosa, no el gate de
-     acceso) y una "Rechazo" (motivo en texto libre); no se usan patrones
-     genéricos ahí para no atarse a la columna equivocada por accidente. */
+  /* "estatus" busca específicamente "Aceptado o rechazado" — la hoja
+     real también tiene una "Rechazo" (motivo en texto libre); no se usan
+     patrones genéricos ahí para no atarse a la columna equivocada.
+     El QR NO acepta /\bid\b/: "uniqueid" no es el QR, lo es Nuevo_QR. */
   var FIELD_PATTERNS = [
-    ["qr",         [/\bqr\b/, /c[oó]digo/, /credencial/, /\bid\b/]],
-    ["apellidoP",  [/apellido patern/, /primer apellido/, /apellido.*p\b/]],
-    ["apellidoM",  [/apellido matern/, /segundo apellido/, /apellido.*m\b/]],
-    ["nombre",     [/^nombre completo$/, /^nombre$/, /\bnombre\b/]],
-    ["empresa",    [/empresa/, /compan/, /contratista/, /raz[oó]n social/]],
-    ["sitio",      [/\bsitio\b/, /ubicaci[oó]n/, /\bplanta\b/, /almac[eé]n/, /\bcentro\b/]],
-    ["vence",      [/venc/, /caduc/, /expira/, /validez/, /valid/]],
-    ["estatus",    [/aceptado.*rechazado/, /aceptad.*o.*rechazad/]]
+    ["qr",        ["nuevo qr", "qr"],                       [/\bqr\b/, /c[oó]digo/, /credencial/]],
+    ["apellidoP", ["apellido paterno", "primer apellido"],   [/apellido patern/, /primer apellido/]],
+    ["apellidoM", ["apellido materno", "segundo apellido"],  [/apellido matern/, /segundo apellido/]],
+    ["nombre",    ["nombre", "nombres", "nombre completo"],  [/^(?!.*empresa)(?!.*apellido)(?!.*correo).*\bnombres?\b/]],
+    ["empresa",   ["empresa"],                               [/empresa/, /compan/, /contratista/, /raz[oó]n social/]],
+    ["sitio",     ["sitio", "sitios"],                       [/\bsitios?\b/]],
+    ["vence",     ["fecha de vencimiento", "vencimiento", "vigencia"], [/venc/, /vigencia/]],
+    ["estatus",   ["aceptado o rechazado"],                  [/aceptado.*rechazado/, /aceptad.*o.*rechazad/]]
   ];
   var REQUIRED = ["qr", "sitio", "vence", "estatus"];
 
-  /* El guión bajo cuenta como carácter de palabra para \b, así que
-     "Nuevo_QR" se leería como un solo token indivisible y \bqr\b jamás
-     haría match — resolveColumnsByPriority ya reemplaza "_" por espacio
-     antes de comparar. */
-  function resolveColumns(headerRow){
-    return resolveColumnsByPriority(headerRow, FIELD_PATTERNS);
-  }
+  function celda(r, i){ return i === undefined ? "" : String(r[i] == null ? "" : r[i]).trim(); }
 
   async function load(){
     var rows = await GridClient.readSheet(CFG.SHEET_ID, CFG.DOC_ADMIN, CFG.SHEET_RANGE);
-    if (!rows.length) { index = {}; count = 0; colMap = null; return 0; }
+    /* Sin fila de encabezados no hay forma de saber qué es cada columna:
+       se conserva el índice anterior en vez de reemplazarlo por vacío. */
+    if (!rows.length || !(rows[0] || []).length) { var e0 = new Error("catalog_empty"); throw e0; }
 
-    var newColMap = resolveColumns(rows[0]);
+    var newColMap = resolveColumnsByPriority(rows[0], FIELD_PATTERNS);
     console.info("[Catalog] columnas resueltas: " + Object.keys(newColMap).map(function(f){
       return f + "='" + rows[0][newColMap[f]] + "'";
     }).join(", "));
@@ -796,7 +941,7 @@ var Catalog = (function(){
        así un refresco en curso nunca deja el índice a medias mientras
        un escaneo hace lookup() en paralelo. */
     var newIndex = Object.create(null);
-    var newCount = 0;
+    var newCount = 0, dupQr = 0, dupFilas = 0;
 
     for (var i = 1; i < rows.length; i++) {
       var r = rows[i] || [];
@@ -805,26 +950,46 @@ var Catalog = (function(){
       var qr = normalizeQR(r[newColMap.qr]);
       if (!qr) continue;
 
-      var pila     = newColMap.nombre    !== undefined ? String(r[newColMap.nombre]    == null ? "" : r[newColMap.nombre]).trim()    : "";
-      var apP      = newColMap.apellidoP !== undefined ? String(r[newColMap.apellidoP] == null ? "" : r[newColMap.apellidoP]).trim() : "";
-      var apM      = newColMap.apellidoM !== undefined ? String(r[newColMap.apellidoM] == null ? "" : r[newColMap.apellidoM]).trim() : "";
-      var empresa  = newColMap.empresa   !== undefined ? String(r[newColMap.empresa]   == null ? "" : r[newColMap.empresa]).trim()   : "";
-      var sitioRaw = String(r[newColMap.sitio]   == null ? "" : r[newColMap.sitio]).trim();
-      var venceRaw = String(r[newColMap.vence]   == null ? "" : r[newColMap.vence]).trim();
-      var estatus  = String(r[newColMap.estatus] == null ? "" : r[newColMap.estatus]).trim();
+      /* QR repetido en varias filas: no hay forma segura de saber cuál
+         fila manda (estatus, vigencia y sitio pueden diferir), así que
+         se marca ambiguo y el escaneo se bloquea (fail-closed). */
+      var prev = newIndex[qr];
+      if (prev) {
+        if (!prev.ambiguous) { newIndex[qr] = { qr: qr, ambiguous: true, filas: 2 }; dupQr++; dupFilas += 2; }
+        else { prev.filas++; dupFilas++; }
+        continue;
+      }
+
+      var pila     = celda(r, newColMap.nombre);
+      var apP      = celda(r, newColMap.apellidoP);
+      var apM      = celda(r, newColMap.apellidoM);
+      var empresa  = celda(r, newColMap.empresa);
+      var sitioRaw = celda(r, newColMap.sitio);
+      var venceCel = r[newColMap.vence];
+      var estatus  = celda(r, newColMap.estatus);
 
       newIndex[qr] = {
         qr:       qr,
         nombre:   [pila, apP, apM].filter(Boolean).join(" "),
         pila:     pila,
         empresa:  empresa,
-        sitios:   sitioRaw.split(/[,;|]/).map(function(x){ return norm(x); }).filter(Boolean),
+        sitios:   sitioRaw.split(/[,;|]/).map(function(x){ return obsNormKey(x); }).filter(Boolean),
         sitiosRaw:sitioRaw,
-        vence:    parseVencimiento(venceRaw),
-        venceRaw: venceRaw,
+        vence:    obsParseFechaMX(typeof venceCel === "number" ? venceCel : String(venceCel == null ? "" : venceCel).trim()),
+        venceRaw: celda(r, newColMap.vence),
         estatus:  estatus
       };
       newCount++;
+    }
+    if (dupQr) console.warn("[Catalog] " + dupQr + " QR duplicado(s) en el catálogo (" + dupFilas + " filas): se bloquean hasta que un gestor los corrija.");
+
+    /* Guardia contra lecturas truncadas: si el catálogo nuevo trae menos
+       de la mitad de credenciales que el anterior, se conserva el
+       anterior. Una baja masiva legítima se aplica al recargar la página. */
+    if (count > 0 && newCount < count * 0.5) {
+      var es = new Error("catalog_shrink"); es.prev = count; es.next = newCount;
+      console.warn("[Catalog] el catálogo nuevo bajó de " + count + " a " + newCount + " credenciales; se conserva el anterior.");
+      throw es;
     }
 
     colMap = newColMap;
@@ -844,73 +1009,74 @@ var Catalog = (function(){
 })();
 
 /* ══════════════════════════════════════════════════════════════════
-   MÓDULO 2B · Fotos ("Publicados", mismo libro, otra pestaña)
-   Nuevo_QR -> view_url. Igual que el catálogo: no existe un filtro
-   server-side en Grid (§4.8/§16.10), así que se carga la pestaña
-   completa una vez y se indexa en memoria — a 8,000+ filas sigue
-   siendo un fetch de ~1-1.5MB, trivial para un navegador.
+   MÓDULO 2B · Fotos ("Publicados_activos", mismo libro, otra pestaña)
+   Misma pestaña y misma clave que usa Access Management: nuevo_qr ->
+   doc_id (+ view_url opcional). Igual que el catálogo: no existe un
+   filtro server-side en Grid (§4.8/§16.10), así que se carga la pestaña
+   completa y se indexa en memoria.
 
    A diferencia del catálogo, un fallo aquí NO bloquea el arranque:
    la foto es una ayuda visual para el veredicto positivo, no parte
    de la decisión de acceso. Si algo sale mal, se registra y la app
-   sigue funcionando sin fotos hasta el siguiente refresco. */
+   sigue con el último índice bueno (o sin fotos) hasta el siguiente
+   refresco. */
 var Photos = (function(){
   var index = null, count = 0;
 
   var FIELD_PATTERNS = [
-    ["qr",       [/\bqr\b/, /c[oó]digo/, /credencial/]],
-    ["view_url", [/view.?url/, /^url$/, /\burl\b/]],
-    ["doc_id",   [/doc.?id/]]
+    ["qr",       ["nuevo qr", "qr"],                [/\bqr\b/]],
+    ["doc_id",   ["doc id", "docid"],               [/doc.?id/]],
+    ["view_url", ["view url", "viewurl", "url"],    [/view.?url/, /^url$/]]
   ];
-  var REQUIRED = ["qr", "view_url"];
-
-  function resolveColumns(headerRow){
-    return resolveColumnsByPriority(headerRow, FIELD_PATTERNS);
-  }
+  var REQUIRED = ["qr", "doc_id"];
 
   async function load(){
     try {
       var rows = await GridClient.readSheet(CFG.SHEET_ID, CFG.DOC_ADMIN, CFG.SHEET_RANGE_FOTOS);
-      if (!rows.length) {
-        console.warn("[Photos] la pestaña \"" + CFG.SHEET_RANGE_FOTOS + "\" no devolvió filas.");
-        index = {}; count = 0;
-        return 0;
+      if (!rows.length || !(rows[0] || []).length) {
+        console.warn("[Photos] la pestaña \"" + CFG.SHEET_RANGE_FOTOS + "\" no devolvió encabezados; se conserva el índice anterior.");
+        if (index === null) { index = {}; count = 0; }
+        return count;
       }
 
-      var colMap = resolveColumns(rows[0]);
-      console.info("[Photos] columnas resueltas: " + Object.keys(colMap).map(function(f){
+      var colMap = resolveColumnsByPriority(rows[0], FIELD_PATTERNS);
+      console.info("[Photos] columnas resueltas: " + (Object.keys(colMap).map(function(f){
         return f + "='" + rows[0][colMap[f]] + "'";
-      }).join(", ") || "(ninguna)");
+      }).join(", ") || "(ninguna)"));
       var faltantes = REQUIRED.filter(function(f){ return colMap[f] === undefined; });
       if (faltantes.length) {
         console.warn("[Photos] no se reconocen las columnas: falta(n) " + faltantes.join(", ") + ". Encabezados: " +
           rows[0].map(function(h, i){ return "[" + i + "] " + h; }).join("  ·  "));
-        index = {}; count = 0;
-        return 0;
+        if (index === null) { index = {}; count = 0; }
+        return count;
       }
 
       var newIndex = Object.create(null);
-      var newCount = 0, sinQr = 0, sinUrl = 0;
+      var newCount = 0, sinQr = 0, sinDoc = 0;
       for (var i = 1; i < rows.length; i++) {
         var r = rows[i] || [];
         if (!r.length) continue;
         var qr = normalizeQR(r[colMap.qr]);
         if (!qr) { sinQr++; continue; }
-        var viewUrl = String(r[colMap.view_url] == null ? "" : r[colMap.view_url]).trim();
-        if (!viewUrl) { sinUrl++; continue; }
+        var docId = String(r[colMap.doc_id] == null ? "" : r[colMap.doc_id]).trim();
+        if (!docId) sinDoc++;
         newIndex[qr] = {
-          viewUrl: viewUrl,
-          docId: colMap.doc_id !== undefined ? String(r[colMap.doc_id] == null ? "" : r[colMap.doc_id]).trim() : ""
+          docId: docId,
+          viewUrl: colMap.view_url !== undefined ? String(r[colMap.view_url] == null ? "" : r[colMap.view_url]).trim() : ""
         };
         newCount++;
       }
+      if (count > 0 && newCount < count * 0.5) {
+        console.warn("[Photos] el índice nuevo bajó de " + count + " a " + newCount + " fotos; se conserva el anterior.");
+        return count;
+      }
       index = newIndex;
       count = newCount;
-      console.info("[Photos] " + newCount + " fotos indexadas (" + sinQr + " filas sin QR, " + sinUrl + " filas sin view_url, de " + (rows.length - 1) + " filas totales).");
+      console.info("[Photos] " + newCount + " fotos indexadas (" + sinQr + " filas sin QR, " + sinDoc + " sin doc_id, de " + (rows.length - 1) + " filas totales).");
       return count;
 
     } catch (e) {
-      console.warn("[Photos] fallo al cargar la pestaña \"" + CFG.SHEET_RANGE_FOTOS + "\":", e);
+      console.warn("[Photos] fallo al cargar la pestaña \"" + CFG.SHEET_RANGE_FOTOS + "\": " + redactErr(e));
       if (index === null) { index = {}; count = 0; }
       return count;
     }
@@ -923,18 +1089,26 @@ var Photos = (function(){
 
 /* ══════════════════════════════════════════════════════════════════
    MÓDULO 3 · Validación
+   Vigencia: fecha día-primero (obsParseFechaMX) comparada contra "hoy"
+   en zona México (obsTodayMX) — la credencial vale hasta el fin del día
+   de vencimiento. Fecha ilegible => bloqueado (fail-closed).
+   Sitio: obsNormKey en ambos lados (sin acentos, espacios ni mayúsculas).
    ══════════════════════════════════════════════════════════════════ */
 function validar(persona, sitio){
+  if (persona.ambiguous) {
+    return { ok: false, razon: "QR duplicado en catálogo — verificar con gestor" };
+  }
   if (norm(persona.estatus) !== CFG.ESTATUS_OK) {
     return { ok: false, razon: persona.estatus ? "estatus " + persona.estatus.toLowerCase() : "sin estatus asignado" };
   }
   if (!persona.vence) {
-    return { ok: false, razon: "fecha de vencimiento ilegible (" + (persona.venceRaw || "vacía") + ")" };
+    return { ok: false, razon: "Fecha de vencimiento inválida" };
   }
-  if (persona.vence.ord < todayOrdinal()) {
-    return { ok: false, razon: "credencial vencida el " + persona.vence.label };
+  var hoy = obsTodayMX();
+  if (!hoy || persona.vence.ord < hoy.ord) {
+    return { ok: false, razon: "credencial vencida el " + fechaLabel(persona.vence) };
   }
-  if (persona.sitios.indexOf(norm(sitio)) === -1) {
+  if (persona.sitios.indexOf(obsNormKey(sitio)) === -1) {
     return { ok: false, razon: persona.sitiosRaw
       ? "autorizado para " + persona.sitiosRaw + ", no para " + sitio
       : "sin sitio autorizado" };
@@ -943,31 +1117,113 @@ function validar(persona, sitio){
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   MÓDULO 4 · Protocolo de escritura V20.2
-   Cola optimista con una sola escritura lógica en vuelo, más la
-   doble lectura de durabilidad. HTTP 200 no es prueba de durabilidad.
+   MÓDULO 4 · Protocolo de escritura V20.2 (§15.18) sobre Sheets append
+   Una sola escritura lógica en vuelo. HTTP 200 no es prueba de
+   durabilidad: se verifica el write_id con relectura inmediata y
+   relectura estable. 429/5xx/red/timeout = commit ambiguo: se busca el
+   mismo write_id antes de reintentar.
    ══════════════════════════════════════════════════════════════════ */
+function obsFindWriteId(writeId){
+  return GridClient.readSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, CFG.SCAN_TAB + "!B:B").then(function(rows){
+    var count = 0, rowNum = null;
+    for (var i = 1; i < rows.length; i++) {
+      if (String((rows[i] && rows[i][0]) || "") === writeId) { count++; rowNum = i + 1; }
+    }
+    return { count: count, row: rowNum };
+  });
+}
+function obsResolveAmbiguousWrite(writeId){
+  var tries = 0;
+  function check(){
+    tries++;
+    return obsFindWriteId(writeId).then(function(x){
+      if (x.count || tries >= 4) return x;
+      return sleep(400 * Math.pow(2, tries - 1)).then(check);
+    });
+  }
+  return check();
+}
+function obsUpdatedRange(body){
+  return body && (body.updatedRange || (body.updates && body.updates.updatedRange) || (body.data && body.data.updates && body.data.updates.updatedRange)) || "";
+}
+function obsVerifyRange(range, writeId, stable){
+  if (!range) {
+    return obsResolveAmbiguousWrite(writeId).then(function(x){
+      if (!x.count) return false;
+      if (!stable) return true;
+      return sleep(OBS_STABLE_MS).then(function(){ return obsFindWriteId(writeId); }).then(function(y){ return y.count > 0; });
+    });
+  }
+  return GridClient.readSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, range).then(function(rows){
+    var ok = !!(rows[0] && String(rows[0][1] || "") === writeId);
+    if (!ok || !stable) return ok;
+    return sleep(OBS_STABLE_MS).then(function(){ return GridClient.readSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, range); })
+      .then(function(r2){ return !!(r2[0] && String(r2[0][1] || "") === writeId); });
+  });
+}
+
+/* Anti-inyección de fórmulas: cualquier texto que Sheets pudiera
+   interpretar como fórmula (=, +, -, @, tab, CR) se escribe con "'"
+   delante. La verificación de durabilidad es sólo por write_id (UUID),
+   que nunca empieza así, así que esto no la afecta. */
+function celdaSegura(v){
+  if (v == null) return "";
+  return (typeof v === "string" && obsLooksLikeFormula(v)) ? "'" + v : v;
+}
+
 var WriteQueue = (function(){
   var chain = Promise.resolve();
-  function enqueue(task){ var run=chain.then(task,task); chain=run.catch(function(){}); return run; }
-  async function commit(bucket, evento, key, writeId){
-    var row=[key,writeId,evento.qr||'',evento.nombre||'',evento.empresa||'',evento.sitio||'',evento.resultado||'',evento.razon||'',evento.guardia_hash||'',evento.guardia_source_field||'',evento.ts||'',evento.tz||'',evento.app||''];
-    var attempt=0;
-    while(attempt<CFG.MAX_ATTEMPTS){
+  function enqueue(task){ var p = chain.then(task, task); chain = p.catch(function(){}); return p; }
+
+  function commit(bucket, evento, key, writeId, options){
+    options = options || {};
+    var row = [key, writeId, evento.qr, evento.nombre, evento.empresa, evento.sitio, evento.resultado, evento.razon,
+               evento.guardia_hash, evento.guardia_source_field, evento.ts, evento.tz, evento.app].map(celdaSegura);
+    var attempt = 0;
+
+    function appendRun(){
       attempt++;
-      try{
-        await GridClient.appendSheet(CFG.SCAN_SHEET_ID,CFG.DOC_ADMIN,CFG.SCAN_TAB,[row]);
-        return {ok:true,key:key,writeId:writeId,attempts:attempt};
-      }catch(e){
-        if(e.status===403) throw e;
-        if(e.status===429){ continue; }
-        if(attempt>=CFG.MAX_ATTEMPTS) return {ok:false,key:key,writeId:writeId,attempts:attempt};
-        await sleep(jitter(400*attempt));
-      }
+      return GridClient.appendSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, CFG.SCAN_TAB, [row]).then(function(x){
+        var res = x.res, range = obsUpdatedRange(x.body);
+        if (res.ok) {
+          return obsVerifyRange(range, writeId, true).then(function(ok){
+            if (ok) return { ok: true, key: key, writeId: writeId, attempts: attempt };
+            var e = new Error("append 2xx no verificable"); e.ambiguous = true; throw e;
+          });
+        }
+        if (res.status === 403) { var e403 = new Error("permission_denied"); e403.status = 403; throw e403; }
+        if (obsIsPermanentHttp(res.status)) {
+          /* El cuerpo de la respuesta no se guarda: puede traer datos de la fila. */
+          var ep = new Error("append rechazado HTTP " + res.status); ep.status = res.status; ep.permanent = true; throw ep;
+        }
+        var ea = new Error("append ambiguo HTTP " + res.status); ea.ambiguous = true; throw ea;
+      }).catch(function(err){
+        if (err && err.status === 403) throw err;
+        if (err && err.permanent) return { ok: false, key: key, writeId: writeId, attempts: attempt, error: redactErr(err), permanent: true };
+        return obsResolveAmbiguousWrite(writeId).then(function(check){
+          if (check.count) {
+            if (check.count > 1) console.error("[Scan] write_id duplicado " + writeId + " x" + check.count);
+            return { ok: true, key: key, writeId: writeId, recovered: true, attempts: attempt };
+          }
+          if (attempt < CFG.MAX_ATTEMPTS) return sleep(jitter(500 * attempt)).then(appendRun);
+          return { ok: false, key: key, writeId: writeId, attempts: attempt, error: redactErr(err) };
+        });
+      });
     }
-    return {ok:false,key:key,writeId:writeId,attempts:attempt};
+
+    if (options.precheck) {
+      return obsResolveAmbiguousWrite(writeId).then(function(existing){
+        if (existing.count) {
+          if (existing.count > 1) console.error("[Scan] write_id duplicado " + writeId + " x" + existing.count);
+          return { ok: true, key: key, writeId: writeId, recovered: true, attempts: 0 };
+        }
+        return appendRun();
+      });
+    }
+    return appendRun();
   }
-  return { write:function(bucket,evento,key,writeId){ return enqueue(function(){return commit(bucket,evento,key,writeId);}); } };
+
+  return { write: function(bucket, evento, key, writeId, options){ return enqueue(function(){ return commit(bucket, evento, key, writeId, options); }); } };
 })();
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1029,23 +1285,35 @@ var Prefs = (function(){
 })();
 
 /* ══════════════════════════════════════════════════════════════════
+   Clasificación de códigos desconocidos. Un evento "desconocido" no
+   se escribe en Grid hasta que el guardia elige qué observó.
+   ══════════════════════════════════════════════════════════════════ */
+var CLASS_DEFS = {
+  snapshot_stale_possible: { label: "Puede ser desfase del catálogo", reason: "Posible desfase del catálogo; requiere recarga o verificación adicional." },
+  ubicacion_desconocida:   { label: "Existe, pero falta ubicación",   reason: "El operador reconoce la credencial, pero la ubicación/autorización no está disponible en el snapshot." },
+  no_existe_confirmado:    { label: "Confirmo que no existe",         reason: "El operador confirmó que la credencial no existe en el catálogo vigente." }
+};
+
+/* ══════════════════════════════════════════════════════════════════
    Outbox — cola local-first para el registro de eventos (V21 #2).
    procesar() valida contra el catálogo en memoria y despliega el
    veredicto al instante; el registro durable en Grid pasa por aquí
    en segundo plano, aplicando el protocolo V20.2 de WriteQueue con
-   una sola escritura lógica en vuelo (WriteQueue ya lo serializa
-   internamente vía su `chain`; el candado `draining` de aquí es
-   una segunda capa por si acaso, no la única).
+   una sola escritura lógica en vuelo.
 
-   La clave (`id`/`key`) y el `writeId` se generan al ENCOLAR, no al
-   escribir: así, si la página se recarga a medio drenado, el
-   siguiente intento reutiliza la misma clave y WriteQueue detecta
-   un commit ya durable en vez de duplicar el evento.
-
-   Una vez confirmado el commit se borra el registro local — no se
-   deja marcado con synced:1 indefinidamente, porque eso haría crecer
-   IndexedDB sin límite en jornadas largas sin aportar nada una vez
-   que Grid ya tiene el evento.
+   - La clave (`id`) y el `writeId` se generan al ENCOLAR: si la página
+     se recarga a medio drenado, el siguiente intento reutiliza la misma
+     clave. `appendStarted` se marca ANTES de la petición; sólo las
+     entradas reanudadas hacen la búsqueda previa de idempotencia (B:B).
+   - Los desconocidos (`needsClassification`) no drenan hasta que el
+     guardia los clasifica.
+   - Error permanente (4xx no reintentable) o más de
+     CFG.OUTBOX_MAX_ATTEMPTS ciclos fallidos => `status:'dead'`: se queda
+     en IndexedDB, se salta y el drenado sigue con los demás. "Reintentar"
+     los devuelve a pendiente.
+   - Si IndexedDB falla, la entrada vive en memoria (`memory:true`) y
+     drena igual; se pierde sólo si la página se recarga antes.
+   - Confirmado el commit se borra el registro local.
    ══════════════════════════════════════════════════════════════════ */
 var Outbox = (function(){
   var STORE = "outbox";
@@ -1053,12 +1321,15 @@ var Outbox = (function(){
   var retryTimer = null;
   var permissionDeniedHandler = null;
   var queueChangeHandler = null;
+  var needsClassificationHandler = null;
+  var mem = Object.create(null);   // respaldo en memoria si IndexedDB no está disponible
+  var memAvisado = false;
 
   function store(mode){
     return LocalDB.open().then(function(db){ return db.transaction(STORE, mode).objectStore(STORE); });
   }
 
-  function put(entry){
+  function idbPut(entry){
     return store("readwrite").then(function(os){
       return new Promise(function(res, rej){
         var rq = os.put(entry);
@@ -1067,8 +1338,24 @@ var Outbox = (function(){
       });
     });
   }
+  function put(entry){
+    if (entry.memory) { mem[entry.id] = entry; return Promise.resolve(); }
+    return idbPut(entry);
+  }
+
+  function get(id){
+    if (mem[id]) return Promise.resolve(mem[id]);
+    return store("readonly").then(function(os){
+      return new Promise(function(res){
+        var rq = os.get(id);
+        rq.onsuccess = function(){ res(rq.result || null); };
+        rq.onerror   = function(){ res(null); };
+      });
+    }).catch(function(){ return null; });
+  }
 
   function remove(id){
+    if (mem[id]) { delete mem[id]; return Promise.resolve(); }
     return store("readwrite").then(function(os){
       return new Promise(function(res){
         var rq = os["delete"](id);
@@ -1079,8 +1366,9 @@ var Outbox = (function(){
   }
 
   /* Vía el índice createdAt: los ids son UUID, no son ordenables, y
-     el orden de drenado debe respetar el orden real de los escaneos. */
-  function orderedPending(){
+     el orden de drenado debe respetar el orden real de los escaneos.
+     Las entradas en memoria se mezclan y se reordena por createdAt. */
+  function ordered(){
     return store("readonly").then(function(os){
       return new Promise(function(res){
         var out = [];
@@ -1093,12 +1381,29 @@ var Outbox = (function(){
         };
         rq.onerror = function(){ res(out); };
       });
+    }).catch(function(){ return []; }).then(function(out){
+      var ks = Object.keys(mem);
+      if (!ks.length) return out;
+      ks.forEach(function(k){ out.push(mem[k]); });
+      out.sort(function(a, b){ return (a.createdAt || 0) - (b.createdAt || 0); });
+      return out;
     });
   }
 
+  function esMuerto(x){ return x.status === "dead"; }
+  function esPorClasificar(x){ return !!x.needsClassification && !esMuerto(x); }
+  function esDrenable(x){ return !x.needsClassification && !esMuerto(x); }
+
   function notify(){
     if (!queueChangeHandler) return;
-    orderedPending().then(function(items){ queueChangeHandler(items.length); }).catch(function(){});
+    ordered().then(function(items){
+      var dead = items.filter(esMuerto);
+      queueChangeHandler({
+        pending: items.length - dead.length,
+        dead: dead.length,
+        lastError: dead.length ? (dead[dead.length - 1].lastError || "") : ""
+      });
+    }).catch(function(e){ console.warn("[Outbox] notify: " + redactErr(e)); });
   }
 
   async function enqueue(bucket, evento){
@@ -1108,37 +1413,87 @@ var Outbox = (function(){
       bucket: bucket,
       evento: evento,
       attempts: 0,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      appendStarted: false,
+      status: "pending",
+      needsClassification: !!evento && evento.resultado === "desconocido"
     };
-    await put(entry);
+    try {
+      await idbPut(entry);
+    } catch (e) {
+      /* IndexedDB no disponible (navegación privada, cuota, etc.): la
+         entrada vive en memoria y drena por el mismo camino. */
+      entry.memory = true;
+      mem[entry.id] = entry;
+      console.warn("[Outbox] IndexedDB no disponible; registro en memoria: " + redactErr(e));
+      if (!memAvisado) {
+        memAvisado = true;
+        toast("Sin almacenamiento local: los registros quedan en memoria hasta sincronizar. No recargues la página.", "err");
+      }
+    }
     notify();
-    kick();
+    if (!entry.needsClassification) kick();
     return entry;
+  }
+
+  function classify(id, code){
+    var def = CLASS_DEFS[code];
+    if (!def) return Promise.reject(new Error("clasificación inválida"));
+    return get(id).then(function(entry){
+      if (!entry) throw new Error("registro local no encontrado");
+      if (!entry.needsClassification) return entry;
+      entry.evento = entry.evento || {};
+      entry.evento.resultado = code;
+      entry.evento.razon = def.reason;
+      entry.needsClassification = false;
+      entry.classifiedAt = Date.now();
+      return put(entry).then(function(){ notify(); kick(); return entry; });
+    });
+  }
+
+  function pendingClassification(){
+    return ordered().then(function(items){ return items.filter(esPorClasificar); });
+  }
+
+  function retryDead(){
+    return ordered().then(function(items){
+      var dead = items.filter(esMuerto);
+      return Promise.all(dead.map(function(x){
+        x.status = "pending"; x.attempts = 0; delete x.deadAt;
+        return put(x);
+      })).then(function(){ notify(); kick(); return dead.length; });
+    });
   }
 
   function kick(){
     if (draining) return;
     draining = true;
-    drainLoop();
+    drainLoop().catch(function(e){ console.warn("[Outbox] drenado interrumpido: " + redactErr(e)); });
   }
 
   async function drainLoop(){
     var stopRetrying = false;
     try {
       while (true) {
-        var items = await orderedPending();
-        if (!items.length) return;
-        var item = items[0];
+        var items = await ordered();
+        var item = items.filter(esDrenable)[0];
+        if (!item) {
+          if (items.some(esPorClasificar) && needsClassificationHandler) needsClassificationHandler();
+          return;
+        }
+        var precheck = !!item.appendStarted;
+        item.appendStarted = true;
+        await put(item);
         var res;
         try {
-          res = await WriteQueue.write(item.bucket, item.evento, item.id, item.writeId);
+          res = await WriteQueue.write(item.bucket, item.evento, item.id, item.writeId, { precheck: precheck });
         } catch (e) {
           if (e.status === 403) {
             stopRetrying = true;
             if (permissionDeniedHandler) permissionDeniedHandler(e, item);
             return;
           }
-          res = { ok: false };
+          res = { ok: false, error: redactErr(e) };
         }
         if (res.ok) {
           await remove(item.id);
@@ -1146,8 +1501,18 @@ var Outbox = (function(){
           continue;
         }
         item.attempts = (item.attempts || 0) + 1;
+        item.lastError = res.error || "no confirmado";
+        if (res.permanent || item.attempts >= CFG.OUTBOX_MAX_ATTEMPTS) {
+          item.status = "dead";
+          item.deadAt = Date.now();
+          console.warn("[Outbox] registro movido a 'con error' tras " + item.attempts + " intento(s): " + item.lastError);
+          await put(item);
+          notify();
+          continue;   // se salta y se sigue con el resto
+        }
         await put(item);
-        return;   // esta falló: se pausa el drenado hasta el próximo reintento programado
+        notify();
+        return;   // falla transitoria: se pausa el drenado hasta el próximo reintento programado
       }
     } finally {
       draining = false;
@@ -1159,23 +1524,39 @@ var Outbox = (function(){
     if (retryTimer) return;
     retryTimer = setTimeout(function(){
       retryTimer = null;
-      orderedPending().then(function(items){ if (items.length) kick(); });
+      ordered().then(function(items){
+        if (items.some(esDrenable)) kick();
+        if (items.some(esPorClasificar) && needsClassificationHandler) needsClassificationHandler();
+      }).catch(function(e){ console.warn("[Outbox] reintento programado: " + redactErr(e)); });
     }, jitter(4000));
+  }
+
+  function resume(){
+    kick();
+    notify();
   }
 
   return {
     enqueue: enqueue,
-    resume: kick,   // drenar lo que quedó pendiente de una sesión anterior
+    resume: resume,   // drenar lo que quedó pendiente de una sesión anterior
+    classify: classify,
+    pendingClassification: pendingClassification,
+    retryDead: retryDead,
     onPermissionDenied: function(fn){ permissionDeniedHandler = fn; },
-    onQueueChange: function(fn){ queueChangeHandler = fn; }
+    onQueueChange: function(fn){ queueChangeHandler = fn; },
+    onNeedsClassification: function(fn){ needsClassificationHandler = fn; }
   };
 })();
 
 /* ══════════════════════════════════════════════════════════════════
    ScannerEngine — handheld HID + cámara (BarcodeDetector nativo)
+   start() tiene candado "arrancando" + token de generación: si mientras
+   getUserMedia resuelve se cambió de modo o se llamó stop(), el stream
+   recién obtenido se detiene de inmediato. Nunca quedan dos streams.
    ══════════════════════════════════════════════════════════════════ */
 var Scanner = (function(){
   var stream = null, detector = null, running = false, raf = null;
+  var starting = false, gen = 0;
 
   async function cameraSupported(){
     if (!("BarcodeDetector" in window)) return false;
@@ -1186,63 +1567,166 @@ var Scanner = (function(){
     } catch (e) { return true; }   // el detector existe aunque no liste formatos
   }
 
-  async function start(videoEl, onDetect){
-    if (running) return;
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } }, audio: false
-    });
-    videoEl.srcObject = stream;
-    await new Promise(function(r){ videoEl.onloadedmetadata = r; });
-    await videoEl.play();
-    detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-    running = true;
+  function detenerStream(s){
+    if (s) { try { s.getTracks().forEach(function(t){ t.stop(); }); } catch (_) {} }
+  }
 
-    var loop = async function(){
-      if (!running) return;
-      try {
-        var found = await detector.detect(videoEl);
-        if (found && found.length) onDetect(found[0].rawValue);
-      } catch (e) { /* frame ilegible: el siguiente sirve */ }
-      raf = requestAnimationFrame(loop);
-    };
-    loop();
+  /* sigueVigente(): el llamador confirma que el modo cámara sigue activo.
+     Devuelve true si la cámara quedó (o ya estaba) corriendo, false si el
+     arranque quedó obsoleto. */
+  async function start(videoEl, onDetect, sigueVigente){
+    if (running || starting) return true;
+    starting = true;
+    var miGen = ++gen;
+    function vigente(){ return miGen === gen && (!sigueVigente || sigueVigente()); }
+    var s = null;
+    try {
+      s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } }, audio: false
+      });
+      if (!vigente()) { detenerStream(s); return false; }
+      stream = s;
+      videoEl.srcObject = s;
+      await new Promise(function(r){ if (videoEl.readyState >= 1) r(); else videoEl.onloadedmetadata = r; });
+      await videoEl.play();
+      if (!vigente()) {
+        detenerStream(s);
+        if (stream === s) { stream = null; videoEl.srcObject = null; }
+        return false;
+      }
+      detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      running = true;
+
+      var loop = async function(){
+        if (!running || miGen !== gen) return;
+        try {
+          var found = await detector.detect(videoEl);
+          if (found && found.length && running && miGen === gen) onDetect(found[0].rawValue);
+        } catch (e) { /* frame ilegible: el siguiente sirve */ }
+        if (running && miGen === gen) raf = requestAnimationFrame(loop);
+      };
+      loop();
+      return true;
+    } catch (e) {
+      if (s) { detenerStream(s); if (stream === s) stream = null; }
+      if (!vigente()) return false;
+      throw e;
+    } finally {
+      if (miGen === gen) starting = false;
+    }
   }
 
   function stop(){
+    gen++;
+    starting = false;
     running = false;
     if (raf) { cancelAnimationFrame(raf); raf = null; }
-    if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
+    if (stream) { detenerStream(stream); stream = null; }
     detector = null;
   }
 
   return { start: start, stop: stop, supported: cameraSupported, isRunning: function(){ return running; } };
 })();
 
-
+/* ══════════════════════════════════════════════════════════════════
+   Fuentes del gate (libro de Usuarios) — esquemas estrictos
+   ══════════════════════════════════════════════════════════════════ */
+/* Usuarios: encabezados exactos (OBS_USERS_HEADERS). Un ldap/correo que
+   aparece en más de una fila NO bloquea a todos: sólo esa identidad queda
+   denegada (fail-closed para ella) y el resto opera normalmente. */
 function parseAdminUsers(rows){
-  if(!rows||!rows.length)return [];
-  var h=rows[0].map(function(x){return String(x||'').trim().toLowerCase();});
-  function ix(n){return h.indexOf(n);}
-  var out=[];
-  for(var i=1;i<rows.length;i++){
-    var r=rows[i]||[]; if(!r.length)continue;
-    out.push({
-      ldap: ix('ldap')>=0?String(r[ix('ldap')]||'').trim().toLowerCase():'',
-      email: ix('email')>=0?String(r[ix('email')]||'').trim().toLowerCase():'',
-      nombre: ix('nombre')>=0?String(r[ix('nombre')]||'').trim():'',
-      permiso_guardia: ix('permiso_guardia')>=0?String(r[ix('permiso_guardia')]||'').trim().toLowerCase():'',
-      guardia_sitios: ix('guardia_sitios')>=0?String(r[ix('guardia_sitios')]||'').trim():'',
-      guardia_estatus: ix('guardia_estatus')>=0?String(r[ix('guardia_estatus')]||'').trim().toLowerCase():''
-    });
+  var e;
+  if (!rows || !rows.length) { e = new Error("Usuarios vacío"); e.code = "usuarios_schema"; throw e; }
+  try { obsAssertHeaders(rows[0], OBS_USERS_HEADERS, "Usuarios"); }
+  catch (err) { err.code = "usuarios_schema"; throw err; }
+  var users = [], conteo = Object.create(null);
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i] || [];
+    if (!r.length) continue;
+    var o = {
+      ldap: String(r[0] || "").trim().toLowerCase(),
+      email: String(r[1] || "").trim().toLowerCase(),
+      nombre: String(r[2] || "").trim(),
+      permiso_guardia: String(r[8] || "").trim().toLowerCase(),
+      guardia_sitios: String(r[9] || "").trim(),
+      guardia_estatus: String(r[10] || "").trim().toLowerCase()
+    };
+    if (!o.ldap && !o.email) continue;
+    [o.ldap, o.email].filter(Boolean).forEach(function(a){ conteo[a] = (conteo[a] || 0) + 1; });
+    users.push(o);
   }
+  var duplicados = Object.create(null), nDup = 0;
+  Object.keys(conteo).forEach(function(a){ if (conteo[a] > 1) { duplicados[a] = true; nDup++; } });
+  if (nDup) console.warn("[Usuarios] " + nDup + " identidad(es) duplicada(s) en Usuarios: se deniegan sólo ésas.");
+  return { users: users, duplicados: duplicados };
+}
+function findGuardiaSheet(rows, id){
+  var parsed = parseAdminUsers(rows);
+  var ldap = String(id.ldap || "").toLowerCase(), email = String(id.email || "").toLowerCase();
+  if ((ldap && parsed.duplicados[ldap]) || (email && parsed.duplicados[email])) return { duplicado: true };
+  for (var i = 0; i < parsed.users.length; i++) {
+    var u = parsed.users[i];
+    if ((ldap && u.ldap === ldap) || (email && u.email === email)) return u;
+  }
+  return null;
+}
+/* Sitios: encabezados exactos; sin ningún sitio activo se devuelve un
+   marcador imposible para que cualquier sitio asignado quede bloqueado. */
+function activeSitesFromRows(rows){
+  var e;
+  if (!rows || !rows.length) { e = new Error("Sitios vacío"); e.code = "schema"; throw e; }
+  obsAssertHeaders(rows[0], OBS_SITES_HEADERS, "Sitios");
+  var out = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i] || [], active = String(r[1] || "").trim().toLowerCase();
+    if (r[0] && ["si", "sí", "true", "1", "activo"].indexOf(active) !== -1) out.push(String(r[0]).trim());
+  }
+  if (!out.length) return ["__CONFIG_EMPTY__"];
   return out;
 }
-function findGuardiaSheet(rows,id){
-  var list=parseAdminUsers(rows), ldap=String(id.ldap||'').toLowerCase(), email=String(id.email||'').toLowerCase();
-  for(var i=0;i<list.length;i++){var u=list[i];if((ldap&&u.ldap===ldap)||(email&&u.email===email))return u;} return null;
+
+/* Meta!A:D (clave | valor | actualizado_en | notas) -> {clave: valor} */
+function leerMeta(sheetId, etiqueta){
+  return GridClient.readSheet(sheetId, CFG.DOC_ADMIN, CFG.META_TAB + "!A:D").then(function(rows){
+    if (!rows.length) { var e = new Error("Meta (" + etiqueta + ") vacío"); e.code = "schema"; throw e; }
+    obsAssertHeaders(rows[0], OBS_META_HEADERS, "Meta (" + etiqueta + ")");
+    var map = {};
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i] && rows[i][0]) map[String(rows[i][0]).trim()] = String(rows[i][1] || "").trim();
+    }
+    return map;
+  });
 }
-function activeSitesFromRows(rows){
-  var out=[]; for(var i=1;i<(rows||[]).length;i++){var r=rows[i]||[];var active=String(r[1]||'').trim().toLowerCase();if(r[0]&&(!active||active==='si'||active==='sí'||active==='true'||active==='1'))out.push(String(r[0]).trim());} return out;
+/* Contrato de build: mismo Meta del libro de Usuarios que usan AM y AP. */
+function validarContratoBuild(){
+  return leerMeta(CFG.ADMIN_SHEET_ID, "Usuarios").then(function(meta){
+    if (!obsBuildAccepted(meta.build_contract, OBS_BUILD_ID)) {
+      var e = new Error("Build incompatible: Sheet=" + (meta.build_contract || "(vacío)") + " app=" + OBS_BUILD_ID);
+      e.code = "build"; throw e;
+    }
+  });
+}
+/* Libro de Scan: encabezados de Ingresos + Meta.ingresos_headers. */
+function validarEsquemaIngresos(){
+  return GridClient.readSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, CFG.SCAN_TAB + "!A1:M2").then(function(rows){
+    if (!rows.length) { var e = new Error("Ingresos vacío"); e.code = "schema"; throw e; }
+    obsAssertHeaders(rows[0], OBS_SCAN_HEADERS, "Ingresos");
+    return leerMeta(CFG.SCAN_SHEET_ID, "Scan");
+  }).then(function(meta){
+    if (meta.ingresos_headers !== OBS_SCAN_HEADERS.join("|")) {
+      var e2 = new Error("Meta.ingresos_headers no coincide"); e2.code = "schema"; throw e2;
+    }
+  });
+}
+
+function obsBuildBadge(){
+  if (ge("obs-build-badge")) return;
+  var d = document.createElement("div");
+  d.id = "obs-build-badge";
+  d.textContent = OBS_APP_VERSION;
+  d.title = "Contrato de build: " + OBS_BUILD_ID;
+  d.style.cssText = "position:fixed;right:8px;bottom:8px;z-index:9999;font:10px monospace;color:#8E95A5;background:rgba(14,14,18,.88);padding:4px 7px;border-radius:7px;pointer-events:none";
+  document.body.appendChild(d);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1254,13 +1738,26 @@ var App = (function(){
     perfil: null,      // fila de Usuarios con permiso_guardia activo
     sitio: null,       // asignado desde el admin panel — el guardia no lo elige
     scanMode: "handheld",
-    busy: false,       // candado: una validación en vuelo
+    busy: false,       // candado: hay un veredicto/modal en pantalla
+    blocked: false,    // pantalla de bloqueo activa: no se procesa nada más
     photoObjectUrl: null, // URL.createObjectURL() de la última foto — se revoca antes de crear la siguiente
     lastCode: "",
     lastAt: 0,
     count: 0,
-    veredictoSeq: 0    // token del veredicto en pantalla — descarta fotos que lleguen tarde de un escaneo anterior
+    veredictoSeq: 0,   // token del veredicto en pantalla — descarta fotos/clasificaciones que lleguen tarde
+    verdictQr: "",     // QR del veredicto en pantalla (anti-rebote al cerrar)
+    verdictOpenedAt: 0,
+    verdictRecuperado: false, // el modal en pantalla es de una clasificación pendiente recuperada
+    classifyGate: false,      // hay una clasificación pendiente en pantalla: no se puede cerrar ni escanear
+    classifyEntryId: null,
+    catalogError: null,       // último error de refresco del catálogo (texto ya redactado)
+    edadTimer: null
   };
+
+  var ICON_OK   = '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+  var ICON_ERR  = '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  var ICON_WARN = '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+  var ICON_WARN_SM = ICON_WARN.replace(/width="26" height="26"/, 'width="16" height="16"');
 
   /* ── Pantallas ─────────────────────────────────────────────────── */
   function show(id){
@@ -1268,94 +1765,162 @@ var App = (function(){
       ge(s).classList.toggle("on", s === id);
     });
   }
+  function enEscaneo(){ return ge("scr-scan").classList.contains("on") && !S.blocked; }
+
+  /* Bloqueo: detiene cámara y refresco, y deja la app "ocupada" para que
+     ningún veredicto ni clasificación se pinte encima de esta pantalla. */
   function blocked(title, msg, detail){
+    S.blocked = true;
+    S.busy = true;
+    S.classifyGate = false;
+    S.classifyEntryId = null;
+    try { Scanner.stop(); } catch (_) {}
+    pausarRefrescoCatalogo();
+    if (S.edadTimer) { clearInterval(S.edadTimer); S.edadTimer = null; }
+    ge("verdict").classList.remove("on");
     ge("blocked-title").textContent = title;
     ge("blocked-msg").textContent = msg;
     ge("blocked-detail").textContent = detail || "";
     show("scr-blocked");
   }
 
+  function bootMsg(txt){ var el = ge("boot-msg"); if (el) el.textContent = txt || ""; }
+
   /* ── Arranque ──────────────────────────────────────────────────── */
+  /* Red caída, timeout, 429 o 5xx: transitorio, se reintenta con backoff.
+     Todo lo demás (esquema, contrato, permisos, 4xx) es configuración y
+     bloquea con un mensaje específico. */
+  function esErrorTransitorio(e){
+    if (!e) return false;
+    if (e.network || e.name === "TimeoutError") return true;
+    var st = e.status;
+    return st === 429 || st === 408 || (st >= 500 && st < 600);
+  }
+
   async function init(){
+    obsBuildBadge();
     wireUI();
     var intento = 0;
-    var MAX_BOOT_RETRIES = 4;
-
     while (true) {
-    try {
-      S.id = await Identity.resolve();
-      /* Gate obligatorio contra la fuente de verdad en Sheets. */
-      var userRows = await GridClient.readSheet(CFG.ADMIN_SHEET_ID, CFG.DOC_ADMIN, CFG.USERS_TAB + "!A:O");
-      var perfil = findGuardiaSheet(userRows, S.id);
-      if (!perfil || perfil.permiso_guardia !== "si") {
-        return blocked("Sin registro", "Tu cuenta no está dada de alta como guardia en el sistema de accesos. Pide a un administrador que te registre y te asigne un sitio.", S.id.ldap ? "Usuario: " + S.id.ldap : "");
+      try {
+        await arrancar();
+        return;
+      } catch (e) {
+        if (esErrorTransitorio(e) && intento < CFG.BOOT_MAX_RETRIES) {
+          intento++;
+          var espera = Math.min(2000 * Math.pow(2, intento - 1), 30000);
+          console.warn("[Boot] error transitorio (intento " + intento + "): " + redactErr(e));
+          bootMsg("No se pudo conectar con Grid… reintentando en " + Math.round(espera / 1000) + " s (intento " + intento + " de " + CFG.BOOT_MAX_RETRIES + ").");
+          await sleep(espera);
+          bootMsg("Reintentando…");
+          continue;
+        }
+        console.warn("[Boot] arranque fallido: " + redactErr(e));
+        return mostrarErrorArranque(e, intento);
       }
-      if (norm(perfil.guardia_estatus) !== CFG.GUARDIA_OK) {
-        return blocked("Acceso a Scan no activo", "Tu registro de guardia existe, pero no está activo. Un administrador debe aprobarlo o reactivarlo antes de que puedas operar.", "Estatus actual: " + (perfil.guardia_estatus || "—"));
-      }
-      var guardSites = String(perfil.guardia_sitios||"").split('|').map(function(x){return x.trim();}).filter(Boolean);
-      if (guardSites.length !== 1) {
-        return blocked("Sitio de guardia inválido", "Scan requiere exactamente un sitio asignado por guardia.", guardSites.length ? "Sitios: " + guardSites.join(', ') : "Sin sitio asignado");
-      }
-      perfil.sitio = guardSites[0];
-      S.perfil = perfil;
-      var siteRows = await GridClient.readSheet(CFG.ADMIN_SHEET_ID, CFG.DOC_ADMIN, CFG.SITES_TAB + "!A:C");
-      var vigentes = activeSitesFromRows(siteRows);
-      if (vigentes.length && vigentes.indexOf(perfil.sitio) === -1) {
-        return blocked("Sitio asignado ya no existe", "Tu sitio asignado (\"" + perfil.sitio + "\") ya no está en la configuración vigente. Pide a un administrador que te reasigne.", "");
-      }
-      S.sitio = perfil.sitio;
+    }
+  }
 
-      /* Secuencial, no Promise.all: dos lecturas simultáneas justo
-         después de /me es exactamente el tipo de ráfaga que un
-         limitador por concurrencia castiga primero. */
-      await Catalog.load();
-      await Photos.load();
-      iniciarTurno();
-      return;
+  async function arrancar(){
+    S.id = await Identity.resolve();
+    /* Contrato de build en el Meta del libro de Usuarios (mismo que AM/AP). */
+    await validarContratoBuild();
 
-    } catch (e) {
-      /* Grid limitando la tasa de peticiones — no es VPN ni permisos,
-         es tráfico. Backoff exponencial: si sigue limitando después
-         de esperar lo que pidió, esperar el mismo tiempo otra vez
-         suele chocar con la misma ventana. Se dobla cada intento
-         (tope 20s) en vez de reintentar siempre al mismo ritmo. */
-      if (e.status === 429 && intento < MAX_BOOT_RETRIES) {
-        intento++;
-        var base = e.waitMs || 2000;
-        var espera = Math.min(base * Math.pow(2, intento - 1), 20000);
-        await sleep(espera);
-        continue;
-      }
+    /* Gate obligatorio contra la fuente de verdad en Sheets. */
+    var userRows = await GridClient.readSheet(CFG.ADMIN_SHEET_ID, CFG.DOC_ADMIN, CFG.USERS_TAB + "!A:O");
+    var perfil = findGuardiaSheet(userRows, S.id);
+    if (perfil && perfil.duplicado) {
+      return blocked("Usuario duplicado", "Tu usuario está duplicado en Usuarios; contacta a un admin.", S.id.ldap ? "Usuario: " + S.id.ldap : "");
+    }
+    if (!perfil || perfil.permiso_guardia !== "si") {
+      return blocked("Sin registro", "Tu cuenta no está dada de alta como guardia en el sistema de accesos. Pide a un administrador que te registre y te asigne un sitio.", S.id.ldap ? "Usuario: " + S.id.ldap : "");
+    }
+    if (norm(perfil.guardia_estatus) !== CFG.GUARDIA_OK) {
+      return blocked("Acceso a Scan no activo", "Tu registro de guardia existe, pero no está activo. Un administrador debe aprobarlo o reactivarlo antes de que puedas operar.", "Estatus actual: " + (perfil.guardia_estatus || "—"));
+    }
+    var guardSites = String(perfil.guardia_sitios || "").split("|").map(function(x){ return x.trim(); }).filter(Boolean);
+    if (guardSites.length !== 1) {
+      return blocked("Sitio de guardia inválido", "Scan requiere exactamente un sitio asignado por guardia.", guardSites.length ? "Sitios: " + guardSites.join(", ") : "Sin sitio asignado");
+    }
+    perfil.sitio = guardSites[0];
+    S.perfil = perfil;
+    var siteRows = await GridClient.readSheet(CFG.ADMIN_SHEET_ID, CFG.DOC_ADMIN, CFG.SITES_TAB + "!A:C");
+    var vigentes = activeSitesFromRows(siteRows).map(obsNormKey);
+    if (vigentes.length && vigentes.indexOf(obsNormKey(perfil.sitio)) === -1) {
+      return blocked("Sitio asignado ya no existe", "Tu sitio asignado (\"" + perfil.sitio + "\") ya no está en la configuración vigente. Pide a un administrador que te reasigne.", "");
+    }
+    S.sitio = perfil.sitio;
+
+    await validarEsquemaIngresos();
+
+    /* Secuencial, no Promise.all: lecturas simultáneas justo después de
+       /me son exactamente el tipo de ráfaga que un limitador castiga. */
+    bootMsg("Cargando catálogo…");
+    await Catalog.load();
+    await Photos.load();
+    bootMsg("");
+    iniciarTurno();
+  }
+
+  function mostrarErrorArranque(e, intentos){
+    var detalle = redactErr(e);
+    if (esErrorTransitorio(e)) {
       if (e.status === 429) {
         return blocked("Grid está limitando las solicitudes",
-          "Se recibieron demasiadas peticiones en poco tiempo (HTTP 429) y se reintentó " + intento + " veces sin éxito, con espera creciente entre cada una. Esto no es un problema de VPN — si persiste, probablemente haya otra sesión, pestaña o app golpeando el mismo documento al mismo tiempo.",
-          "Detalle: rate_limited" + (e.waitMs ? " · Retry-After sugerido: " + e.waitMs + "ms" : ""));
+          "Se recibieron demasiadas peticiones en poco tiempo (HTTP 429) y se reintentó " + intentos + " veces sin éxito, con espera creciente entre cada una. Esto no es un problema de VPN — si persiste, probablemente haya otra sesión, pestaña o app golpeando el mismo documento al mismo tiempo.",
+          "Detalle: " + detalle);
       }
-      if (e.status === 403) {
-        return blocked("Falta permiso en Grid",
-          "Grid rechazó la lectura del documento " + (e.docId || "—") + ". El ACL se evalúa sobre ese documento antes de resolver el OAuth, así que necesitas acceso de lectura explícito sobre él.",
-          "Pide acceso de lectura al documento y vuelve a entrar.");
-      }
-      if (/^sheet_read_4/.test(e.message || "")) {
-        return blocked("El catálogo no se pudo leer",
-          "Grid rechazó la lectura de la hoja (" + e.message.replace("sheet_read_", "HTTP ") + "). Casi siempre es que la pestaña \"" + CFG.SHEET_RANGE + "\" no existe con ese nombre exacto en la hoja, o que el SHEET_ID está mal. Verifica el nombre de la pestaña (con o sin acento) y el ID configurado en CFG.",
-          e.detail ? "Detalle de Grid: " + (typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail)) : "Sheet ID: " + CFG.SHEET_ID);
-      }
-      if (e.message === "catalog_headers") {
-        return blocked("No se reconocen las columnas del catálogo",
-          "No encontré encabezados para: " + e.faltantes.join(", ") + ". La pestaña es una respuesta de Google Form, así que el orden de columnas lo define el orden de las preguntas, no una posición fija — el emparejamiento es por texto del encabezado.",
-          "Encabezados leídos: " + (e.encabezados || []).map(function(h, i){ return "[" + i + "] " + h; }).join("  ·  "));
-      }
-      return blocked("No se pudo iniciar",
-        "No fue posible establecer sesión con Grid. Verifica tu conexión a la VPN y vuelve a intentar.",
-        e.message ? "Detalle: " + e.message : "");
+      return blocked("No se pudo conectar con Grid",
+        "Se reintentó " + intentos + " veces sin respuesta válida (red, tiempo de espera o error temporal del servidor). Verifica tu conexión a la red/VPN y vuelve a intentar.",
+        "Detalle: " + detalle);
     }
+    if (e.status === 403) {
+      return blocked("Falta permiso en Grid",
+        "Grid rechazó la lectura con el documento " + (e.docId || CFG.DOC_ADMIN) + ". El ACL se evalúa sobre ese documento antes de resolver el OAuth: necesitas acceso explícito a él (lectura para validar y escritura para registrar ingresos en la hoja \"" + CFG.SCAN_TAB + "\").",
+        "Pide acceso al documento " + CFG.DOC_ADMIN + " y vuelve a entrar." + (e.range ? " Rango: " + e.range : ""));
     }
+    if (e.code === "usuarios_schema") {
+      return blocked("La hoja Usuarios tiene un formato inválido",
+        "Scan se bloqueó de forma segura porque la pestaña \"" + CFG.USERS_TAB + "\" no tiene las columnas esperadas, en el orden esperado. Pide a un administrador que la revise.",
+        detalle);
+    }
+    if (e.code === "build") {
+      return blocked("Versión de Scan no autorizada",
+        "Esta versión de Scan (" + OBS_APP_VERSION + ") no está en el contrato de build del libro de Usuarios (Meta.build_contract). Pide a un administrador que actualice la app o el contrato.",
+        detalle);
+    }
+    if (e.code === "schema") {
+      return blocked("Configuración inválida",
+        "Scan se bloqueó de forma segura porque no pudo validar su fuente de verdad.",
+        detalle);
+    }
+    if (e.message === "catalog_headers") {
+      return blocked("No se reconocen las columnas del catálogo",
+        "No encontré encabezados para: " + e.faltantes.join(", ") + ". La pestaña es una respuesta de Google Form, así que el orden de columnas lo define el orden de las preguntas, no una posición fija — el emparejamiento es por texto del encabezado.",
+        "Encabezados leídos: " + (e.encabezados || []).map(function(h, i){ return "[" + i + "] " + h; }).join("  ·  "));
+    }
+    if (e.message === "catalog_empty") {
+      return blocked("El catálogo llegó vacío",
+        "La pestaña \"" + CFG.SHEET_RANGE + "\" no devolvió ni la fila de encabezados. Scan no opera sin catálogo.",
+        "Sheet ID: " + CFG.SHEET_ID);
+    }
+    if (/^sheet_read_4/.test(e.message || "")) {
+      return blocked("No se pudo leer una hoja de configuración",
+        "Grid rechazó la lectura (" + e.message.replace("sheet_read_", "HTTP ") + ") del rango \"" + (e.range || "—") + "\". Casi siempre es que la pestaña no existe con ese nombre exacto o que el ID de la hoja está mal.",
+        e.detail ? "Detalle de Grid: " + (typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail)).slice(0, 200) : "Sheet ID: " + (e.sheetId || "—"));
+    }
+    if (e.message === "me_sin_ldap_email") {
+      return blocked("No se pudo identificar tu usuario",
+        "Grid no devolvió ldap ni correo para tu sesión. Cierra sesión en Grid, vuelve a entrar e inténtalo de nuevo.", "");
+    }
+    return blocked("No se pudo iniciar",
+      "Ocurrió un error inesperado al iniciar Scan.",
+      "Detalle: " + detalle);
   }
 
   /* ── Arranque directo a escaneo (sitio ya fijo, sin elección) ──── */
   async function iniciarTurno(){
+    if (S.blocked) return;
     ge("scan-sitio").textContent = S.sitio;
     ge("scan-user").textContent  = S.perfil.nombre || S.id.nombre || S.id.ldap;
 
@@ -1366,25 +1931,77 @@ var App = (function(){
       S.scanMode = "handheld";
       ge("cam-hint").textContent = "Este navegador no expone un detector de QR nativo.";
     }
+    if (S.blocked) return;
     show("scr-scan");
     setMode(S.scanMode, camOk);
     iniciarRefrescoCatalogo();
+    actualizarEdadCatalogo();
+    if (!S.edadTimer) S.edadTimer = setInterval(actualizarEdadCatalogo, 30000);
     Outbox.resume();   // drena lo que quedó pendiente de una sesión anterior
+    revisarPendientes();
   }
 
-  /* Relectura periódica y silenciosa del catálogo (CFG.CATALOG_REFRESH_MS).
+  /* ── Catálogo: refresco, edad visible y desfase ──────────────────
      No hay forma de pedirle a Grid "sólo esta fila" (§7/§16.10), así que
      refrescar siempre implica releer la hoja completa. Si falla, se
-     registra y se reintenta en el siguiente ciclo — nunca interrumpe al
-     guardia ni el escaneo en curso: la app sigue con el último catálogo
-     bueno conocido hasta que un refresco funcione. */
+     registra (redactado), se marca en la línea de edad del catálogo y se
+     reintenta en el siguiente ciclo: la app sigue con el último catálogo
+     bueno conocido. Las recargas simultáneas (timer, botón, revalidación)
+     comparten la misma promesa. */
   var refrescoIniciado = false;
   var refrescoTimer = null;
+  var recargaEnCurso = null;
+
+  function catalogoEdadMs(){
+    var at = Catalog.loadedAt();
+    return at ? Date.now() - at.getTime() : Infinity;
+  }
+  function catalogoEdadMin(){ return Math.floor(catalogoEdadMs() / 60000); }
+  function catalogoDesactualizado(){ return catalogoEdadMs() > CFG.CATALOG_STALE_MS; }
+
+  function describirErrorCatalogo(e){
+    if (!e) return "";
+    if (e.message === "catalog_shrink") return "el catálogo nuevo bajó de " + e.prev + " a " + e.next + " credenciales; se mantiene el anterior";
+    if (e.message === "catalog_empty") return "la hoja llegó sin encabezados; se mantiene el catálogo anterior";
+    if (e.message === "catalog_headers") return "no se reconocen las columnas; se mantiene el catálogo anterior";
+    if (e.network || e.name === "TimeoutError") return "sin conexión con Grid";
+    if (e.status) return "Grid respondió HTTP " + e.status;
+    return redactErr(e);
+  }
+
+  function actualizarEdadCatalogo(){
+    var el = ge("catalog-age");
+    if (!el) return;
+    if (!Catalog.loadedAt()) { el.textContent = "Catálogo: sin cargar"; el.classList.add("warn"); return; }
+    var min = catalogoEdadMin();
+    var txt = "Catálogo: hace " + (min < 1 ? "<1" : min) + " min";
+    var warn = catalogoDesactualizado();
+    if (S.catalogError) { txt += " · no se pudo actualizar"; warn = true; }
+    el.textContent = txt;
+    el.classList.toggle("warn", warn);
+    el.title = S.catalogError ? "Último error: " + S.catalogError : "Credenciales en memoria: " + Catalog.size();
+  }
+
+  function recargarCatalogo(){
+    if (recargaEnCurso) return recargaEnCurso;
+    recargaEnCurso = Catalog.load().then(function(n){
+      S.catalogError = null;
+      return Photos.load().then(function(){ return n; });
+    }, function(e){
+      S.catalogError = describirErrorCatalogo(e);
+      console.warn("[Catalog] refresco falló: " + redactErr(e));
+      throw e;
+    }).then(function(n){
+      recargaEnCurso = null; actualizarEdadCatalogo(); return n;
+    }, function(e){
+      recargaEnCurso = null; actualizarEdadCatalogo(); throw e;
+    });
+    return recargaEnCurso;
+  }
 
   function dispararRefrescoCatalogo(){
-    Catalog.load().then(function(){
-      return Photos.load();
-    }).catch(function(){});
+    if (S.blocked) return;
+    recargarCatalogo().catch(function(){ /* ya registrado y visible en la línea de edad */ });
   }
 
   function iniciarRefrescoCatalogo(){
@@ -1393,23 +2010,21 @@ var App = (function(){
     if (!document.hidden) refrescoTimer = setInterval(dispararRefrescoCatalogo, CFG.CATALOG_REFRESH_MS);
   }
 
-  /* La pestaña puede pasar horas en segundo plano (el guardia cambia de
-     app o se bloquea la pantalla): sin esto, cada ciclo de 5 min seguía
-     descargando la hoja completa y reconstruyendo el índice sin que
-     nadie estuviera mirando. Se pausa el timer entero, no sólo el
-     trabajo dentro de él, y al recuperar el foco se refresca una vez
-     de inmediato en vez de esperar al siguiente múltiplo de 5 min. */
+  /* La pestaña puede pasar horas en segundo plano: se pausa el timer
+     entero, y al recuperar el foco se refresca una vez de inmediato en
+     vez de esperar al siguiente múltiplo de 5 min. */
   function pausarRefrescoCatalogo(){
     if (refrescoTimer) { clearInterval(refrescoTimer); refrescoTimer = null; }
   }
   function reanudarRefrescoCatalogo(){
-    if (!refrescoIniciado || refrescoTimer) return;
+    if (S.blocked || !refrescoIniciado || refrescoTimer) return;
     dispararRefrescoCatalogo();
     refrescoTimer = setInterval(dispararRefrescoCatalogo, CFG.CATALOG_REFRESH_MS);
   }
 
   /* ── Modos de escaneo ──────────────────────────────────────────── */
   async function setMode(mode, camOk){
+    if (S.blocked) return;
     if (mode === "camera" && camOk === false) return;
     S.scanMode = mode;
     Prefs.set("scanMode", mode);
@@ -1424,9 +2039,11 @@ var App = (function(){
       armHid();
     } else {
       try {
-        await Scanner.start(ge("cam-video"), onScan);
-        ge("cam-hint").textContent = "Encuadra el QR dentro del marco.";
+        var ok = await Scanner.start(ge("cam-video"), onScan, function(){ return S.scanMode === "camera" && !S.blocked; });
+        if (ok) ge("cam-hint").textContent = "Encuadra el QR dentro del marco.";
       } catch (e) {
+        console.warn("[Scanner] no se pudo abrir la cámara: " + redactErr(e));
+        if (S.scanMode !== "camera") return;
         ge("cam-hint").textContent = "No se pudo abrir la cámara. Revisa el permiso del navegador.";
         setMode("handheld", camOk);
       }
@@ -1443,7 +2060,7 @@ var App = (function(){
   var raceArmed = false;
 
   function hidActive(){
-    return S.scanMode === "handheld" && !S.busy;
+    return S.scanMode === "handheld" && !S.busy && !S.blocked;
   }
 
   function armHid(){
@@ -1463,8 +2080,9 @@ var App = (function(){
   /* ── Entrada de escaneo ────────────────────────────────────────── */
   function onScan(raw){
     /* Candado: la cámara dispara ~60 veces por segundo mientras el QR
-       siga encuadrado, y el ciclo de durabilidad dura más de un segundo. */
-    if (S.busy) return;
+       siga encuadrado; mientras haya un veredicto o una clasificación en
+       pantalla no se procesa nada. */
+    if (S.busy || S.blocked || S.classifyGate) return;
     var qr = normalizeQR(raw);
     if (!qr) return;
 
@@ -1475,7 +2093,12 @@ var App = (function(){
     procesar(qr);
   }
 
-  async function procesar(qr){
+  /* El veredicto se decide contra el catálogo en memoria y se muestra
+     PRIMERO (no depende de Grid ni de IndexedDB). El registro se encola
+     después, en segundo plano. Para un desconocido, el botón de cierre
+     queda deshabilitado desde el primer instante hasta que la
+     clasificación de ESE evento esté en pantalla y resuelta. */
+  function procesar(qr, opts){
     S.busy = true;
 
     var persona = Catalog.lookup(qr);
@@ -1504,42 +2127,75 @@ var App = (function(){
       guardia_source_field: S.id.source_field,
       ts: new Date().toISOString(),
       tz: CFG.TZ,
-      app: "accesos-obsidian/1.0"
+      app: "obsidian-scan/" + OBS_BUILD_ID
     };
 
-    /* Local-first (V21 #2): el veredicto ya está decidido arriba contra
-       el catálogo en memoria, así que no depende de Grid en absoluto.
-       Encolar en IndexedDB toma <10ms; el registro durable en Grid lo
-       termina Outbox en segundo plano sin frenar la fila de acceso. */
-    var bucket = CFG.SCAN_TAB;
-    try {
-      await Outbox.enqueue(bucket, evento);
-    } catch (e) {
-      /* IndexedDB no disponible (navegación privada, cuota, etc.):
-         último recurso, escritura directa en vez de perder el evento. */
-      try { await WriteQueue.write(bucket, evento, "evt_" + uuid(), uuid()); } catch (e2) { /* se pierde el registro, no el acceso */ }
-    }
+    var seq = mostrarVeredicto(evento, persona, opts);
     S.count++;
 
-    await mostrarVeredicto(evento, persona);
+    Outbox.enqueue(CFG.SCAN_TAB, evento).then(function(entry){
+      if (evento.resultado !== "desconocido") return;
+      /* Si este veredicto ya no está en pantalla, la entrada queda
+         pendiente y se mostrará en su propio modal (revisarPendientes). */
+      renderClasificacion(entry, seq);
+    }).catch(function(e){
+      console.warn("[Outbox] no se pudo encolar el evento " + redactQR(qr) + ": " + redactErr(e));
+      if (seq === S.veredictoSeq) {
+        addNotice("No se pudo guardar el registro de este escaneo. Avisa a un administrador.", "err");
+        liberarCierre();
+      }
+    });
   }
 
-  async function mostrarVeredicto(evento, persona){
-    var seq = ++S.veredictoSeq;
+  /* ── Panel de veredicto ────────────────────────────────────────── */
+  function addNotice(texto, tipo, conIcono, host){
+    var d = document.createElement("div");
+    d.className = "notice " + (tipo || "warn");
+    if (conIcono) d.innerHTML = ICON_WARN_SM;   // SVG estático, sin datos
+    var s = document.createElement("span");
+    s.textContent = texto;
+    d.appendChild(s);
+    (host || ge("v-notice")).appendChild(d);
+    return d;
+  }
+
+  function prepararPanel(tipo){
     var v = ge("verdict");
     v.classList.remove("ok", "err", "warn");
-
-    /* Por defecto: sin foto, glyph visible. Sólo el branch "permitido"
-       de abajo la activa, y únicamente si Photos tiene una URL Y la
-       imagen carga de verdad — si falla, se cae al glyph sin ruido. */
-    var photoWrap = ge("v-photo-wrap");
+    v.classList.add(tipo);
+    ge("v-photo-wrap").style.display = "none";
+    ge("v-photo-wrap").style.height = "";
     var glyphEl = ge("v-glyph");
-    var closeBtn = ge("v-close");
-    photoWrap.style.display = "none";
-    photoWrap.style.height = "";
     glyphEl.style.display = "";
+    glyphEl.className = "glyph " + tipo;
+    glyphEl.innerHTML = tipo === "ok" ? ICON_OK : tipo === "err" ? ICON_ERR : ICON_WARN;   // SVG estáticos
+    ge("v-notice").textContent = "";
+    var closeBtn = ge("v-close");
     closeBtn.disabled = false;
     closeBtn.textContent = "Siguiente escaneo";
+  }
+
+  function abrirPanel(){
+    ge("verdict").classList.add("on");
+    S.verdictOpenedAt = Date.now();
+    /* El botón de cierre NO se enfoca: el Enter de un lector HID que
+       siga tecleando no debe cerrar el veredicto por accidente. */
+  }
+
+  function liberarCierre(texto){
+    if (S.classifyGate) return;
+    var closeBtn = ge("v-close");
+    closeBtn.disabled = false;
+    closeBtn.textContent = texto || "Siguiente escaneo";
+  }
+
+  function mostrarVeredicto(evento, persona, opts){
+    var seq = ++S.veredictoSeq;
+    S.verdictRecuperado = false;
+    S.verdictQr = evento.qr;
+    var tipo = evento.resultado === "permitido" ? "ok" : evento.resultado === "bloqueado" ? "err" : "warn";
+    prepararPanel(tipo);
+    var closeBtn = ge("v-close");
 
     if (evento.resultado !== "permitido" && S.scanMode === "handheld") {
       var area = ge("hh-scan-area");
@@ -1549,47 +2205,35 @@ var App = (function(){
       }
     }
 
-    var glyphOK   = '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
-    var glyphERR  = '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    var glyphWARN = '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
-
     if (evento.resultado === "permitido") {
-      v.classList.add("ok");
-      glyphEl.className = "glyph ok";
-      glyphEl.innerHTML = glyphOK;
-      ge("v-title").textContent = "¡Adelante, " + (persona.pila || persona.nombre) + "! Acceso habilitado.";
-      ge("v-why").textContent = persona.empresa ? persona.empresa : "";
+      var nombreVisible = persona && (persona.pila || persona.nombre);
+      ge("v-title").textContent = nombreVisible ? "¡Adelante, " + nombreVisible + "! Acceso habilitado." : "¡Adelante! Acceso habilitado.";
+      ge("v-why").textContent = persona && persona.empresa ? persona.empresa : "";
     } else if (evento.resultado === "bloqueado") {
-      v.classList.add("err");
-      ge("v-glyph").className = "glyph err";
-      ge("v-glyph").innerHTML = glyphERR;
       ge("v-title").textContent = "Acceso bloqueado: " + evento.razon + ".";
-      ge("v-why").textContent = "Pide al usuario revisar su credencial.";
+      ge("v-why").textContent = persona && persona.ambiguous ? "No dejes pasar hasta que un gestor corrija el catálogo." : "Pide al usuario revisar su credencial.";
     } else {
-      v.classList.add("warn");
-      ge("v-glyph").className = "glyph warn";
-      ge("v-glyph").innerHTML = glyphWARN;
       ge("v-title").textContent = "Acceso no existe: " + evento.razon + ".";
-      ge("v-why").textContent = "Pide al usuario revisar su credencial.";
+      ge("v-why").textContent = "QR: " + evento.qr;
+      /* L4: entre el encolado y la clasificación no se puede avanzar. */
+      closeBtn.disabled = true;
+      closeBtn.textContent = "Registrando…";
     }
 
-    /* Staleness explícito: la app puede llevar horas abierta sin recargar.
-       Al guardia no le hablamos de "catálogo" ni "snapshot" — sólo se le
-       pide recargar si no la ha estado usando hace rato. */
-    var notices = "";
-    if (evento.resultado === "desconocido") {
-      notices += '<div class="notice warn">' + glyphWARN.replace(/width="26" height="26"/, 'width="16" height="16"') +
-        '<span>Si no has usado la app hace rato, recarga la página e inténtalo de nuevo antes de decidir.</span></div>';
-    }
-    ge("v-notice").innerHTML = notices;
+    if (opts && opts.revalidado) addNotice("Revalidado con el catálogo recién recargado.", "warn");
 
-    /* El modal se abre YA con el veredicto (permitido/bloqueado/desconocido):
-       esa decisión ya está tomada arriba contra el catálogo en memoria y no
-       depende de la foto. Pero cuando SÍ hay foto que verificar, el guardia
-       la necesita para comparar cara contra credencial antes de dejar pasar
-       — así que aquí el botón para continuar se bloquea hasta que la foto
-       cargue (o falle de forma explícita), en vez de dejar avanzar sin ella. */
-    v.classList.add("on");
+    /* Catálogo viejo: un "permitido" nunca pasa en silencio. */
+    if (evento.resultado === "permitido" && catalogoDesactualizado()) {
+      addNotice("Catálogo desactualizado (" + catalogoEdadMin() + " min): confirma con gestor", "warn", true);
+    }
+
+    /* El modal se abre YA con el veredicto: esa decisión ya está tomada
+       contra el catálogo en memoria y no depende de la foto. Pero cuando
+       SÍ hay foto que verificar, el guardia la necesita para comparar cara
+       contra credencial antes de dejar pasar — así que el botón para
+       continuar se bloquea hasta que la foto cargue (o falle de forma
+       explícita), en vez de dejar avanzar sin ella. */
+    abrirPanel();
 
     if (evento.resultado === "permitido") {
       var foto = Photos.lookup(evento.qr);
@@ -1597,63 +2241,175 @@ var App = (function(){
         closeBtn.disabled = true;
         closeBtn.textContent = "Verificando foto…";
         cargarFotoVeredicto(foto.docId, evento.qr, seq);
-        return;
+        return seq;
       }
-      /* Sin foto que esperar — pero hay que decir POR QUÉ, no sólo dejar
-         pasar en silencio: son dos causas de datos distintas y confundirlas
-         hace perder tiempo buscando en el lugar equivocado. */
+      /* Sin foto que esperar — pero hay que decir POR QUÉ: son dos causas
+         de datos distintas y confundirlas hace buscar en el lugar equivocado. */
       if (foto && !foto.docId) {
-        console.warn("[foto] fila encontrada en Publicados para " + evento.qr + " pero sin Doc ID (columna vacía o ausente).");
-        ge("v-notice").innerHTML += '<div class="notice warn"><span>Este código tiene foto registrada (view_url) en "Publicados" pero sin Doc ID — no se puede descargar desde Grid. Revisa esa fila. Confirma la identidad manualmente.</span></div>';
+        console.warn("[foto] fila encontrada en " + CFG.SHEET_RANGE_FOTOS + " para " + redactQR(evento.qr) + " pero sin doc_id.");
+        addNotice("Este código tiene fila en \"" + CFG.SHEET_RANGE_FOTOS + "\" pero sin doc_id — no se puede descargar la foto desde Grid. Confirma la identidad manualmente.", "warn");
       } else if (!foto) {
-        console.warn("[foto] " + evento.qr + " no aparece en el índice de Photos (pestaña Publicados).");
-        ge("v-notice").innerHTML += '<div class="notice warn"><span>Este código no tiene ninguna fila en la pestaña "Publicados" — no hay foto que verificar. Confirma la identidad manualmente.</span></div>';
+        console.warn("[foto] " + redactQR(evento.qr) + " no aparece en el índice de Photos (" + CFG.SHEET_RANGE_FOTOS + ").");
+        addNotice("Este código no tiene ninguna fila en la pestaña \"" + CFG.SHEET_RANGE_FOTOS + "\" — no hay foto que verificar. Confirma la identidad manualmente.", "warn");
       }
     }
-    setTimeout(function(){ closeBtn.focus(); }, 60);
+    return seq;
   }
 
-  /* Traduce el error crudo de la descarga a algo diagnosticable en pantalla.
-     GridClient.downloadDocumentAsObjectUrl() ya etiqueta sus errores con
-     .status y un .message tipo "download_meta_404" / "download_blob_403";
-     aquí sólo se decodifican para no obligar al guardia (o a quien revise
-     después) a adivinar qué falló. */
+  /* ── Clasificación de desconocidos ───────────────────────────────
+     Siempre ligada al veredicto en pantalla (seq) y a SU entrada
+     (entry.id): nunca se pinta encima del veredicto de otra persona. */
+  function renderClasificacion(entry, seq){
+    if (seq !== S.veredictoSeq || S.blocked || !ge("verdict").classList.contains("on")) return false;
+    S.classifyGate = true;
+    S.classifyEntryId = entry.id;
+
+    var bloque = document.createElement("div");
+    bloque.className = "classify";
+    addNotice("El catálogo no basta para concluir. Selecciona qué observaste antes de continuar.", "warn", true, bloque);
+    var grid = document.createElement("div");
+    grid.className = "classify-grid";
+    Object.keys(CLASS_DEFS).forEach(function(code){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn btn-ghost btn-block";
+      b.textContent = CLASS_DEFS[code].label;
+      b.addEventListener("click", function(){ clasificar(entry, code, seq, bloque); });
+      grid.appendChild(b);
+    });
+    bloque.appendChild(grid);
+    ge("v-notice").appendChild(bloque);
+
+    var closeBtn = ge("v-close");
+    closeBtn.disabled = true;
+    closeBtn.textContent = "Clasifica el caso";
+    return true;
+  }
+
+  function clasificar(entry, code, seq, bloque){
+    var botones = bloque.querySelectorAll("button");
+    Array.prototype.forEach.call(botones, function(b){ b.disabled = true; });
+    Outbox.classify(entry.id, code).then(function(){
+      if (S.classifyEntryId === entry.id) { S.classifyGate = false; S.classifyEntryId = null; }
+      if (seq !== S.veredictoSeq) return;
+      bloque.textContent = "";
+      addNotice("Clasificación guardada: " + CLASS_DEFS[code].label + ".", "warn", false, bloque);
+      var qr = entry.evento && entry.evento.qr;
+
+      if (S.verdictRecuperado) {
+        /* Modal de pendientes: se encadena al siguiente, del más viejo al
+           más nuevo; la revalidación inmediata no aplica a un escaneo viejo. */
+        if (code === "snapshot_stale_possible") dispararRefrescoCatalogo();
+        Outbox.pendingClassification().then(function(list){
+          if (seq !== S.veredictoSeq) return;
+          if (list.length) mostrarClasificacionPendiente(list[0]);
+          else liberarCierre("Continuar");
+        }).catch(function(){ liberarCierre("Continuar"); });
+        return;
+      }
+      liberarCierre();
+      if (code === "snapshot_stale_possible" && qr) revalidarTrasRecarga(qr, seq);
+    }, function(e){
+      Array.prototype.forEach.call(botones, function(b){ b.disabled = false; });
+      console.warn("[Outbox] no se pudo guardar la clasificación: " + redactErr(e));
+      toast("No se pudo guardar la clasificación: " + redactErr(e), "err");
+    });
+  }
+
+  /* G6: "Puede ser desfase del catálogo" => recargar y, si el QR ya
+     aparece y este veredicto sigue en pantalla, revalidarlo y mostrar el
+     veredicto nuevo (que se registra como un evento propio). */
+  function revalidarTrasRecarga(qr, seq){
+    var aviso = addNotice("Recargando catálogo para revalidar este código…", "warn");
+    function setAviso(t){ var s = aviso.querySelector("span"); if (s) s.textContent = t; }
+    recargarCatalogo().then(function(){
+      if (S.blocked) return;
+      var persona = Catalog.lookup(qr);
+      var enPantalla = seq === S.veredictoSeq && ge("verdict").classList.contains("on");
+      if (!persona) {
+        if (enPantalla) setAviso("Catálogo recargado: el código sigue sin aparecer.");
+        return;
+      }
+      if (!enPantalla) {
+        toast("El código ya aparece en el catálogo actualizado: vuelve a escanearlo.", "ok");
+        return;
+      }
+      cerrarVeredicto(true);
+      procesar(qr, { revalidado: true });
+    }, function(e){
+      if (seq === S.veredictoSeq) setAviso("No se pudo recargar el catálogo (" + describirErrorCatalogo(e) + "). Verifica con gestor.");
+    });
+  }
+
+  /* Pendientes recuperados (recarga, reintento): cada uno en SU propio
+     modal, del más viejo al más nuevo, con su QR y la hora del escaneo. */
+  var fmtHora = null;
+  function horaEscaneo(ms){
+    try {
+      if (!fmtHora) fmtHora = new Intl.DateTimeFormat("es-MX", { timeZone: OBS_TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      return fmtHora.format(new Date(ms));
+    } catch (_) { return new Date(ms).toISOString(); }
+  }
+
+  function mostrarClasificacionPendiente(entry){
+    if (S.blocked) return;
+    var seq = ++S.veredictoSeq;
+    S.busy = true;
+    S.verdictRecuperado = true;
+    S.verdictQr = (entry.evento && entry.evento.qr) || "";
+    prepararPanel("warn");
+    ge("v-title").textContent = "Clasificación pendiente de un escaneo anterior";
+    ge("v-why").textContent = "QR: " + (S.verdictQr || "—") + " · escaneado el " + horaEscaneo(entry.createdAt || Date.now());
+    abrirPanel();
+    renderClasificacion(entry, seq);
+  }
+
+  var revisandoPendientes = false;
+  function revisarPendientes(){
+    if (revisandoPendientes || S.busy || !enEscaneo()) return;
+    revisandoPendientes = true;
+    Outbox.pendingClassification().then(function(list){
+      revisandoPendientes = false;
+      if (!list.length || S.busy || !enEscaneo()) return;
+      mostrarClasificacionPendiente(list[0]);
+    }, function(e){
+      revisandoPendientes = false;
+      console.warn("[Outbox] no se pudieron leer los pendientes: " + redactErr(e));
+    });
+  }
+
+  /* Traduce el error crudo de la descarga a algo diagnosticable en pantalla. */
   function describirErrorFoto(e){
     var msg = (e && e.message) || String(e);
+    if (e && e.name === "TimeoutError") return "Grid tardó demasiado en responder.";
     if (e && e.status === 403) return "Grid rechazó el acceso al documento de la foto (sin permiso de lectura sobre ese documento).";
-    if (e && e.status === 404) return "El documento de la foto no existe en Grid (Doc ID inválido o el archivo fue borrado/movido).";
-    if (e && e.status === 429) return "Grid está limitando las peticiones (HTTP 429); intenta de nuevo en unos segundos.";
+    if (e && e.status === 404) return "El documento de la foto no existe en Grid (doc_id inválido o el archivo fue borrado/movido).";
+    if (e && e.status === 429) return "Grid está limitando las peticiones (HTTP 429).";
     if (/^download_meta_/.test(msg)) return "Grid respondió HTTP " + msg.replace("download_meta_", "") + " al pedir los datos de descarga del documento.";
     if (/^download_blob_/.test(msg)) return "Grid respondió HTTP " + msg.replace("download_blob_", "") + " al descargar el archivo (la URL firmada pudo haber expirado).";
     if (msg === "sin download_url en la respuesta") return "Grid no devolvió una URL de descarga para este documento.";
-    if (e && e.name === "TypeError") return "Fallo de red al descargar la foto (revisa conexión/VPN) — " + msg;
-    return "Error al descargar la foto: " + msg;
+    if (e && e.network) return "Fallo de red al descargar la foto (revisa conexión/VPN).";
+    return "Error al descargar la foto.";
   }
 
   /* Carga de la foto de verificación: bloquea "Siguiente escaneo" mientras
-     dura (el guardia debe comparar cara contra foto antes de dejar pasar).
-     `seq` es el token del veredicto que la disparó — si para cuando la foto
-     llega ya hay un veredicto más nuevo en pantalla (el guardia forzó otro
-     camino o escaneó de nuevo), se descarta en vez de pisar el estado de
-     otra persona. */
+     dura (tope: 2 × CFG.PHOTO_TIMEOUT_MS). `seq` es el token del veredicto
+     que la disparó — si para cuando la foto llega ya hay otro veredicto
+     en pantalla, se descarta en vez de pisar el estado de otra persona. */
   async function cargarFotoVeredicto(docId, qr, seq){
     var img = ge("v-photo");
     var photoWrap = ge("v-photo-wrap");
     var glyphEl = ge("v-glyph");
-    var closeBtn = ge("v-close");
 
     function liberarBoton(notaError){
       if (seq !== S.veredictoSeq) return;
-      closeBtn.disabled = false;
-      closeBtn.textContent = "Siguiente escaneo";
-      if (notaError) {
-        ge("v-notice").innerHTML += '<div class="notice warn"><span>' + notaError + '</span></div>';
-      }
-      closeBtn.focus();
+      if (notaError) addNotice(notaError, "warn");   // textContent: sin HTML de datos/errores
+      liberarCierre();                                // no habilita si hay clasificación activa
     }
 
     try {
-      var objectUrl = await GridClient.downloadDocumentAsObjectUrl(docId);
+      var objectUrl = await conTimeout(GridClient.downloadDocumentAsObjectUrl(docId), CFG.PHOTO_TIMEOUT_MS * 2 + 1000,
+        function(urlTardia){ URL.revokeObjectURL(urlTardia); });
       if (seq !== S.veredictoSeq) { URL.revokeObjectURL(objectUrl); return; }
 
       if (S.photoObjectUrl) URL.revokeObjectURL(S.photoObjectUrl);
@@ -1667,17 +2423,15 @@ var App = (function(){
       if (seq !== S.veredictoSeq) return;
 
       if (!cargo) {
-        console.warn("[foto] blob descargado pero <img> no lo pudo decodificar. qr=" + qr + " docId=" + docId);
-        liberarBoton("La foto se descargó (Doc ID: " + docId + ") pero no se pudo mostrar — el archivo probablemente no es una imagen válida o está dañado. Confirma la identidad manualmente.");
+        console.warn("[foto] blob descargado pero <img> no lo pudo decodificar. qr=" + redactQR(qr));
+        liberarBoton("Foto no disponible — verifica identidad manualmente. (El archivo " + docId + " no es una imagen válida o está dañado.)");
         return;
       }
 
       photoWrap.style.display = ""; glyphEl.style.display = "none";
-      /* object-fit:contain garantiza que la foto se vea completa, pero
-         con una caja de alto fijo eso puede dejar franjas vacías grandes
-         si la foto es muy vertical u horizontal. Se ajusta el alto de
-         la caja al aspecto real de la foto, con un rango razonable para
-         no deformar el modal. */
+      /* object-fit:contain garantiza que la foto se vea completa; se ajusta
+         el alto de la caja al aspecto real de la foto, con un rango
+         razonable para no deformar el modal. */
       if (img.naturalWidth && img.naturalHeight) {
         var anchoCaja = Math.min(460, window.innerWidth - 40);
         var altoIdeal = anchoCaja * (img.naturalHeight / img.naturalWidth);
@@ -1690,16 +2444,25 @@ var App = (function(){
       liberarBoton(null);
 
     } catch (e) {
-      console.warn("[foto] fallo al descargar. qr=" + qr + " docId=" + docId, e);
-      liberarBoton("No se pudo cargar la foto (Doc ID: " + docId + "). " + describirErrorFoto(e) + " Confirma la identidad manualmente.");
+      console.warn("[foto] fallo al descargar. qr=" + redactQR(qr) + ": " + redactErr(e));
+      liberarBoton("Foto no disponible — verifica identidad manualmente. " + describirErrorFoto(e) + " (doc_id: " + docId + ")");
     }
   }
 
-  function cerrarVeredicto(){
+  function cerrarVeredicto(sinPendientes){
+    if (S.classifyGate) return;
     ge("verdict").classList.remove("on");
     if (S.photoObjectUrl) { URL.revokeObjectURL(S.photoObjectUrl); S.photoObjectUrl = null; }
-    S.busy = false;
+    ge("v-photo").removeAttribute("src");
+    /* Anti-rebote también al CERRAR: el mismo QR que sigue en cuadro no
+       se vuelve a aceptar durante SUPPRESS_MS. */
+    if (S.verdictQr) S.lastCode = S.verdictQr;
+    S.lastAt = Date.now();
+    S.verdictRecuperado = false;
+    S.busy = S.blocked;
+    if (S.blocked) return;
     armHid();
+    if (sinPendientes !== true) revisarPendientes();
   }
 
   /* ── Pantalla completa (Biblia §16.21) ────────────────────────────
@@ -1759,18 +2522,50 @@ var App = (function(){
       if (hidActive()) f.focus({ preventScroll: true });
     });
 
-    ge("v-close").addEventListener("click", cerrarVeredicto);
-
-    Outbox.onQueueChange(function(n){
-      var pill = ge("outbox-pill");
-      if (!pill) return;
-      pill.style.display = n > 0 ? "" : "none";
-      ge("outbox-count").textContent = n;
+    /* B15: el cierre exige un gesto deliberado. Se ignora Enter/Espacio
+       sobre "Siguiente escaneo" en los primeros 600 ms del veredicto o si
+       llega dentro de una ráfaga de teclas típica de un lector HID. */
+    var closeBtn = ge("v-close");
+    var teclas = [];
+    document.addEventListener("keydown", function(e){
+      var now = Date.now();
+      teclas.push(now);
+      while (teclas.length && now - teclas[0] > 300) teclas.shift();
+      if (e.key !== "Enter" && e.key !== " ") return;
+      if (document.activeElement !== closeBtn || !ge("verdict").classList.contains("on")) return;
+      if (now - S.verdictOpenedAt < 600 || teclas.length >= 4) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
+    closeBtn.addEventListener("click", function(e){
+      if (e.detail === 0 && Date.now() - S.verdictOpenedAt < 600) return;   // activación por teclado demasiado pronto
+      cerrarVeredicto();
     });
+
+    Outbox.onQueueChange(function(st){
+      var pill = ge("outbox-pill");
+      if (pill) {
+        pill.style.display = st.pending > 0 ? "" : "none";
+        ge("outbox-count").textContent = st.pending;
+      }
+      var dead = ge("dead-pill");
+      if (dead) {
+        dead.style.display = st.dead > 0 ? "" : "none";
+        ge("dead-count").textContent = st.dead;
+        dead.title = st.lastError ? "Último error: " + st.lastError : "Registros que no se pudieron sincronizar";
+      }
+    });
+    ge("dead-retry").addEventListener("click", function(){
+      Outbox.retryDead().then(function(n){
+        toast(n ? "Reintentando " + n + " registro(s)…" : "No hay registros con error.", "ok");
+      }).catch(function(e){
+        console.warn("[Outbox] reintento manual falló: " + redactErr(e));
+        toast("No se pudo reintentar: " + redactErr(e), "err");
+      });
+    });
+    Outbox.onNeedsClassification(revisarPendientes);
     Outbox.onPermissionDenied(function(e, item){
       blocked("Falta permiso de escritura",
-        "Grid rechazó el registro en el documento de eventos. Necesitas acceso de lectura sobre " + CFG.DOC_ACCESOS + " para poder escribir en él.",
-        "Bucket: " + item.bucket);
+        "Grid rechazó el registro en la hoja \"" + CFG.SCAN_TAB + "\" del libro de Scan. El ACL se evalúa sobre el documento " + CFG.DOC_ADMIN + ": necesitas acceso de escritura (edición) sobre ese documento y sobre la hoja de ingresos para poder registrar.",
+        "Documento: " + CFG.DOC_ADMIN + " · Hoja: " + CFG.SCAN_SHEET_ID + " / " + item.bucket);
     });
 
     var fsBtn = ge("btn-fullscreen");
@@ -1790,19 +2585,15 @@ var App = (function(){
     var refreshBtn = ge("btn-refresh-catalog");
     var refrescandoManual = false;
     refreshBtn.addEventListener("click", function(){
-      if (refrescandoManual) return;
+      if (refrescandoManual || S.blocked) return;
       refrescandoManual = true;
       refreshBtn.disabled = true;
       refreshBtn.classList.add("spinning");
-      var nCatalogo;
-      Catalog.load().then(function(n){
-        nCatalogo = n;
-        return Photos.load();
-      }).then(function(){
-        toast("Catálogo actualizado — " + nCatalogo + " credenciales.", "ok");
+      recargarCatalogo().then(function(n){
+        toast("Catálogo actualizado — " + n + " credenciales.", "ok");
       }).catch(function(e){
-        toast("No se pudo actualizar. Se mantiene el catálogo anterior.", "err");
-      }).finally(function(){
+        toast("No se pudo actualizar (" + describirErrorCatalogo(e) + ").", "err");
+      }).then(function(){
         refrescandoManual = false;
         refreshBtn.disabled = false;
         refreshBtn.classList.remove("spinning");
@@ -1811,10 +2602,13 @@ var App = (function(){
 
     document.addEventListener("visibilitychange", function(){
       if (document.hidden) {
-        if (Scanner.isRunning()) Scanner.stop();
+        Scanner.stop();
         pausarRefrescoCatalogo();
       } else {
         reanudarRefrescoCatalogo();
+        actualizarEdadCatalogo();
+        /* B6: al volver, la cámara se había detenido: se reabre. */
+        if (enEscaneo() && S.scanMode === "camera") setMode("camera", true);
       }
     });
   }
@@ -1822,670 +2616,7 @@ var App = (function(){
   return { init: init };
 })();
 
-/* ============================================================================
-   OBSIDIAN SCAN - CANONICAL SHEETS PATCH v3
-   Build: obsidian-2026.10.06.4
-   - strict schemas and fail-closed gates
-   - full Retry-After global gate
-   - idempotent append verified by write_id
-   ============================================================================ */
-(function(){
-'use strict';
-var OBS_BUILD_ID='obsidian-2026.10.06.4';
-var OBS_USERS_HEADERS=['ldap','email','nombre','rol_app','estatus_app','areas','sitios','etapas','permiso_guardia','guardia_sitios','guardia_estatus','fecha_registro','fecha_resolucion','resuelto_por','origen'];
-var OBS_SCAN_HEADERS=['id','write_id','qr','nombre','empresa','sitio','resultado','razon','guardia_hash','guardia_source_field','ts','tz','app'];
-var OBS_STABLE_MS=650;
-function obsSleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
-function obsRetryAfterMs(res){var raw=String(res&&res.headers&&res.headers.get?(res.headers.get('Retry-After')||''):'').trim();if(!raw)return 2000;var n=Number(raw);if(isFinite(n)&&n>=0)return Math.ceil(n*1000);var d=Date.parse(raw);return isNaN(d)?2000:Math.max(0,d-Date.now());}
-function obsAssertHeaders(row,expected,tab){var got=(row||[]).map(function(x){return String(x==null?'':x).trim();});if(got.length<expected.length)throw new Error(tab+': esquema incompleto');for(var i=0;i<expected.length;i++)if(got[i]!==expected[i])throw new Error(tab+': columna '+(i+1)+' esperada "'+expected[i]+'", recibida "'+(got[i]||'(vacía)')+'"');}
-
-/* ------------------------------ transport ---------------------------------- */
-GridClient=(function(){
-  var gateUntil=0,tail=Promise.resolve(),lastStart=0,GAP=700;
-  function waitGate(){return gateUntil>Date.now()?obsSleep(gateUntil-Date.now()):Promise.resolve();}
-  function schedule(task){function run(){var gap=Math.max(0,lastStart+GAP-Date.now());return (gap?obsSleep(gap):Promise.resolve()).then(function(){lastStart=Date.now();return task();});}var p=tail.then(run,run);tail=p.catch(function(){});return p;}
-  function isSheet(path){return /^\/api\/v1\/sheets\//.test(String(path||''));}
-  function raw(path,opts,attempt){attempt=attempt||0;var method=String((opts&&opts.method)||'GET').toUpperCase();return waitGate().then(function(){return fetch(path,Object.assign({credentials:'include'},opts||{}));}).then(function(res){
-    if(res.status===429&&attempt<6){var ms=obsRetryAfterMs(res);gateUntil=Math.max(gateUntil,Date.now()+Math.max(1000,ms));console.warn('[Scan] 429 gate global '+Math.ceil(ms/1000)+' s');return waitGate().then(function(){return obsSleep(150+Math.floor(Math.random()*300));}).then(function(){return raw(path,opts,attempt+1);});}
-    if((res.status===502||res.status===503||res.status===504)&&method==='GET'&&attempt<4)return obsSleep(Math.min(12000,700*Math.pow(2,attempt))).then(function(){return raw(path,opts,attempt+1);});
-    return res;
-  }).catch(function(err){if(method==='GET'&&attempt<4)return obsSleep(Math.min(12000,700*Math.pow(2,attempt))).then(function(){return raw(path,opts,attempt+1);});throw err;});}
-  function call(path,opts){return isSheet(path)?schedule(function(){return raw(path,opts,0);}):raw(path,opts,0);}
-  function values(body){return body&&(body.values||(body.data&&body.data.values)||body.rows)||(Array.isArray(body)?body:[]);}
-  function readSheet(sheetId,docId,range){var path='/api/v1/sheets/'+encodeURIComponent(sheetId)+'?doc_id='+encodeURIComponent(docId)+'&range='+encodeURIComponent(range);return call(path).then(function(r){if(r.status===403){var e=new Error('permission_denied');e.status=403;e.docId=docId;throw e;}if(!r.ok){var e2=new Error('sheet_read_'+r.status);e2.status=r.status;throw e2;}return r.json();}).then(function(b){var rows=values(b);return Array.isArray(rows)?rows:[];});}
-  function appendSheet(sheetId,docId,range,rows){var path='/api/v1/sheets/'+encodeURIComponent(sheetId)+'/append?doc_id='+encodeURIComponent(docId);return call(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({range:range,values:rows})}).then(function(r){return r.json().catch(function(){return {};}).then(function(b){return {res:r,body:b};});});}
-  function me(){return call('/api/v1/me').then(function(r){if(!r.ok){var e=new Error('me_'+r.status);e.status=r.status;throw e;}return r.json();});}
-  function downloadDocumentAsObjectUrl(docId){return call('/api/v1/documents/'+encodeURIComponent(docId)+'/download').then(function(r){if(!r.ok){var e=new Error('download_meta_'+r.status);e.status=r.status;throw e;}return r.json();}).then(function(meta){var url=meta.download_url||meta.agent_download_url;if(!url)throw new Error('sin download_url en la respuesta');return fetch(url,{credentials:'include'});}).then(function(r){if(!r.ok){var e=new Error('download_blob_'+r.status);e.status=r.status;throw e;}return r.blob();}).then(function(blob){return URL.createObjectURL(blob);});}
-  return {call:call,readSheet:readSheet,appendSheet:appendSheet,me:me,downloadDocumentAsObjectUrl:downloadDocumentAsObjectUrl};
-})();
-
-/* ------------------------ strict gate source schemas ----------------------- */
-parseAdminUsers=function(rows){
-  if(!rows||!rows.length)throw new Error('Usuarios vacío');obsAssertHeaders(rows[0],OBS_USERS_HEADERS,'Usuarios');var out=[],aliases={};
-  for(var i=1;i<rows.length;i++){var r=rows[i]||[];if(!r.length)continue;var o={ldap:String(r[0]||'').trim().toLowerCase(),email:String(r[1]||'').trim().toLowerCase(),nombre:String(r[2]||'').trim(),permiso_guardia:String(r[8]||'').trim().toLowerCase(),guardia_sitios:String(r[9]||'').trim(),guardia_estatus:String(r[10]||'').trim().toLowerCase()};if(!o.ldap&&!o.email)continue;[o.ldap,o.email].filter(Boolean).forEach(function(a){if(aliases[a])throw new Error('Usuarios duplicado: '+a);aliases[a]=1;});out.push(o);}return out;
-};
-activeSitesFromRows=function(rows){
-  if(!rows||!rows.length)throw new Error('Sitios vacío');obsAssertHeaders(rows[0],['sitio','activo','origen'],'Sitios');var out=[];for(var i=1;i<rows.length;i++){var r=rows[i]||[],active=String(r[1]||'').trim().toLowerCase();if(r[0]&&['si','sí','true','1','activo'].indexOf(active)!==-1)out.push(String(r[0]).trim());}if(!out.length)return ['__CONFIG_EMPTY__'];return out;
-};
-
-/* ---------------- idempotent append + durable classification --------------- */
-function obsFindWriteId(writeId){
-  return GridClient.readSheet(CFG.SCAN_SHEET_ID,CFG.DOC_ADMIN,CFG.SCAN_TAB+'!B:B').then(function(rows){var count=0,rowNum=null;for(var i=1;i<rows.length;i++){if(String((rows[i]&&rows[i][0])||'')===writeId){count++;rowNum=i+1;}}return {count:count,row:rowNum};});
-}
-function obsResolveAmbiguousWrite(writeId){var tries=0;function check(){tries++;return obsFindWriteId(writeId).then(function(x){if(x.count||tries>=4)return x;return obsSleep(400*Math.pow(2,tries-1)).then(check);});}return check();}
-function obsUpdatedRange(body){return body&&(body.updatedRange||(body.updates&&body.updates.updatedRange)||(body.data&&body.data.updates&&body.data.updates.updatedRange))||'';}
-function obsVerifyRange(range,writeId,stable){
-  if(!range)return obsResolveAmbiguousWrite(writeId).then(function(x){if(!x.count)return false;if(!stable)return true;return obsSleep(OBS_STABLE_MS).then(function(){return obsFindWriteId(writeId);}).then(function(y){return y.count>0;});});
-  return GridClient.readSheet(CFG.SCAN_SHEET_ID,CFG.DOC_ADMIN,range).then(function(rows){var ok=!!(rows[0]&&String(rows[0][1]||'')===writeId);if(!ok||!stable)return ok;return obsSleep(OBS_STABLE_MS).then(function(){return GridClient.readSheet(CFG.SCAN_SHEET_ID,CFG.DOC_ADMIN,range);}).then(function(r2){return !!(r2[0]&&String(r2[0][1]||'')===writeId);});});
-}
-WriteQueue=(function(){
-  var chain=Promise.resolve();
-  function enqueue(task){var p=chain.then(task,task);chain=p.catch(function(){});return p;}
-  function commit(bucket,evento,key,writeId,options){
-    options=options||{};var row=[key,writeId,evento.qr||'',evento.nombre||'',evento.empresa||'',evento.sitio||'',evento.resultado||'',evento.razon||'',evento.guardia_hash||'',evento.guardia_source_field||'',evento.ts||'',evento.tz||'',evento.app||''],attempt=0;
-    function appendRun(){
-      attempt++;
-      return GridClient.appendSheet(CFG.SCAN_SHEET_ID,CFG.DOC_ADMIN,CFG.SCAN_TAB,[row]).then(function(x){var res=x.res,range=obsUpdatedRange(x.body);
-        if(res.ok)return obsVerifyRange(range,writeId,true).then(function(ok){if(ok)return {ok:true,key:key,writeId:writeId,attempts:attempt};var e=new Error('append 2xx no verificable');e.ambiguous=true;throw e;});
-        if(res.status===403){var e403=new Error('permission_denied');e403.status=403;throw e403;}
-        if(res.status===429||res.status===502||res.status===503||res.status===504){var ea=new Error('append ambiguo '+res.status);ea.ambiguous=true;throw ea;}
-        return res.text().then(function(t){var ep=new Error('append permanente '+res.status+' '+t);ep.status=res.status;ep.permanent=true;throw ep;});
-      }).catch(function(err){
-        if(err&&err.status===403)throw err;if(err&&err.permanent)return {ok:false,key:key,writeId:writeId,attempts:attempt,error:String(err.message||err),permanent:true};
-        return obsResolveAmbiguousWrite(writeId).then(function(check){if(check.count){if(check.count>1)console.error('[Scan] write_id duplicado '+writeId+' x'+check.count);return {ok:true,key:key,writeId:writeId,recovered:true,attempts:attempt};}if(attempt<CFG.MAX_ATTEMPTS)return obsSleep(jitter(500*attempt)).then(appendRun);return {ok:false,key:key,writeId:writeId,attempts:attempt,error:String(err&&err.message||err)};});
-      });
-    }
-    if(options.precheck)return obsResolveAmbiguousWrite(writeId).then(function(existing){if(existing.count){if(existing.count>1)console.error('[Scan] write_id duplicado '+writeId+' x'+existing.count);return {ok:true,key:key,writeId:writeId,recovered:true,attempts:0};}return appendRun();});
-    return appendRun();
-  }
-  return {write:function(bucket,evento,key,writeId,options){return enqueue(function(){return commit(bucket,evento,key,writeId,options);});}};
-})();
-
-/* Outbox v3: an entry is marked appendStarted BEFORE the network request.
-   A normal first attempt avoids a costly B:B scan. Only resumed/ambiguous
-   entries perform the full idempotency lookup. Unknown QR events remain in
-   IndexedDB and cannot drain until the guard classifies them explicitly. */
-Outbox=(function(){
-  var STORE='outbox',draining=false,retryTimer=null,permissionDeniedHandler=null,queueChangeHandler=null,classifyTimer=null;
-  function store(mode){return LocalDB.open().then(function(db){return db.transaction(STORE,mode).objectStore(STORE);});}
-  function put(entry){return store('readwrite').then(function(os){return new Promise(function(resolve,reject){var q=os.put(entry);q.onsuccess=function(){resolve();};q.onerror=function(){reject(q.error);};});});}
-  function get(id){return store('readonly').then(function(os){return new Promise(function(resolve){var q=os.get(id);q.onsuccess=function(){resolve(q.result||null);};q.onerror=function(){resolve(null);};});});}
-  function remove(id){return store('readwrite').then(function(os){return new Promise(function(resolve){var q=os['delete'](id);q.onsuccess=function(){resolve();};q.onerror=function(){resolve();};});});}
-  function ordered(){return store('readonly').then(function(os){return new Promise(function(resolve){var out=[],q=os.index('createdAt').openCursor();q.onsuccess=function(e){var c=e.target.result;if(!c){resolve(out);return;}out.push(c.value);c.continue();};q.onerror=function(){resolve(out);};});});}
-  function notify(){if(!queueChangeHandler)return;ordered().then(function(items){queueChangeHandler(items.length);}).catch(function(){});}
-  function escHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-  var classDefs={
-    snapshot_stale_possible:{label:'Puede ser desfase del catálogo',reason:'Posible desfase del catálogo; requiere recarga o verificación adicional.'},
-    ubicacion_desconocida:{label:'Existe, pero falta ubicación',reason:'El operador reconoce la credencial, pero la ubicación/autorización no está disponible en el snapshot.'},
-    no_existe_confirmado:{label:'Confirmo que no existe',reason:'El operador confirmó que la credencial no existe en el catálogo vigente.'}
-  };
-  function renderClassification(entry,tries){
-    tries=tries||0;var verdict=ge('verdict');
-    if(!verdict||!verdict.classList.contains('on')){if(tries<40)setTimeout(function(){renderClassification(entry,tries+1);},100);return;}
-    window.__obsidianClassificationGate=true;var input=ge('scan-field');if(input)input.disabled=true;
-    verdict.classList.remove('ok','err');verdict.classList.add('warn');ge('v-title').textContent='Clasifica el código desconocido';ge('v-why').textContent='QR: '+(entry.evento&&entry.evento.qr||'—');
-    var host=ge('v-notice'),id=String(entry.id||'');host.innerHTML='<div class="notice warn"><span>El snapshot no basta para concluir. Selecciona qué observaste antes de continuar.</span></div><div style="display:grid;gap:8px;margin:12px 0">'+Object.keys(classDefs).map(function(code){return '<button type="button" class="btn btn-ghost btn-block" onclick="obsClassifyPending(\''+escHtml(id)+'\',\''+code+'\')">'+escHtml(classDefs[code].label)+'</button>';}).join('')+'</div>';
-    var close=ge('v-close');close.disabled=true;close.textContent='Clasifica el caso';
-  }
-  function showNextClassification(){
-    if(classifyTimer)return;classifyTimer=setTimeout(function(){classifyTimer=null;ordered().then(function(items){var item=items.filter(function(x){return !!x.needsClassification;})[0];if(item)renderClassification(item,0);});},0);
-  }
-  window.obsClassifyPending=function(id,code){
-    var def=classDefs[code];if(!def)return;get(id).then(function(entry){if(!entry||!entry.needsClassification)return;entry.evento=entry.evento||{};entry.evento.resultado=code;entry.evento.razon=def.reason;entry.needsClassification=false;entry.classifiedAt=Date.now();return put(entry).then(function(){notify();kick();return ordered();});}).then(function(items){items=items||[];var next=items.filter(function(x){return !!x.needsClassification;})[0];if(next){renderClassification(next,0);return;}window.__obsidianClassificationGate=false;var input=ge('scan-field');if(input)input.disabled=false;var close=ge('v-close');if(close){close.disabled=false;close.textContent='Siguiente escaneo';}toast('Clasificación guardada en la cola local.','ok');}).catch(function(e){toast('No se pudo guardar la clasificación: '+(e&&e.message||e),'err');});
-  };
-  async function enqueueEvent(bucket,evento){var entry={id:'evt_'+uuid(),writeId:uuid(),bucket:bucket,evento:evento,attempts:0,createdAt:Date.now(),appendStarted:false,needsClassification:evento&&evento.resultado==='desconocido'};await put(entry);notify();if(entry.needsClassification)showNextClassification();else kick();return entry;}
-  function kick(){if(draining)return;draining=true;drainLoop();}
-  async function drainLoop(){var stopRetrying=false;try{while(true){var items=await ordered(),item=items.filter(function(x){return !x.needsClassification;})[0];if(!item){if(items.some(function(x){return x.needsClassification;}))showNextClassification();return;}var precheck=!!item.appendStarted;item.appendStarted=true;await put(item);var res;try{res=await WriteQueue.write(item.bucket,item.evento,item.id,item.writeId,{precheck:precheck});}catch(e){if(e.status===403){stopRetrying=true;if(permissionDeniedHandler)permissionDeniedHandler(e,item);return;}res={ok:false,error:String(e&&e.message||e)};}if(res.ok){await remove(item.id);notify();continue;}item.attempts=(item.attempts||0)+1;item.lastError=res.error||'no confirmado';await put(item);return;}}finally{draining=false;if(!stopRetrying)scheduleRetry();}}
-  function scheduleRetry(){if(retryTimer)return;retryTimer=setTimeout(function(){retryTimer=null;ordered().then(function(items){if(items.some(function(x){return !x.needsClassification;}))kick();if(items.some(function(x){return x.needsClassification;}))showNextClassification();});},jitter(4000));}
-  function resume(){showNextClassification();kick();}
-  return {enqueue:enqueueEvent,resume:resume,onPermissionDenied:function(fn){permissionDeniedHandler=fn;},onQueueChange:function(fn){queueChangeHandler=fn;}};
-})();
-
-/* Camera events are ignored while a recovered unknown event is being classified. */
-(function(){var baseStart=Scanner.start;Scanner.start=function(video,onDetect){return baseStart(video,function(raw){if(!window.__obsidianClassificationGate)onDetect(raw);});};})();
-
-/* ---------------------------- startup contract ----------------------------- */
-function obsBuildBadge(){if(ge('obs-build-badge'))return;var d=document.createElement('div');d.id='obs-build-badge';d.textContent=OBS_BUILD_ID;d.style.cssText='position:fixed;right:8px;bottom:8px;z-index:9999;font:10px monospace;color:#8E95A5;background:rgba(14,14,18,.88);padding:4px 7px;border-radius:7px;pointer-events:none';document.body.appendChild(d);}
-function obsBlockBoot(err){ge('blocked-title').textContent='Configuración inválida';ge('blocked-msg').textContent='Scan se bloqueó de forma segura porque no pudo validar su fuente de verdad.';ge('blocked-detail').textContent=String(err&&err.message||err);['scr-boot','scr-scan'].forEach(function(id){ge(id).classList.remove('on');});ge('scr-blocked').classList.add('on');}
-function obsValidateScanSchema(){return GridClient.readSheet(CFG.SCAN_SHEET_ID,CFG.DOC_ADMIN,CFG.SCAN_TAB+'!A1:M2').then(function(rows){if(!rows.length)throw new Error('Ingresos vacío');obsAssertHeaders(rows[0],OBS_SCAN_HEADERS,'Ingresos');return GridClient.readSheet(CFG.SCAN_SHEET_ID,CFG.DOC_ADMIN,'Meta!A:D');}).then(function(rows){if(!rows.length)throw new Error('Meta de Scan vacío');obsAssertHeaders(rows[0],['clave','valor','actualizado_en','notas'],'Meta');var map={};for(var i=1;i<rows.length;i++){if(rows[i]&&rows[i][0])map[String(rows[i][0]).trim()]=String(rows[i][1]||'').trim();}if(map.build_contract!==OBS_BUILD_ID)throw new Error('Build incompatible: Sheet='+map.build_contract+' app='+OBS_BUILD_ID);if(map.ingresos_headers!==OBS_SCAN_HEADERS.join('|'))throw new Error('Meta.ingresos_headers no coincide');return GridClient.readSheet(CFG.ADMIN_SHEET_ID,CFG.DOC_ADMIN,CFG.USERS_TAB+'!A1:O2');}).then(function(rows){obsAssertHeaders(rows[0],OBS_USERS_HEADERS,'Usuarios');return true;});}
-var obsOriginalInit=App.init;
-App.init=function(){obsBuildBadge();return obsValidateScanSchema().then(function(){return obsOriginalInit();}).catch(obsBlockBoot);};
-
-})();
-
-
 App.init();
-</script>
-<script>
-/* Grid: only allow approved Grid domains to open unsandboxed tabs */
-(function(){
-  var allowedHosts = ["figma.com", "www.figma.com", "furydocs.io", "zeroheight.com", "google.com", "docs.google.com", "meet.google.com", "grid.adminml.com", "grid-artifacts.adminml.com", "mercadolibre.atlassian.net", "mercadolibre-opsgenie.atlassian.net", "app.datadoghq.com", "grafana-service.furycloud.io", "web.furycloud.io", "nasdaq-meli.app.opsgenie.com", "meli.enterprise.slack.com"];
-  var allowedSuffixes = [".adminml.com", ".atlassian.net", ".google.com", ".furycloud.io", ".melioffice.com", ".melisystems.com"];
-  var allowedPathPrefixes = {"github.com": ["/melisource/"], "www.github.com": ["/melisource/"], "reclameaqui.com.br": ["/empresa/mercado-pago/"], "www.reclameaqui.com.br": ["/empresa/mercado-pago/"]};
-  function normalizeUrl(rawUrl){
-    try {
-      return new URL(String(rawUrl || ""), window.location.href);
-    } catch (_err) {
-      return null;
-    }
-  }
-  function isAllowedUrl(rawUrl){
-    var parsed = normalizeUrl(rawUrl);
-    if(!parsed) return false;
-    if(parsed.protocol === "slack:") return true;
-    if(parsed.protocol !== "https:") return false;
-    var h = (parsed.hostname || "").toLowerCase();
-    if(!h) return false;
-    if(allowedHosts.indexOf(h) !== -1) return true;
-    for(var i = 0; i < allowedSuffixes.length; i++){
-      var s = allowedSuffixes[i];
-      if(h === s.slice(1) || (h.length > s.length && h.slice(-s.length) === s)) return true;
-    }
-    var pathPrefixes = allowedPathPrefixes[h];
-    if(pathPrefixes){
-      var p = parsed.pathname || "/";
-      for(var j = 0; j < pathPrefixes.length; j++){
-        if(p.slice(0, pathPrefixes[j].length) === pathPrefixes[j]) return true;
-      }
-    }
-    return false;
-  }
-  function requestParentPopup(rawUrl){
-    var parsed = normalizeUrl(rawUrl);
-    if(!parsed || !window.parent || window.parent === window) return false;
-    try {
-      window.parent.postMessage({type: "grid-open-safe-popup", url: parsed.href}, window.location.origin);
-      return true;
-    } catch (_err) {
-      return false;
-    }
-  }
-  /* Open synchronously from the parent window, inside the click's call stack, so
-     the browser keeps the transient user activation (a click in a same-origin
-     child propagates activation to its ancestors). Forwarding via postMessage
-     runs window.open in an async handler, which popup blockers reject.
-     We deliberately open WITHOUT the "noopener" feature: with it the browser
-     returns null even on success, so a genuinely blocked popup would be
-     indistinguishable from a successful one. Instead we detect a real block via a
-     null handle and sever the opener ourselves.
-     Returns true only when a tab actually opened; false when there is no
-     accessible parent, the call throws (opaque/cross-origin), or the popup was
-     blocked — the caller then lets the native target="_blank" run.
-     SECURITY: rawUrl is always gated by isAllowedUrl() first, and popup.opener is
-     nulled to prevent reverse tabnabbing (equivalent guarantee to "noopener"). */
-  function openInParent(rawUrl){
-    if(!window.parent || window.parent === window) return false;
-    var parsed = normalizeUrl(rawUrl);
-    if(!parsed) return false;
-    try {
-      var popup = window.parent.open(parsed.href, "_blank");
-      if(!popup) return false;
-      try { popup.opener = null; } catch (_e) {}
-      return true;
-    } catch (_err) {
-      return false;
-    }
-  }
-
-  document.addEventListener("click", function(event){
-    var target = event.target;
-    var anchor = target && target.closest ? target.closest("a[href]") : null;
-    if(!anchor) return;
-    var href = anchor.getAttribute("href") || "";
-    if(!href || href.charAt(0) === "#") return;
-    var opensNewTab = anchor.target === "_blank" || event.ctrlKey || event.metaKey || event.button === 1;
-    if(!opensNewTab) return;
-    // SECURITY: only allowlisted destinations may escape the sandbox.
-    if(!isAllowedUrl(href)) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-    /* Open a clean tab from the unsandboxed parent, within the click gesture.
-       Suppress the native navigation ONLY when the parent open actually
-       succeeded; otherwise (no parent, cross-origin, or popup blocked) let the
-       native target="_blank" proceed so the allowed link still opens. We do NOT
-       fall back to the async postMessage bridge here: by the time it runs the
-       user activation is gone, so it cannot reopen a blocked popup — it would
-       just swallow the click and leave the link dead. */
-    if(openInParent(href)) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  }, true);
-
-  var nativeOpen = window.open;
-  window.open = function(rawUrl, target, features){
-    if(!isAllowedUrl(rawUrl)) return null;
-    if(openInParent(rawUrl)) return null;
-    if(requestParentPopup(rawUrl)) return null;
-    return nativeOpen ? nativeOpen.call(window, normalizeUrl(rawUrl).href, target, features) : null;
-  };
-})();
-</script>
-<script>
-/* Grid: video/audio embed diagnostics & proxy fallback */
-(function(){
-  var TAG='[Grid:media-diag]';
-  function patchMedia(el){
-    if(el._gridPatched) return;
-    el._gridPatched=true;
-    el.addEventListener('error',function handler(ev){
-      var src=el.currentSrc||el.src||'';
-      var code=el.error?el.error.code:'?';
-      var msg=el.error?el.error.message:'unknown';
-      console.warn(TAG,'load failed',{tag:el.tagName,src:src,code:code,message:msg});
-      var origSrc=el.getAttribute('src')||'';
-      if(origSrc && origSrc.indexOf('proxy=1')===-1 && origSrc.indexOf('://')===-1){
-        var proxySrc=origSrc+(origSrc.indexOf('?')!==-1?'&':'?')+'proxy=1';
-        console.info(TAG,'retrying via proxy',proxySrc);
-        el.removeEventListener('error',handler);
-        el.src=proxySrc;
-        el.load();
-      }
-    },true);
-  }
-  document.querySelectorAll('video,audio,video source,audio source').forEach(patchMedia);
-  var obs=new MutationObserver(function(muts){
-    muts.forEach(function(m){
-      m.addedNodes.forEach(function(n){
-        if(n.nodeType!==1)return;
-        if(/^(VIDEO|AUDIO|SOURCE)$/.test(n.tagName))patchMedia(n);
-        if(n.querySelectorAll){
-          n.querySelectorAll('video,audio,video source,audio source').forEach(patchMedia);
-        }
-      });
-    });
-  });
-  obs.observe(document.body,{childList:true,subtree:true});
-})();
-</script>
-<script>
-/* Grid: sync iframe URL mutations to parent address bar */
-(function(){
-  function notifyParent(search, hash){
-    if(!window.parent || window.parent === window) return;
-    try{
-      window.parent.postMessage(
-        {type:"grid-url-sync", search:search, hash:hash},
-        window.location.origin
-      );
-    }catch(_){}
-  }
-  function parseAndNotify(url){
-    try{
-      var p = new URL(String(url), window.location.href);
-      notifyParent(p.search, p.hash);
-    }catch(_){}
-  }
-  var _push = history.pushState.bind(history);
-  var _replace = history.replaceState.bind(history);
-  history.pushState = function(state, title, url){
-    _push(state, title, url);
-    if(url != null) parseAndNotify(url);
-  };
-  history.replaceState = function(state, title, url){
-    _replace(state, title, url);
-    if(url != null) parseAndNotify(url);
-  };
-  window.addEventListener("hashchange", function(){
-    notifyParent(window.location.search, window.location.hash);
-  });
-})();
-</script>
-<script>
-/* Grid: only allow approved Grid domains to open unsandboxed tabs */
-(function(){
-  var allowedHosts = ["figma.com", "www.figma.com", "furydocs.io", "zeroheight.com", "google.com", "docs.google.com", "meet.google.com", "grid.adminml.com", "grid-artifacts.adminml.com", "mercadolibre.atlassian.net", "mercadolibre-opsgenie.atlassian.net", "app.datadoghq.com", "grafana-service.furycloud.io", "web.furycloud.io", "nasdaq-meli.app.opsgenie.com", "meli.enterprise.slack.com"];
-  var allowedSuffixes = [".adminml.com", ".atlassian.net", ".google.com", ".furycloud.io", ".melioffice.com", ".melisystems.com"];
-  var allowedPathPrefixes = {"github.com": ["/melisource/"], "www.github.com": ["/melisource/"], "reclameaqui.com.br": ["/empresa/mercado-pago/"], "www.reclameaqui.com.br": ["/empresa/mercado-pago/"]};
-  function normalizeUrl(rawUrl){
-    try {
-      return new URL(String(rawUrl || ""), window.location.href);
-    } catch (_err) {
-      return null;
-    }
-  }
-  function isAllowedUrl(rawUrl){
-    var parsed = normalizeUrl(rawUrl);
-    if(!parsed) return false;
-    if(parsed.protocol === "slack:") return true;
-    if(parsed.protocol !== "https:") return false;
-    var h = (parsed.hostname || "").toLowerCase();
-    if(!h) return false;
-    if(allowedHosts.indexOf(h) !== -1) return true;
-    for(var i = 0; i < allowedSuffixes.length; i++){
-      var s = allowedSuffixes[i];
-      if(h === s.slice(1) || (h.length > s.length && h.slice(-s.length) === s)) return true;
-    }
-    var pathPrefixes = allowedPathPrefixes[h];
-    if(pathPrefixes){
-      var p = parsed.pathname || "/";
-      for(var j = 0; j < pathPrefixes.length; j++){
-        if(p.slice(0, pathPrefixes[j].length) === pathPrefixes[j]) return true;
-      }
-    }
-    return false;
-  }
-  function requestParentPopup(rawUrl){
-    var parsed = normalizeUrl(rawUrl);
-    if(!parsed || !window.parent || window.parent === window) return false;
-    try {
-      window.parent.postMessage({type: "grid-open-safe-popup", url: parsed.href}, window.location.origin);
-      return true;
-    } catch (_err) {
-      return false;
-    }
-  }
-  /* Open synchronously from the parent window, inside the click's call stack, so
-     the browser keeps the transient user activation (a click in a same-origin
-     child propagates activation to its ancestors). Forwarding via postMessage
-     runs window.open in an async handler, which popup blockers reject.
-     We deliberately open WITHOUT the "noopener" feature: with it the browser
-     returns null even on success, so a genuinely blocked popup would be
-     indistinguishable from a successful one. Instead we detect a real block via a
-     null handle and sever the opener ourselves.
-     Returns true only when a tab actually opened; false when there is no
-     accessible parent, the call throws (opaque/cross-origin), or the popup was
-     blocked — the caller then lets the native target="_blank" run.
-     SECURITY: rawUrl is always gated by isAllowedUrl() first, and popup.opener is
-     nulled to prevent reverse tabnabbing (equivalent guarantee to "noopener"). */
-  function openInParent(rawUrl){
-    if(!window.parent || window.parent === window) return false;
-    var parsed = normalizeUrl(rawUrl);
-    if(!parsed) return false;
-    try {
-      var popup = window.parent.open(parsed.href, "_blank");
-      if(!popup) return false;
-      try { popup.opener = null; } catch (_e) {}
-      return true;
-    } catch (_err) {
-      return false;
-    }
-  }
-
-  document.addEventListener("click", function(event){
-    var target = event.target;
-    var anchor = target && target.closest ? target.closest("a[href]") : null;
-    if(!anchor) return;
-    var href = anchor.getAttribute("href") || "";
-    if(!href || href.charAt(0) === "#") return;
-    var opensNewTab = anchor.target === "_blank" || event.ctrlKey || event.metaKey || event.button === 1;
-    if(!opensNewTab) return;
-    // SECURITY: only allowlisted destinations may escape the sandbox.
-    if(!isAllowedUrl(href)) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-    /* Open a clean tab from the unsandboxed parent, within the click gesture.
-       Suppress the native navigation ONLY when the parent open actually
-       succeeded; otherwise (no parent, cross-origin, or popup blocked) let the
-       native target="_blank" proceed so the allowed link still opens. We do NOT
-       fall back to the async postMessage bridge here: by the time it runs the
-       user activation is gone, so it cannot reopen a blocked popup — it would
-       just swallow the click and leave the link dead. */
-    if(openInParent(href)) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  }, true);
-
-  var nativeOpen = window.open;
-  window.open = function(rawUrl, target, features){
-    if(!isAllowedUrl(rawUrl)) return null;
-    if(openInParent(rawUrl)) return null;
-    if(requestParentPopup(rawUrl)) return null;
-    return nativeOpen ? nativeOpen.call(window, normalizeUrl(rawUrl).href, target, features) : null;
-  };
-})();
-</script>
-<script>
-/* Grid: video/audio embed diagnostics & proxy fallback */
-(function(){
-  var TAG='[Grid:media-diag]';
-  function patchMedia(el){
-    if(el._gridPatched) return;
-    el._gridPatched=true;
-    el.addEventListener('error',function handler(ev){
-      var src=el.currentSrc||el.src||'';
-      var code=el.error?el.error.code:'?';
-      var msg=el.error?el.error.message:'unknown';
-      console.warn(TAG,'load failed',{tag:el.tagName,src:src,code:code,message:msg});
-      var origSrc=el.getAttribute('src')||'';
-      if(origSrc && origSrc.indexOf('proxy=1')===-1 && origSrc.indexOf('://')===-1){
-        var proxySrc=origSrc+(origSrc.indexOf('?')!==-1?'&':'?')+'proxy=1';
-        console.info(TAG,'retrying via proxy',proxySrc);
-        el.removeEventListener('error',handler);
-        el.src=proxySrc;
-        el.load();
-      }
-    },true);
-  }
-  document.querySelectorAll('video,audio,video source,audio source').forEach(patchMedia);
-  var obs=new MutationObserver(function(muts){
-    muts.forEach(function(m){
-      m.addedNodes.forEach(function(n){
-        if(n.nodeType!==1)return;
-        if(/^(VIDEO|AUDIO|SOURCE)$/.test(n.tagName))patchMedia(n);
-        if(n.querySelectorAll){
-          n.querySelectorAll('video,audio,video source,audio source').forEach(patchMedia);
-        }
-      });
-    });
-  });
-  obs.observe(document.body,{childList:true,subtree:true});
-})();
-</script>
-<script>
-/* Grid: sync iframe URL mutations to parent address bar */
-(function(){
-  function notifyParent(search, hash){
-    if(!window.parent || window.parent === window) return;
-    try{
-      window.parent.postMessage(
-        {type:"grid-url-sync", search:search, hash:hash},
-        window.location.origin
-      );
-    }catch(_){}
-  }
-  function parseAndNotify(url){
-    try{
-      var p = new URL(String(url), window.location.href);
-      notifyParent(p.search, p.hash);
-    }catch(_){}
-  }
-  var _push = history.pushState.bind(history);
-  var _replace = history.replaceState.bind(history);
-  history.pushState = function(state, title, url){
-    _push(state, title, url);
-    if(url != null) parseAndNotify(url);
-  };
-  history.replaceState = function(state, title, url){
-    _replace(state, title, url);
-    if(url != null) parseAndNotify(url);
-  };
-  window.addEventListener("hashchange", function(){
-    notifyParent(window.location.search, window.location.hash);
-  });
-})();
-</script>
-<script>
-/* Grid: only allow approved Grid domains to open unsandboxed tabs */
-(function(){
-  var allowedHosts = ["figma.com", "www.figma.com", "furydocs.io", "zeroheight.com", "google.com", "docs.google.com", "meet.google.com", "grid.adminml.com", "grid-artifacts.adminml.com", "mercadolibre.atlassian.net", "mercadolibre-opsgenie.atlassian.net", "app.datadoghq.com", "grafana-service.furycloud.io", "web.furycloud.io", "nasdaq-meli.app.opsgenie.com", "meli.enterprise.slack.com"];
-  var allowedSuffixes = [".adminml.com", ".atlassian.net", ".google.com", ".furycloud.io", ".melioffice.com", ".melisystems.com"];
-  var allowedPathPrefixes = {"github.com": ["/melisource/"], "www.github.com": ["/melisource/"], "reclameaqui.com.br": ["/empresa/mercado-pago/"], "www.reclameaqui.com.br": ["/empresa/mercado-pago/"]};
-  function normalizeUrl(rawUrl){
-    try {
-      return new URL(String(rawUrl || ""), window.location.href);
-    } catch (_err) {
-      return null;
-    }
-  }
-  function isAllowedUrl(rawUrl){
-    var parsed = normalizeUrl(rawUrl);
-    if(!parsed) return false;
-    if(parsed.protocol === "slack:") return true;
-    if(parsed.protocol !== "https:") return false;
-    var h = (parsed.hostname || "").toLowerCase();
-    if(!h) return false;
-    if(allowedHosts.indexOf(h) !== -1) return true;
-    for(var i = 0; i < allowedSuffixes.length; i++){
-      var s = allowedSuffixes[i];
-      if(h === s.slice(1) || (h.length > s.length && h.slice(-s.length) === s)) return true;
-    }
-    var pathPrefixes = allowedPathPrefixes[h];
-    if(pathPrefixes){
-      var p = parsed.pathname || "/";
-      for(var j = 0; j < pathPrefixes.length; j++){
-        if(p.slice(0, pathPrefixes[j].length) === pathPrefixes[j]) return true;
-      }
-    }
-    return false;
-  }
-  function requestParentPopup(rawUrl){
-    var parsed = normalizeUrl(rawUrl);
-    if(!parsed || !window.parent || window.parent === window) return false;
-    try {
-      window.parent.postMessage({type: "grid-open-safe-popup", url: parsed.href}, window.location.origin);
-      return true;
-    } catch (_err) {
-      return false;
-    }
-  }
-  /* Open synchronously from the parent window, inside the click's call stack, so
-     the browser keeps the transient user activation (a click in a same-origin
-     child propagates activation to its ancestors). Forwarding via postMessage
-     runs window.open in an async handler, which popup blockers reject.
-     We deliberately open WITHOUT the "noopener" feature: with it the browser
-     returns null even on success, so a genuinely blocked popup would be
-     indistinguishable from a successful one. Instead we detect a real block via a
-     null handle and sever the opener ourselves.
-     Returns true only when a tab actually opened; false when there is no
-     accessible parent, the call throws (opaque/cross-origin), or the popup was
-     blocked — the caller then lets the native target="_blank" run.
-     SECURITY: rawUrl is always gated by isAllowedUrl() first, and popup.opener is
-     nulled to prevent reverse tabnabbing (equivalent guarantee to "noopener"). */
-  function openInParent(rawUrl){
-    if(!window.parent || window.parent === window) return false;
-    var parsed = normalizeUrl(rawUrl);
-    if(!parsed) return false;
-    try {
-      var popup = window.parent.open(parsed.href, "_blank");
-      if(!popup) return false;
-      try { popup.opener = null; } catch (_e) {}
-      return true;
-    } catch (_err) {
-      return false;
-    }
-  }
-
-  document.addEventListener("click", function(event){
-    var target = event.target;
-    var anchor = target && target.closest ? target.closest("a[href]") : null;
-    if(!anchor) return;
-    var href = anchor.getAttribute("href") || "";
-    if(!href || href.charAt(0) === "#") return;
-    var opensNewTab = anchor.target === "_blank" || event.ctrlKey || event.metaKey || event.button === 1;
-    if(!opensNewTab) return;
-    // SECURITY: only allowlisted destinations may escape the sandbox.
-    if(!isAllowedUrl(href)) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-    /* Open a clean tab from the unsandboxed parent, within the click gesture.
-       Suppress the native navigation ONLY when the parent open actually
-       succeeded; otherwise (no parent, cross-origin, or popup blocked) let the
-       native target="_blank" proceed so the allowed link still opens. We do NOT
-       fall back to the async postMessage bridge here: by the time it runs the
-       user activation is gone, so it cannot reopen a blocked popup — it would
-       just swallow the click and leave the link dead. */
-    if(openInParent(href)) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  }, true);
-
-  var nativeOpen = window.open;
-  window.open = function(rawUrl, target, features){
-    if(!isAllowedUrl(rawUrl)) return null;
-    if(openInParent(rawUrl)) return null;
-    if(requestParentPopup(rawUrl)) return null;
-    return nativeOpen ? nativeOpen.call(window, normalizeUrl(rawUrl).href, target, features) : null;
-  };
-})();
-</script>
-<script>
-/* Grid: video/audio embed diagnostics & proxy fallback */
-(function(){
-  var TAG='[Grid:media-diag]';
-  function patchMedia(el){
-    if(el._gridPatched) return;
-    el._gridPatched=true;
-    el.addEventListener('error',function handler(ev){
-      var src=el.currentSrc||el.src||'';
-      var code=el.error?el.error.code:'?';
-      var msg=el.error?el.error.message:'unknown';
-      console.warn(TAG,'load failed',{tag:el.tagName,src:src,code:code,message:msg});
-      var origSrc=el.getAttribute('src')||'';
-      if(origSrc && origSrc.indexOf('proxy=1')===-1 && origSrc.indexOf('://')===-1){
-        var proxySrc=origSrc+(origSrc.indexOf('?')!==-1?'&':'?')+'proxy=1';
-        console.info(TAG,'retrying via proxy',proxySrc);
-        el.removeEventListener('error',handler);
-        el.src=proxySrc;
-        el.load();
-      }
-    },true);
-  }
-  document.querySelectorAll('video,audio,video source,audio source').forEach(patchMedia);
-  var obs=new MutationObserver(function(muts){
-    muts.forEach(function(m){
-      m.addedNodes.forEach(function(n){
-        if(n.nodeType!==1)return;
-        if(/^(VIDEO|AUDIO|SOURCE)$/.test(n.tagName))patchMedia(n);
-        if(n.querySelectorAll){
-          n.querySelectorAll('video,audio,video source,audio source').forEach(patchMedia);
-        }
-      });
-    });
-  });
-  obs.observe(document.body,{childList:true,subtree:true});
-})();
-</script>
-<script>
-/* Grid: sync iframe URL mutations to parent address bar */
-(function(){
-  function notifyParent(search, hash){
-    if(!window.parent || window.parent === window) return;
-    try{
-      window.parent.postMessage(
-        {type:"grid-url-sync", search:search, hash:hash},
-        window.location.origin
-      );
-    }catch(_){}
-  }
-  function parseAndNotify(url){
-    try{
-      var p = new URL(String(url), window.location.href);
-      notifyParent(p.search, p.hash);
-    }catch(_){}
-  }
-  var _push = history.pushState.bind(history);
-  var _replace = history.replaceState.bind(history);
-  history.pushState = function(state, title, url){
-    _push(state, title, url);
-    if(url != null) parseAndNotify(url);
-  };
-  history.replaceState = function(state, title, url){
-    _replace(state, title, url);
-    if(url != null) parseAndNotify(url);
-  };
-  window.addEventListener("hashchange", function(){
-    notifyParent(window.location.search, window.location.hash);
-  });
-})();
 </script>
 </body>
 </html>
