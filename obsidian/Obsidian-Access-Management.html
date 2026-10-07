@@ -1148,21 +1148,21 @@ body.gating .sidebar,body.gating #mainArea{display:none!important;}
   </div>
 </div>
 
-<!-- ===== Modal: Archivar solicitud ===== -->
+<!-- ===== Modal: Eliminar solicitud ===== -->
 <div class="overlay" id="deleteAccesoModal">
   <div class="modal">
-    <h3>Archivar solicitud</h3>
+    <h3>Eliminar solicitud</h3>
     <p class="sub" id="deleteAccesoName">—</p>
     <div class="modal-div"></div>
     <div class="alert-inline" style="border-color:var(--error-bd);background:var(--error-bg);color:var(--error)">
       <svg class="icon icon-sm" style="margin-top:1px" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M109-120q-11 0-20-5.5T75-140q-5-9-5.5-19.5T75-180l370-640q6-10 15.5-15t19.5-5q10 0 19.5 5t15.5 15l370 640q6 10 5.5 20.5T885-140q-5 9-14 14.5t-20 5.5H109Zm69-80h604L480-720 178-200Zm330.5-51.5Q520-263 520-280t-11.5-28.5Q497-320 480-320t-28.5 11.5Q440-297 440-280t11.5 28.5Q463-240 480-240t28.5-11.5Zm0-120Q520-383 520-400v-120q0-17-11.5-28.5T480-560q-17 0-28.5 11.5T440-520v120q0 17 11.5 28.5T480-360q17 0 28.5-11.5ZM480-460Z"/></svg>
-      <div>La solicitud se marca como archivada y el scanner deja de aceptarla. La fila fuente no se borra.</div>
+      <div><b>Se borra la fila de la hoja del formulario y no se puede deshacer.</b> El QR deja de dar acceso en Scan. Queda solo el registro de quién la eliminó y cuándo.</div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-block btn-ghost" style="flex:none;padding:13px 20px" onclick="closeModal('deleteAccesoModal')">Cancelar</button>
       <button class="btn btn-block btn-danger" id="btnConfirmDeleteAcceso" onclick="confirmDeleteAcceso()">
         <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M280-120q-33 0-56.5-23.5T200-200v-520q-17 0-28.5-11.5T160-760q0-17 11.5-28.5T200-800h160q0-17 11.5-28.5T400-840h160q17 0 28.5 11.5T600-800h160q17 0 28.5 11.5T800-760q0 17-11.5 28.5T760-720v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM428.5-291.5Q440-303 440-320v-280q0-17-11.5-28.5T400-640q-17 0-28.5 11.5T360-600v280q0 17 11.5 28.5T400-280q17 0 28.5-11.5Zm160 0Q600-303 600-320v-280q0-17-11.5-28.5T560-640q-17 0-28.5 11.5T520-600v280q0 17 11.5 28.5T560-280q17 0 28.5-11.5ZM280-720v520-520Z"/></svg>
-        Archivar
+        Eliminar
       </button>
     </div>
   </div>
@@ -3541,7 +3541,7 @@ function buildActions(s){
   if(_inFlight[s.id]||s.__busy){
     return '<div class="flow-wait">'+ic.clock+' Operación en curso — las acciones se habilitan al terminar</div>';
   }
-  var delBtn = gestor ? obsActBtn('delete',s.id,'btn-danger-outline','flex:none;padding:13px 14px','Archivar solicitud',ic.trash) : '';
+  var delBtn = gestor ? obsActBtn('delete',s.id,'btn-danger-outline','flex:none;padding:13px 14px','Eliminar solicitud',ic.trash) : '';
   // Flujo por etapas: sin turno => sólo lectura (el gestor conserva archivar).
   if(s.estatus==='pendiente' && tieneFlujo(s) && !esMiTurno(s)){
     var waiting=etapaActual(s);
@@ -3587,7 +3587,7 @@ function confirmRevert(){
     successMsg:'Solicitud revertida a pendiente'});
 }
 
-/* ===== Archivar solicitud (ver confirmDeleteAcceso; la fila fuente no se borra) ===== */
+/* ===== Eliminar solicitud (ver confirmDeleteAcceso y obsClearFormRow) ===== */
 var _pendingDeleteIds=[]; // uno o varios — llenado por openDeleteAcceso/openBulkDeleteAcceso
 function openDeleteAcceso(id){
   var s=getById(id); if(!s) return;
@@ -3752,18 +3752,63 @@ function bulkProcess(ids,kind,planFn,cfg){
     var nx=Object.assign({},s,plan);
     var po=Object.assign({expected:s.__expected,expectedVersion:s.__asVersion},cfg.persistOpts?cfg.persistOpts(s):{});
     obsPersistDecision(nx,po).then(function(r){
-      if(r.ok){ Object.assign(s,nx); ok++; okIds.push(s.id); if(cfg.onSuccess) cfg.onSuccess(s); }
-      else { fail++; reasons.push(r.userMsg); if(r.conflict||r.lock||r.busy||r.inconsistent) needReload=true; }
+      if(!r.ok){ fail++; reasons.push(r.userMsg); if(r.conflict||r.lock||r.busy||r.inconsistent) needReload=true; return; }
+      Object.assign(s,nx);
+      /* Paso posterior opcional (p.ej. borrar la fila): si falla, la decisión
+         ya quedó guardada y se reporta el fallo del paso. */
+      return Promise.resolve(cfg.afterPersist?cfg.afterPersist(s):null).then(function(){
+        ok++; okIds.push(s.id); if(cfg.onSuccess) cfg.onSuccess(s);
+      },function(err){
+        fail++; needReload=true;
+        reasons.push((cfg.afterPersistFailMsg||'paso final no confirmado')+(err&&err.userMsg?' ('+err.userMsg+')':''));
+        if(cfg.onAfterPersistFail) cfg.onAfterPersistFail(s);
+        devLog('lote afterPersist FAIL: '+obsErrText(err),'error');
+      });
     },function(err){ fail++; reasons.push(obsUserMessage(err,'error de escritura')); devLog('lote FAIL: '+obsErrText(err),'error'); })
       .then(function(){ next(i+1); });
   }
   next(0);
 }
 
-/* ===== Archivar (antes "Eliminar") — la fila fuente no se borra =====
-   Escribe Rechazado + motivo de catálogo ("Otro") en el Form para que el
-   scanner deje de aceptarla, y deleted_at en Accesos_Estado (autor/fecha
-   quedan sólo ahí). La app detecta archivados por deleted_at. */
+/* ===== Eliminar: borra el contenido de la fila del Form =====
+   1. Primero se archiva (Rechazado + deleted_at, con verificación): si algo
+      falla después, el acceso ya quedó bloqueado en Scan.
+   2. Se relee la pestaña completa y se ubica la fila por uniqueid (una sola).
+   3. Se relee esa fila sola y se confirma el uniqueid justo antes de borrar.
+   4. DELETE /sheets/{id}/values sobre A{n}:{última}{n} (Grid lo encola: 202).
+   5. Se relee hasta ver la fila vacía.
+   El proxy no documenta eliminar filas (deleteDimension), así que la fila
+   queda VACÍA en la hoja; la app y Scan la ignoran. */
+function obsClearFormRow(s){
+  var uid=String(s.id);
+  return GridClient.readSheet(CFG.SHEET_ID,DOC_IDS.usuarios,CFG.SHEET_RANGE).then(function(rows){
+    var h=rows[0]||[], iUid=h.indexOf('uniqueid');
+    if(iUid<0) throw new Error('Falta la columna uniqueid');
+    var hits=[];
+    for(var i=1;i<rows.length;i++){ if(String((rows[i]||[])[iUid]||'').trim()===uid) hits.push(i+1); }
+    if(hits.length!==1){ var e=new Error(hits.length?'uniqueid repetido en la hoja':'la fila ya no existe'); e.userMsg=hits.length?'La solicitud aparece repetida en la hoja; no se borró':'La fila ya no estaba en la hoja'; if(!hits.length) return null; throw e; }
+    var n=hits[0], last=colIndexToLetter(Math.max(h.length-1,iUid)), range=CFG.SHEET_RANGE+'!A'+n+':'+last+n;
+    return obsReadOneRange(range).then(function(cur){
+      if(String(cur[iUid]||'').trim()!==uid){ var e2=new Error('la fila cambió de posición'); e2.userMsg='La hoja cambió mientras se borraba; recarga e intenta de nuevo'; throw e2; }
+      var url='/api/v1/sheets/'+encodeURIComponent(CFG.SHEET_ID)+'/values?doc_id='+encodeURIComponent(DOC_IDS.usuarios)+'&range='+encodeURIComponent(range);
+      return GridClient.call(url,{method:'DELETE'}).then(function(res){
+        if(!res.ok&&res.status!==202) throw obsHttpError('sheet_clear',res.status,'write');
+        devLog('fila '+n+' enviada a borrar (HTTP '+res.status+')','info');
+        var waits=[600,1200,2500,4000];
+        function check(k){
+          return obsSleep(waits[k]).then(function(){ return obsReadOneRange(range); }).then(function(v){
+            if(!v.some(function(x){ return String(x==null?'':x).trim(); })) return true;
+            if(k+1<waits.length) return check(k+1);
+            var e3=new Error('borrado no confirmado'); e3.userMsg='Grid aceptó el borrado pero la fila sigue con datos; quedó archivada'; throw e3;
+          });
+        }
+        return check(0);
+      });
+    });
+  });
+}
+/* ===== Eliminar = archivar (Rechazado + "Otro" + deleted_at, verificado) y
+   después borrar el contenido de la fila (obsClearFormRow). */
 function confirmDeleteAcceso(){
   var btn=document.getElementById('btnConfirmDeleteAcceso');
   if(btn&&btn.disabled) return;
@@ -3771,12 +3816,19 @@ function confirmDeleteAcceso(){
   bulkProcess(ids,'archive',function(){ return {estatus:'rechazado',fechaVencimiento:null,motivoRechazo:OBS_ARCHIVE_REASON}; },{
     btn:btn, modalId:'deleteAccesoModal',
     persistOpts:function(){ return {deletedAt:new Date().toISOString(),archive:true}; },
+    afterPersist:obsClearFormRow,
+    afterPersistFailMsg:'quedó archivada, pero no se pudo borrar la fila',
+    /* Archivada (deleted_at) aunque la fila no se haya borrado: sale de la lista igual. */
+    onAfterPersistFail:function(s){
+      solicitudes=solicitudes.filter(function(x){ return x.id!==s.id; });
+      searchResults=searchResults.filter(function(x){ return x.id!==s.id; });
+    },
     onSuccess:function(s){
       solicitudes=solicitudes.filter(function(x){ return x.id!==s.id; });
       searchResults=searchResults.filter(function(x){ return x.id!==s.id; });
     },
-    successMsgFn:function(n){ return n+' solicitud'+(n===1?'':'es')+' archivada'+(n===1?'':'s'); },
-    failVerb:'archivadas'
+    successMsgFn:function(n){ return n+' solicitud'+(n===1?'':'es')+' eliminada'+(n===1?'':'s')+' de la hoja'; },
+    failVerb:'eliminadas'
   });
 }
 
