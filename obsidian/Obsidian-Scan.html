@@ -260,7 +260,31 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
 .notice.warn{border-color:rgba(255,158,69,.32);background:rgba(255,158,69,.08);color:#FFCF9E;}
 .notice.err{border-color:rgba(255,92,108,.32);background:rgba(255,92,108,.08);color:#FFB3BB;}
 .notice svg{flex:none;margin-top:1px;}
-.classify-grid{display:grid;gap:8px;margin:0 0 18px;}
+.glyph.info{color:var(--text-muted);border-color:var(--border-specular);background:rgba(255,255,255,.04);}
+.verdict.info .panel{border-color:var(--border-specular);}
+
+/* Estado de la verificación en vivo del veredicto (v3.2). */
+.live-tag{
+  display:none;align-items:center;justify-content:center;gap:8px;
+  margin:0 auto 14px;padding:6px 12px;border-radius:var(--radius-pill);
+  font-size:12px;font-weight:600;letter-spacing:.01em;border:1px solid;width:max-content;max-width:100%;
+}
+.live-tag.on{display:flex;}
+.live-tag.pending{color:var(--text-muted);border-color:var(--border-specular);background:rgba(255,255,255,.04);}
+.live-tag.pending::before{
+  content:"";width:11px;height:11px;border-radius:50%;flex:none;
+  border:2px solid currentColor;border-right-color:transparent;animation:live-spin .8s linear infinite;
+}
+@keyframes live-spin{to{transform:rotate(360deg);}}
+.live-tag.ok{color:var(--ok);border-color:rgba(0,214,137,.32);background:rgba(0,214,137,.08);}
+.live-tag.ok::before{content:"\2713";}
+.live-tag.warn{color:var(--warn);border-color:rgba(255,158,69,.32);background:rgba(255,158,69,.08);}
+.live-banner{
+  padding:14px 16px;border-radius:var(--radius-sm);margin:0 0 18px;
+  font-size:15px;font-weight:700;text-align:center;border:2px solid;
+}
+.live-banner.err{color:#fff;border-color:var(--err);background:rgba(255,92,108,.28);}
+.live-banner.ok{color:#fff;border-color:var(--ok);background:rgba(0,214,137,.22);}
 
 @media(max-width:560px){
   .panel-body{padding:22px 20px 26px;}
@@ -411,7 +435,9 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
       </div>
     </div>
     <div class="panel-body">
+      <div class="live-banner" id="v-live-banner" style="display:none" role="alert"></div>
       <div class="glyph" id="v-glyph"></div>
+      <div class="live-tag" id="v-live" aria-live="polite"></div>
       <h2 id="v-title"></h2>
       <p class="why" id="v-why"></p>
       <div id="v-notice"></div>
@@ -523,7 +549,7 @@ function obsBuildAccepted(metaValue, buildId){
    Management y Admin Panel). NO cambiar sin coordinar con las otras apps. */
 var OBS_BUILD_ID = 'obsidian-2026.10.06.4';
 /* Versión visible de esta app (badge inferior derecho). */
-var OBS_APP_VERSION = 'obsidian-scan-v3.1.0';
+var OBS_APP_VERSION = 'obsidian-scan-v3.2.0';
 
 var OBS_USERS_HEADERS = ['ldap','email','nombre','rol_app','estatus_app','areas','sitios','etapas','permiso_guardia','guardia_sitios','guardia_estatus','fecha_registro','fecha_resolucion','resuelto_por','origen'];
 var OBS_SCAN_HEADERS  = ['id','write_id','qr','nombre','empresa','sitio','resultado','razon','guardia_hash','guardia_source_field','ts','tz','app'];
@@ -551,6 +577,7 @@ var CFG = {
   GUARDIA_OK:     "aceptado",
   PHOTO_TIMEOUT_MS: 10000,   // por cada fetch de la foto (metadata y blob)
   BOOT_MAX_RETRIES: 6,       // reintentos de arranque ante red/429/5xx/timeout
+  LIVE_TIMEOUT_MS:  6000,    // tope total de la verificación en vivo de un escaneo (cola + gate 429 + red)
 
   /* Gate de producción: sólo guardias aceptados en Usuarios Sheet.
      El sitio se asigna desde Admin Panel y Scan nunca lo elige. */
@@ -703,9 +730,16 @@ function conTimeout(p, ms, onLate){
    timeout (obsFetchWithTimeout). Un timeout cuenta como error de red:
    en GET se reintenta con backoff; en POST (append) es un commit
    ambiguo que WriteQueue resuelve releyendo el write_id (§15.18).
+
+   La cola tiene dos carriles: el prioritario (verificación en vivo de
+   un escaneo, el guardia está esperando) siempre se atiende antes que
+   el normal (outbox, fotos, refresco del catálogo). Sigue siendo UNA
+   sola petición de Sheets a la vez, con la misma separación GAP entre
+   arranques y el mismo gate de 429: la prioridad sólo cambia el orden.
    ══════════════════════════════════════════════════════════════════ */
 var GridClient = (function(){
-  var gateUntil = 0, tail = Promise.resolve(), lastStart = 0, GAP = 700;
+  var gateUntil = 0, lastStart = 0, GAP = 700;
+  var carrilAlto = [], carrilNormal = [], corriendo = false;
 
   function waitGate(){ return gateUntil > Date.now() ? sleep(gateUntil - Date.now()) : Promise.resolve(); }
 
@@ -715,14 +749,32 @@ var GridClient = (function(){
     return ms;
   }
 
-  function schedule(task){
-    function run(){
-      var gap = Math.max(0, lastStart + GAP - Date.now());
-      return (gap ? sleep(gap) : Promise.resolve()).then(function(){ lastStart = Date.now(); return task(); });
-    }
-    var p = tail.then(run, run);
-    tail = p.catch(function(){});
-    return p;
+  /* El trabajo se elige DESPUÉS de esperar el GAP: si mientras tanto
+     llegó uno prioritario, pasa primero. Un trabajo prioritario cuyo
+     plazo ya venció se descarta sin tocar la red. */
+  function schedule(task, prio, deadline){
+    return new Promise(function(res, rej){
+      (prio ? carrilAlto : carrilNormal).push({ task: task, res: res, rej: rej, deadline: deadline || 0 });
+      pump();
+    });
+  }
+  function pump(){
+    if (corriendo || (!carrilAlto.length && !carrilNormal.length)) return;
+    corriendo = true;
+    var gap = Math.max(0, lastStart + GAP - Date.now());
+    (gap ? sleep(gap) : Promise.resolve()).then(function(){
+      var job = carrilAlto.shift() || carrilNormal.shift();
+      if (!job) return;
+      if (job.deadline && Date.now() >= job.deadline) {
+        var e = new Error("timeout en cola"); e.name = "TimeoutError"; e.network = true;
+        job.rej(e);
+        return;
+      }
+      lastStart = Date.now();
+      var p;
+      try { p = Promise.resolve(job.task()); } catch (err) { p = Promise.reject(err); }
+      return p.then(job.res, job.rej);
+    }).then(function(){ corriendo = false; pump(); }, function(){ corriendo = false; pump(); });
   }
 
   function isSheet(path){ return /^\/api\/v1\/sheets\//.test(String(path || "")); }
@@ -757,6 +809,34 @@ var GridClient = (function(){
   }
 
   function call(path, opts){ return isSheet(path) ? schedule(function(){ return raw(path, opts, 0); }) : raw(path, opts, 0); }
+
+  /* Lectura prioritaria con plazo absoluto (verificación en vivo): un
+     solo intento de red con el tiempo que quede; ante 429 se respeta el
+     gate global y sólo se reintenta si el gate abre antes del plazo; 5xx,
+     red o timeout fallan de inmediato — el llamador conserva el veredicto
+     local. Nunca reintenta en bucle: el guardia está esperando. */
+  function readSheetLive(sheetId, docId, range, deadline){
+    var path = "/api/v1/sheets/" + encodeURIComponent(sheetId) + "?doc_id=" + encodeURIComponent(docId) + "&range=" + encodeURIComponent(range);
+    function vencido(){ var e = new Error("timeout verificación en vivo"); e.name = "TimeoutError"; e.network = true; return e; }
+    function intento(n){
+      if (gateUntil >= deadline) return Promise.reject(vencido());
+      return waitGate().then(function(){
+        var resta = deadline - Date.now();
+        if (resta <= 50) throw vencido();
+        return netFetch(path, null, resta);
+      }).then(function(r){
+        if (r.status === 429) {
+          openGate(r);
+          if (n < 2 && gateUntil < deadline) return intento(n + 1);
+          var e429 = new Error("sheet_read_429"); e429.status = 429; throw e429;
+        }
+        if (!r.ok) { var e = new Error("sheet_read_" + r.status); e.status = r.status; e.range = range; throw e; }
+        return r.json();
+      });
+    }
+    return schedule(function(){ return intento(0); }, true, deadline)
+      .then(function(b){ var rows = values(b); return Array.isArray(rows) ? rows : []; });
+  }
 
   function values(body){ return body && (body.values || (body.data && body.data.values) || body.rows) || (Array.isArray(body) ? body : []); }
 
@@ -809,7 +889,7 @@ var GridClient = (function(){
   }
 
   return {
-    call: call, readSheet: readSheet, appendSheet: appendSheet, me: me,
+    call: call, readSheet: readSheet, readSheetLive: readSheetLive, appendSheet: appendSheet, me: me,
     downloadDocumentAsObjectUrl: downloadDocumentAsObjectUrl
   };
 })();
@@ -899,7 +979,7 @@ function resolveColumnsByPriority(headerRow, fieldPatterns){
    Aceptado o rechazado, Rechazo, Fecha de vencimiento, Nuevo_QR.
    ══════════════════════════════════════════════════════════════════ */
 var Catalog = (function(){
-  var index = null, count = 0, loadedAt = null, colMap = null;
+  var index = null, count = 0, loadedAt = null, colMap = null, headerRow = null;
 
   /* "estatus" busca específicamente "Aceptado o rechazado" — la hoja
      real también tiene una "Rechazo" (motivo en texto libre); no se usan
@@ -918,6 +998,28 @@ var Catalog = (function(){
   var REQUIRED = ["qr", "sitio", "vence", "estatus"];
 
   function celda(r, i){ return i === undefined ? "" : String(r[i] == null ? "" : r[i]).trim(); }
+
+  /* Fila -> persona. `cm` mapea campo -> índice DENTRO de la fila `r`
+     (en la lectura en vivo la fila es sólo el tramo de columnas leído;
+     un campo fuera del tramo llega undefined y queda vacío). */
+  function personaDeFila(qr, r, cm){
+    var pila     = celda(r, cm.nombre);
+    var apP      = celda(r, cm.apellidoP);
+    var apM      = celda(r, cm.apellidoM);
+    var sitioRaw = celda(r, cm.sitio);
+    var venceCel = r[cm.vence];
+    return {
+      qr:       qr,
+      nombre:   [pila, apP, apM].filter(Boolean).join(" "),
+      pila:     pila,
+      empresa:  celda(r, cm.empresa),
+      sitios:   sitioRaw.split(/[,;|]/).map(function(x){ return obsNormKey(x); }).filter(Boolean),
+      sitiosRaw:sitioRaw,
+      vence:    obsParseFechaMX(typeof venceCel === "number" ? venceCel : String(venceCel == null ? "" : venceCel).trim()),
+      venceRaw: celda(r, cm.vence),
+      estatus:  celda(r, cm.estatus)
+    };
+  }
 
   async function load(){
     var rows = await GridClient.readSheet(CFG.SHEET_ID, CFG.DOC_ADMIN, CFG.SHEET_RANGE);
@@ -960,25 +1062,7 @@ var Catalog = (function(){
         continue;
       }
 
-      var pila     = celda(r, newColMap.nombre);
-      var apP      = celda(r, newColMap.apellidoP);
-      var apM      = celda(r, newColMap.apellidoM);
-      var empresa  = celda(r, newColMap.empresa);
-      var sitioRaw = celda(r, newColMap.sitio);
-      var venceCel = r[newColMap.vence];
-      var estatus  = celda(r, newColMap.estatus);
-
-      newIndex[qr] = {
-        qr:       qr,
-        nombre:   [pila, apP, apM].filter(Boolean).join(" "),
-        pila:     pila,
-        empresa:  empresa,
-        sitios:   sitioRaw.split(/[,;|]/).map(function(x){ return obsNormKey(x); }).filter(Boolean),
-        sitiosRaw:sitioRaw,
-        vence:    obsParseFechaMX(typeof venceCel === "number" ? venceCel : String(venceCel == null ? "" : venceCel).trim()),
-        venceRaw: celda(r, newColMap.vence),
-        estatus:  estatus
-      };
+      newIndex[qr] = personaDeFila(qr, r, newColMap);
       newCount++;
     }
     if (dupQr) console.warn("[Catalog] " + dupQr + " QR duplicado(s) en el catálogo (" + dupFilas + " filas): se bloquean hasta que un gestor los corrija.");
@@ -993,6 +1077,7 @@ var Catalog = (function(){
     }
 
     colMap = newColMap;
+    headerRow = rows[0].slice();
     index = newIndex;
     count = newCount;
     loadedAt = new Date();
@@ -1001,8 +1086,77 @@ var Catalog = (function(){
 
   function lookup(qr){ return index ? (index[qr] || null) : null; }
 
+  /* ── Verificación en vivo de UN código (v3.2) ─────────────────────
+     Grid no filtra del lado del servidor, así que se lee sólo el tramo
+     contiguo de columnas que cubre qr, estatus, vence y sitio (p.ej.
+     'Respuestas de formulario 1'!I1:T), con la fila 1 incluida para
+     comprobar que los encabezados del tramo siguen siendo los mismos.
+     Si alguna columna se movió => e.code "live_headers" y el llamador
+     recarga el catálogo completo. Mismas reglas que load(): mismo
+     normalizeQR, QR repetido => ambiguo (fail-closed). */
+  var LIVE_FIELDS = ["qr", "estatus", "vence", "sitio"];
+
+  function letraCol(i){
+    var s = "";
+    for (i = i + 1; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s;
+    return s;
+  }
+
+  function tramoVivo(){
+    if (!colMap || !headerRow) return null;
+    var idx = LIVE_FIELDS.map(function(f){ return colMap[f]; });
+    var ini = Math.min.apply(null, idx), fin = Math.max.apply(null, idx);
+    return { ini: ini, fin: fin, range: "'" + CFG.SHEET_RANGE.replace(/'/g, "''") + "'!" + letraCol(ini) + "1:" + letraCol(fin) };
+  }
+
+  function normHeader(h){ return norm(h).replace(/_/g, " ").replace(/\s+/g, " ").trim(); }
+
+  async function verificarEnVivo(qr, deadline){
+    var t = tramoVivo();
+    if (!t) { var e0 = new Error("catalog_sin_cargar"); throw e0; }
+    var rows = await GridClient.readSheetLive(CFG.SHEET_ID, CFG.DOC_ADMIN, t.range, deadline);
+    var hdr = rows[0] || [];
+    /* Mapa de campos relativo al tramo: sólo los campos cuya columna cae
+       dentro de él; cada encabezado debe coincidir con el de la carga. */
+    var cm = {};
+    Object.keys(colMap).forEach(function(f){
+      var j = colMap[f];
+      if (j < t.ini || j > t.fin) return;
+      cm[f] = j - t.ini;
+    });
+    var movidas = Object.keys(cm).filter(function(f){ return normHeader(hdr[cm[f]]) !== normHeader(headerRow[colMap[f]]); });
+    if (movidas.length) { var eh = new Error("live_headers"); eh.code = "live_headers"; eh.campos = movidas; throw eh; }
+
+    var filas = [];
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i] || [];
+      if (r.length && normalizeQR(r[cm.qr]) === qr) filas.push(r);
+    }
+
+    var previo = lookup(qr);
+    var persona = null;
+    if (filas.length > 1) {
+      persona = { qr: qr, ambiguous: true, filas: filas.length };
+    } else if (filas.length === 1) {
+      persona = personaDeFila(qr, filas[0], cm);
+      /* Nombre/empresa fuera del tramo: se conservan los del catálogo local. */
+      if (previo && !previo.ambiguous) {
+        ["nombre", "pila", "empresa"].forEach(function(k){ if (!persona[k]) persona[k] = previo[k]; });
+      }
+    }
+
+    /* El resultado en vivo reemplaza la entrada en memoria (alta, cambio o baja). */
+    if (index) {
+      var antesCuenta = previo && !previo.ambiguous ? 1 : 0;
+      var despuesCuenta = persona && !persona.ambiguous ? 1 : 0;
+      if (persona) index[qr] = persona; else delete index[qr];
+      count += despuesCuenta - antesCuenta;
+    }
+    return persona;
+  }
+
   return {
-    load: load, lookup: lookup,
+    load: load, lookup: lookup, verificarEnVivo: verificarEnVivo, tramoVivo: tramoVivo,
     size: function(){ return count; },
     loadedAt: function(){ return loadedAt; }
   };
@@ -1285,28 +1439,19 @@ var Prefs = (function(){
 })();
 
 /* ══════════════════════════════════════════════════════════════════
-   Clasificación de códigos desconocidos. Un evento "desconocido" no
-   se escribe en Grid hasta que el guardia elige qué observó.
-   ══════════════════════════════════════════════════════════════════ */
-var CLASS_DEFS = {
-  snapshot_stale_possible: { label: "Puede ser desfase del catálogo", reason: "Posible desfase del catálogo; requiere recarga o verificación adicional." },
-  ubicacion_desconocida:   { label: "Existe, pero falta ubicación",   reason: "El operador reconoce la credencial, pero la ubicación/autorización no está disponible en el snapshot." },
-  no_existe_confirmado:    { label: "Confirmo que no existe",         reason: "El operador confirmó que la credencial no existe en el catálogo vigente." }
-};
-
-/* ══════════════════════════════════════════════════════════════════
    Outbox — cola local-first para el registro de eventos (V21 #2).
-   procesar() valida contra el catálogo en memoria y despliega el
-   veredicto al instante; el registro durable en Grid pasa por aquí
-   en segundo plano, aplicando el protocolo V20.2 de WriteQueue con
+   procesar() despliega el veredicto al instante contra el catálogo en
+   memoria, lo confirma en vivo y encola UN evento con el veredicto
+   final; el registro durable en Grid pasa por aquí en segundo plano, aplicando el protocolo V20.2 de WriteQueue con
    una sola escritura lógica en vuelo.
 
    - La clave (`id`) y el `writeId` se generan al ENCOLAR: si la página
      se recarga a medio drenado, el siguiente intento reutiliza la misma
      clave. `appendStarted` se marca ANTES de la petición; sólo las
      entradas reanudadas hacen la búsqueda previa de idempotencia (B:B).
-   - Los desconocidos (`needsClassification`) no drenan hasta que el
-     guardia los clasifica.
+   - Compatibilidad: entradas de versiones previas con
+     `needsClassification` sin clasificar se drenan solas como
+     'bloqueado' (ver migrarSinClasificar); ya no hay clasificación.
    - Error permanente (4xx no reintentable) o más de
      CFG.OUTBOX_MAX_ATTEMPTS ciclos fallidos => `status:'dead'`: se queda
      en IndexedDB, se salta y el drenado sigue con los demás. "Reintentar"
@@ -1321,7 +1466,6 @@ var Outbox = (function(){
   var retryTimer = null;
   var permissionDeniedHandler = null;
   var queueChangeHandler = null;
-  var needsClassificationHandler = null;
   var mem = Object.create(null);   // respaldo en memoria si IndexedDB no está disponible
   var memAvisado = false;
 
@@ -1391,8 +1535,19 @@ var Outbox = (function(){
   }
 
   function esMuerto(x){ return x.status === "dead"; }
-  function esPorClasificar(x){ return !!x.needsClassification && !esMuerto(x); }
-  function esDrenable(x){ return !x.needsClassification && !esMuerto(x); }
+  function esDrenable(x){ return !esMuerto(x); }
+
+  /* Registro de una versión ≤3.1 que esperaba clasificación del guardia:
+     se escribe como bloqueado, sin preguntar nada. */
+  function migrarSinClasificar(entry){
+    if (!entry || !entry.needsClassification) return false;
+    entry.evento = entry.evento || {};
+    entry.evento.resultado = "bloqueado";
+    entry.evento.razon = "Código no existe (registro previo sin clasificar)";
+    entry.needsClassification = false;
+    entry.migratedAt = Date.now();
+    return true;
+  }
 
   function notify(){
     if (!queueChangeHandler) return;
@@ -1415,8 +1570,7 @@ var Outbox = (function(){
       attempts: 0,
       createdAt: Date.now(),
       appendStarted: false,
-      status: "pending",
-      needsClassification: !!evento && evento.resultado === "desconocido"
+      status: "pending"
     };
     try {
       await idbPut(entry);
@@ -1432,27 +1586,8 @@ var Outbox = (function(){
       }
     }
     notify();
-    if (!entry.needsClassification) kick();
+    kick();
     return entry;
-  }
-
-  function classify(id, code){
-    var def = CLASS_DEFS[code];
-    if (!def) return Promise.reject(new Error("clasificación inválida"));
-    return get(id).then(function(entry){
-      if (!entry) throw new Error("registro local no encontrado");
-      if (!entry.needsClassification) return entry;
-      entry.evento = entry.evento || {};
-      entry.evento.resultado = code;
-      entry.evento.razon = def.reason;
-      entry.needsClassification = false;
-      entry.classifiedAt = Date.now();
-      return put(entry).then(function(){ notify(); kick(); return entry; });
-    });
-  }
-
-  function pendingClassification(){
-    return ordered().then(function(items){ return items.filter(esPorClasificar); });
   }
 
   function retryDead(){
@@ -1477,9 +1612,10 @@ var Outbox = (function(){
       while (true) {
         var items = await ordered();
         var item = items.filter(esDrenable)[0];
-        if (!item) {
-          if (items.some(esPorClasificar) && needsClassificationHandler) needsClassificationHandler();
-          return;
+        if (!item) return;
+        if (migrarSinClasificar(item)) {
+          console.info("[Outbox] registro previo sin clasificar: se drena como bloqueado.");
+          await put(item);
         }
         var precheck = !!item.appendStarted;
         item.appendStarted = true;
@@ -1526,7 +1662,6 @@ var Outbox = (function(){
       retryTimer = null;
       ordered().then(function(items){
         if (items.some(esDrenable)) kick();
-        if (items.some(esPorClasificar) && needsClassificationHandler) needsClassificationHandler();
       }).catch(function(e){ console.warn("[Outbox] reintento programado: " + redactErr(e)); });
     }, jitter(4000));
   }
@@ -1539,12 +1674,9 @@ var Outbox = (function(){
   return {
     enqueue: enqueue,
     resume: resume,   // drenar lo que quedó pendiente de una sesión anterior
-    classify: classify,
-    pendingClassification: pendingClassification,
     retryDead: retryDead,
     onPermissionDenied: function(fn){ permissionDeniedHandler = fn; },
-    onQueueChange: function(fn){ queueChangeHandler = fn; },
-    onNeedsClassification: function(fn){ needsClassificationHandler = fn; }
+    onQueueChange: function(fn){ queueChangeHandler = fn; }
   };
 })();
 
@@ -1744,12 +1876,12 @@ var App = (function(){
     lastCode: "",
     lastAt: 0,
     count: 0,
-    veredictoSeq: 0,   // token del veredicto en pantalla — descarta fotos/clasificaciones que lleguen tarde
+    veredictoSeq: 0,   // token del veredicto en pantalla — descarta fotos/resultados en vivo que lleguen tarde
     verdictQr: "",     // QR del veredicto en pantalla (anti-rebote al cerrar)
     verdictOpenedAt: 0,
-    verdictRecuperado: false, // el modal en pantalla es de una clasificación pendiente recuperada
-    classifyGate: false,      // hay una clasificación pendiente en pantalla: no se puede cerrar ni escanear
-    classifyEntryId: null,
+    esperaVivo: false, // el veredicto en pantalla aún espera su confirmación en vivo
+    esperaFoto: false, // el veredicto en pantalla aún espera su foto
+    fotoToken: 0,      // invalida una foto en curso si el vivo repinta el veredicto
     catalogError: null,       // último error de refresco del catálogo (texto ya redactado)
     edadTimer: null
   };
@@ -1768,12 +1900,10 @@ var App = (function(){
   function enEscaneo(){ return ge("scr-scan").classList.contains("on") && !S.blocked; }
 
   /* Bloqueo: detiene cámara y refresco, y deja la app "ocupada" para que
-     ningún veredicto ni clasificación se pinte encima de esta pantalla. */
+     ningún veredicto se pinte encima de esta pantalla. */
   function blocked(title, msg, detail){
     S.blocked = true;
     S.busy = true;
-    S.classifyGate = false;
-    S.classifyEntryId = null;
     try { Scanner.stop(); } catch (_) {}
     pausarRefrescoCatalogo();
     if (S.edadTimer) { clearInterval(S.edadTimer); S.edadTimer = null; }
@@ -1938,7 +2068,6 @@ var App = (function(){
     actualizarEdadCatalogo();
     if (!S.edadTimer) S.edadTimer = setInterval(actualizarEdadCatalogo, 30000);
     Outbox.resume();   // drena lo que quedó pendiente de una sesión anterior
-    revisarPendientes();
   }
 
   /* ── Catálogo: refresco, edad visible y desfase ──────────────────
@@ -1946,7 +2075,7 @@ var App = (function(){
      refrescar siempre implica releer la hoja completa. Si falla, se
      registra (redactado), se marca en la línea de edad del catálogo y se
      reintenta en el siguiente ciclo: la app sigue con el último catálogo
-     bueno conocido. Las recargas simultáneas (timer, botón, revalidación)
+     bueno conocido. Las recargas simultáneas (timer, botón, vivo con columnas movidas)
      comparten la misma promesa. */
   var refrescoIniciado = false;
   var refrescoTimer = null;
@@ -2080,9 +2209,9 @@ var App = (function(){
   /* ── Entrada de escaneo ────────────────────────────────────────── */
   function onScan(raw){
     /* Candado: la cámara dispara ~60 veces por segundo mientras el QR
-       siga encuadrado; mientras haya un veredicto o una clasificación en
-       pantalla no se procesa nada. */
-    if (S.busy || S.blocked || S.classifyGate) return;
+       siga encuadrado; mientras haya un veredicto en pantalla (incluida
+       su confirmación en vivo) no se procesa nada. */
+    if (S.busy || S.blocked) return;
     var qr = normalizeQR(raw);
     if (!qr) return;
 
@@ -2093,58 +2222,139 @@ var App = (function(){
     procesar(qr);
   }
 
-  /* El veredicto se decide contra el catálogo en memoria y se muestra
-     PRIMERO (no depende de Grid ni de IndexedDB). El registro se encola
-     después, en segundo plano. Para un desconocido, el botón de cierre
-     queda deshabilitado desde el primer instante hasta que la
-     clasificación de ESE evento esté en pantalla y resuelta. */
-  function procesar(qr, opts){
+  /* Veredicto contra una persona del catálogo (local o en vivo). */
+  function evaluar(persona){
+    if (!persona) return { resultado: null, razon: null };
+    var v = validar(persona, S.sitio);
+    return { resultado: v.ok ? "permitido" : "bloqueado", razon: v.razon };
+  }
+
+  /* Verificación híbrida (v3.2):
+     1. El veredicto se decide contra el catálogo en memoria y se muestra
+        AL INSTANTE (un código desconocido se muestra como "Verificando
+        código…", nunca en verde).
+     2. En paralelo se relee ESE código en vivo (carril prioritario de
+        GridClient, tope CFG.LIVE_TIMEOUT_MS). Mientras tanto "Siguiente
+        escaneo" queda deshabilitado: el guardia espera la confirmación.
+     3. Con el resultado final (vivo, o local si el vivo falló) se encola
+        UN solo evento en Ingresos.
+     Todo lo que se pinta va ligado a `seq`: un resultado en vivo tardío
+     de un escaneo anterior sólo alimenta el evento de ESE escaneo. */
+  function procesar(qr){
     S.busy = true;
+    var ts = new Date().toISOString();
+    var local = Catalog.lookup(qr);
+    var vLocal = evaluar(local);
 
-    var persona = Catalog.lookup(qr);
-    var resultado, razon, nombre, empresa;
+    var seq = ++S.veredictoSeq;
+    S.verdictQr = qr;
+    S.esperaVivo = true;
+    pintarVeredicto(qr, vLocal.resultado || "verificando", vLocal.razon, local);
+    estadoVivo("pending", "Confirmando en vivo…");
+    abrirPanel();
+    S.count++;
 
-    if (!persona) {
-      resultado = "desconocido";
-      razon = "el código no aparece en el catálogo";
-      nombre = ""; empresa = "";
-    } else {
-      var v = validar(persona, S.sitio);
-      resultado = v.ok ? "permitido" : "bloqueado";
-      razon = v.razon;
-      nombre = persona.nombre;
-      empresa = persona.empresa;
+    confirmarEnVivo(qr).then(function(r){
+      var fin = decidirFinal(local, vLocal, r);
+      registrar(qr, ts, fin, seq);
+      if (seq !== S.veredictoSeq || S.blocked) return;   // ya hay otro veredicto en pantalla
+      aplicarFinal(qr, vLocal, fin);
+    }).catch(function(e){
+      /* Defensa: un error de programación aquí no debe dejar al guardia
+         con el botón bloqueado para siempre. */
+      console.warn("[Live] error inesperado al confirmar " + redactQR(qr) + ": " + redactErr(e));
+      if (seq === S.veredictoSeq) { S.esperaVivo = false; estadoVivo("warn", "No se pudo confirmar en vivo — verifica con gestor"); actualizarBoton(); }
+    });
+  }
+
+  /* Resuelve {vivo:true, persona} o {vivo:false, error}; nunca rechaza.
+     Si las columnas del tramo se movieron, recarga el catálogo completo
+     y valida contra él (cuenta como lectura en vivo: es la hoja actual). */
+  function confirmarEnVivo(qr){
+    var deadline = Date.now() + CFG.LIVE_TIMEOUT_MS;
+    return conTimeout(Catalog.verificarEnVivo(qr, deadline), CFG.LIVE_TIMEOUT_MS + 250).then(function(persona){
+      return { vivo: true, persona: persona };
+    }, function(e){
+      if (e && e.code === "live_headers") {
+        console.warn("[Live] los encabezados del tramo cambiaron (" + (e.campos || []).join(", ") + "): recarga completa del catálogo.");
+        return conTimeout(recargarCatalogo(), 20000).then(function(){
+          return { vivo: true, persona: Catalog.lookup(qr), recargado: true };
+        }, function(e2){
+          console.warn("[Live] la recarga completa falló: " + redactErr(e2));
+          return { vivo: false, error: e2 };
+        });
+      }
+      console.warn("[Live] no se pudo confirmar en vivo " + redactQR(qr) + ": " + redactErr(e));
+      return { vivo: false, error: e };
+    });
+  }
+
+  function decidirFinal(local, vLocal, r){
+    if (r.vivo) {
+      if (!r.persona) return { resultado: "bloqueado", razon: "Código no existe", persona: null, vivo: true };
+      var v = evaluar(r.persona);
+      return { resultado: v.resultado, razon: v.razon, persona: r.persona, vivo: true };
     }
+    if (!local) return { resultado: "bloqueado", razon: "Código no existe en el catálogo (sin verificación en vivo)", persona: null, vivo: false };
+    return { resultado: vLocal.resultado, razon: vLocal.razon, persona: local, vivo: false };
+  }
 
+  /* Un evento por escaneo, con el veredicto FINAL. Esquema de Ingresos
+     sin cambios: la verificación queda al final de la razón. */
+  function registrar(qr, ts, fin, seq){
+    var base = fin.razon || (fin.resultado === "permitido" ? "acceso permitido" : "sin razón");
+    var p = fin.persona && !fin.persona.ambiguous ? fin.persona : null;
     var evento = {
       qr: qr,
-      nombre: nombre || null,
-      empresa: empresa || null,
+      nombre: (p && p.nombre) || null,
+      empresa: (p && p.empresa) || null,
       sitio: S.sitio,
-      resultado: resultado,
-      razon: razon,
+      resultado: fin.resultado,
+      razon: base + (fin.vivo ? " · verificado en vivo" : " · sin verificación en vivo"),
       guardia_hash: S.id.hash,
       guardia_source_field: S.id.source_field,
-      ts: new Date().toISOString(),
+      ts: ts,
       tz: CFG.TZ,
       app: "obsidian-scan/" + OBS_BUILD_ID
     };
-
-    var seq = mostrarVeredicto(evento, persona, opts);
-    S.count++;
-
-    Outbox.enqueue(CFG.SCAN_TAB, evento).then(function(entry){
-      if (evento.resultado !== "desconocido") return;
-      /* Si este veredicto ya no está en pantalla, la entrada queda
-         pendiente y se mostrará en su propio modal (revisarPendientes). */
-      renderClasificacion(entry, seq);
-    }).catch(function(e){
+    Outbox.enqueue(CFG.SCAN_TAB, evento).catch(function(e){
       console.warn("[Outbox] no se pudo encolar el evento " + redactQR(qr) + ": " + redactErr(e));
-      if (seq === S.veredictoSeq) {
-        addNotice("No se pudo guardar el registro de este escaneo. Avisa a un administrador.", "err");
-        liberarCierre();
-      }
+      if (seq === S.veredictoSeq) addNotice("No se pudo guardar el registro de este escaneo. Avisa a un administrador.", "err");
     });
+  }
+
+  /* Pinta el resultado de la verificación en vivo sobre el veredicto en
+     pantalla (sólo se llama si `seq` sigue vigente). */
+  function aplicarFinal(qr, vLocal, fin){
+    S.esperaVivo = false;
+    var desconocido = !vLocal.resultado;
+    var cambio = desconocido || vLocal.resultado !== fin.resultado || vLocal.razon !== fin.razon;
+
+    if (!fin.vivo) {
+      if (desconocido) pintarVeredicto(qr, "bloqueado", fin.razon, null);
+      if (fin.resultado === "permitido") {
+        estadoVivo("warn", "No se pudo confirmar en vivo — verifica con gestor");
+        /* Sin confirmación, el catálogo viejo vuelve a importar. */
+        if (catalogoDesactualizado()) addNotice("Catálogo desactualizado (" + catalogoEdadMin() + " min): confirma con gestor", "warn", true);
+      } else {
+        estadoVivo("warn", "Sin verificación en vivo");
+      }
+    } else if (!cambio) {
+      estadoVivo("ok", "Verificado en vivo");
+    } else {
+      pintarVeredicto(qr, fin.resultado, fin.razon, fin.persona);
+      estadoVivo("ok", "Verificado en vivo");
+      if (desconocido) {
+        if (fin.persona) banner(fin.resultado === "permitido" ? "ok" : "err", "Actualizado en vivo: código dado de alta recientemente");
+      } else if (vLocal.resultado === "permitido" && fin.resultado === "bloqueado") {
+        banner("err", "Actualizado en vivo: acceso revocado");
+      } else if (vLocal.resultado === "bloqueado" && fin.resultado === "permitido") {
+        banner("ok", "Actualizado en vivo: acceso aprobado recientemente");
+      } else {
+        banner("err", "Actualizado en vivo: cambió el motivo del bloqueo");
+      }
+    }
+    actualizarBoton();
   }
 
   /* ── Panel de veredicto ────────────────────────────────────────── */
@@ -2159,9 +2369,22 @@ var App = (function(){
     return d;
   }
 
+  function estadoVivo(tipo, texto){
+    var el = ge("v-live");
+    el.className = "live-tag on " + tipo;
+    el.textContent = texto;
+  }
+
+  function banner(tipo, texto){
+    var el = ge("v-live-banner");
+    el.className = "live-banner " + tipo;
+    el.textContent = texto;
+    el.style.display = "";
+  }
+
   function prepararPanel(tipo){
     var v = ge("verdict");
-    v.classList.remove("ok", "err", "warn");
+    v.classList.remove("ok", "err", "warn", "info");
     v.classList.add(tipo);
     ge("v-photo-wrap").style.display = "none";
     ge("v-photo-wrap").style.height = "";
@@ -2170,9 +2393,8 @@ var App = (function(){
     glyphEl.className = "glyph " + tipo;
     glyphEl.innerHTML = tipo === "ok" ? ICON_OK : tipo === "err" ? ICON_ERR : ICON_WARN;   // SVG estáticos
     ge("v-notice").textContent = "";
-    var closeBtn = ge("v-close");
-    closeBtn.disabled = false;
-    closeBtn.textContent = "Siguiente escaneo";
+    var b = ge("v-live-banner");
+    b.style.display = "none"; b.textContent = "";
   }
 
   function abrirPanel(){
@@ -2182,22 +2404,26 @@ var App = (function(){
        siga tecleando no debe cerrar el veredicto por accidente. */
   }
 
-  function liberarCierre(texto){
-    if (S.classifyGate) return;
+  /* "Siguiente escaneo" sólo se habilita cuando ya no se espera ni la
+     confirmación en vivo ni la foto del veredicto en pantalla. */
+  function actualizarBoton(){
     var closeBtn = ge("v-close");
-    closeBtn.disabled = false;
-    closeBtn.textContent = texto || "Siguiente escaneo";
+    closeBtn.disabled = S.esperaVivo || S.esperaFoto;
+    closeBtn.textContent = S.esperaVivo ? "Confirmando en vivo…" : S.esperaFoto ? "Verificando foto…" : "Siguiente escaneo";
   }
 
-  function mostrarVeredicto(evento, persona, opts){
-    var seq = ++S.veredictoSeq;
-    S.verdictRecuperado = false;
-    S.verdictQr = evento.qr;
-    var tipo = evento.resultado === "permitido" ? "ok" : evento.resultado === "bloqueado" ? "err" : "warn";
+  /* resultado: "permitido" | "bloqueado" | "verificando" (desconocido en
+     espera del vivo: estado neutro, nunca verde). Se puede llamar de nuevo
+     sobre el mismo veredicto cuando el vivo lo cambia: invalida la foto
+     anterior (fotoToken) para que no se pinte sobre el estado nuevo. */
+  function pintarVeredicto(qr, resultado, razon, persona){
+    var tok = ++S.fotoToken;
+    var seq = S.veredictoSeq;
+    S.esperaFoto = false;
+    var tipo = resultado === "permitido" ? "ok" : resultado === "bloqueado" ? "err" : "info";
     prepararPanel(tipo);
-    var closeBtn = ge("v-close");
 
-    if (evento.resultado !== "permitido" && S.scanMode === "handheld") {
+    if (resultado === "bloqueado" && S.scanMode === "handheld") {
       var area = ge("hh-scan-area");
       if (area) {
         area.classList.add("shake");
@@ -2205,177 +2431,37 @@ var App = (function(){
       }
     }
 
-    if (evento.resultado === "permitido") {
+    if (resultado === "permitido") {
       var nombreVisible = persona && (persona.pila || persona.nombre);
       ge("v-title").textContent = nombreVisible ? "¡Adelante, " + nombreVisible + "! Acceso habilitado." : "¡Adelante! Acceso habilitado.";
       ge("v-why").textContent = persona && persona.empresa ? persona.empresa : "";
-    } else if (evento.resultado === "bloqueado") {
-      ge("v-title").textContent = "Acceso bloqueado: " + evento.razon + ".";
-      ge("v-why").textContent = persona && persona.ambiguous ? "No dejes pasar hasta que un gestor corrija el catálogo." : "Pide al usuario revisar su credencial.";
+    } else if (resultado === "bloqueado") {
+      ge("v-title").textContent = "Acceso bloqueado: " + razon + ".";
+      ge("v-why").textContent = persona && persona.ambiguous ? "No dejes pasar hasta que un gestor corrija el catálogo."
+        : persona ? "Pide al usuario revisar su credencial." : "QR: " + qr;
     } else {
-      ge("v-title").textContent = "Acceso no existe: " + evento.razon + ".";
-      ge("v-why").textContent = "QR: " + evento.qr;
-      /* L4: entre el encolado y la clasificación no se puede avanzar. */
-      closeBtn.disabled = true;
-      closeBtn.textContent = "Registrando…";
+      ge("v-title").textContent = "Verificando código…";
+      ge("v-why").textContent = "El código no está en el catálogo local. QR: " + qr;
     }
 
-    if (opts && opts.revalidado) addNotice("Revalidado con el catálogo recién recargado.", "warn");
-
-    /* Catálogo viejo: un "permitido" nunca pasa en silencio. */
-    if (evento.resultado === "permitido" && catalogoDesactualizado()) {
-      addNotice("Catálogo desactualizado (" + catalogoEdadMin() + " min): confirma con gestor", "warn", true);
-    }
-
-    /* El modal se abre YA con el veredicto: esa decisión ya está tomada
-       contra el catálogo en memoria y no depende de la foto. Pero cuando
-       SÍ hay foto que verificar, el guardia la necesita para comparar cara
-       contra credencial antes de dejar pasar — así que el botón para
-       continuar se bloquea hasta que la foto cargue (o falle de forma
-       explícita), en vez de dejar avanzar sin ella. */
-    abrirPanel();
-
-    if (evento.resultado === "permitido") {
-      var foto = Photos.lookup(evento.qr);
+    /* Con foto que verificar, el guardia la necesita para comparar cara
+       contra credencial: el botón espera a que cargue (o falle). */
+    if (resultado === "permitido") {
+      var foto = Photos.lookup(qr);
       if (foto && foto.docId) {
-        closeBtn.disabled = true;
-        closeBtn.textContent = "Verificando foto…";
-        cargarFotoVeredicto(foto.docId, evento.qr, seq);
-        return seq;
-      }
-      /* Sin foto que esperar — pero hay que decir POR QUÉ: son dos causas
-         de datos distintas y confundirlas hace buscar en el lugar equivocado. */
-      if (foto && !foto.docId) {
-        console.warn("[foto] fila encontrada en " + CFG.SHEET_RANGE_FOTOS + " para " + redactQR(evento.qr) + " pero sin doc_id.");
+        S.esperaFoto = true;
+        cargarFotoVeredicto(foto.docId, qr, seq, tok);
+      } else if (foto && !foto.docId) {
+        /* Sin foto que esperar — pero hay que decir POR QUÉ: son dos causas
+           de datos distintas y confundirlas hace buscar en el lugar equivocado. */
+        console.warn("[foto] fila encontrada en " + CFG.SHEET_RANGE_FOTOS + " para " + redactQR(qr) + " pero sin doc_id.");
         addNotice("Este código tiene fila en \"" + CFG.SHEET_RANGE_FOTOS + "\" pero sin doc_id — no se puede descargar la foto desde Grid. Confirma la identidad manualmente.", "warn");
-      } else if (!foto) {
-        console.warn("[foto] " + redactQR(evento.qr) + " no aparece en el índice de Photos (" + CFG.SHEET_RANGE_FOTOS + ").");
+      } else {
+        console.warn("[foto] " + redactQR(qr) + " no aparece en el índice de Photos (" + CFG.SHEET_RANGE_FOTOS + ").");
         addNotice("Este código no tiene ninguna fila en la pestaña \"" + CFG.SHEET_RANGE_FOTOS + "\" — no hay foto que verificar. Confirma la identidad manualmente.", "warn");
       }
     }
-    return seq;
-  }
-
-  /* ── Clasificación de desconocidos ───────────────────────────────
-     Siempre ligada al veredicto en pantalla (seq) y a SU entrada
-     (entry.id): nunca se pinta encima del veredicto de otra persona. */
-  function renderClasificacion(entry, seq){
-    if (seq !== S.veredictoSeq || S.blocked || !ge("verdict").classList.contains("on")) return false;
-    S.classifyGate = true;
-    S.classifyEntryId = entry.id;
-
-    var bloque = document.createElement("div");
-    bloque.className = "classify";
-    addNotice("El catálogo no basta para concluir. Selecciona qué observaste antes de continuar.", "warn", true, bloque);
-    var grid = document.createElement("div");
-    grid.className = "classify-grid";
-    Object.keys(CLASS_DEFS).forEach(function(code){
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "btn btn-ghost btn-block";
-      b.textContent = CLASS_DEFS[code].label;
-      b.addEventListener("click", function(){ clasificar(entry, code, seq, bloque); });
-      grid.appendChild(b);
-    });
-    bloque.appendChild(grid);
-    ge("v-notice").appendChild(bloque);
-
-    var closeBtn = ge("v-close");
-    closeBtn.disabled = true;
-    closeBtn.textContent = "Clasifica el caso";
-    return true;
-  }
-
-  function clasificar(entry, code, seq, bloque){
-    var botones = bloque.querySelectorAll("button");
-    Array.prototype.forEach.call(botones, function(b){ b.disabled = true; });
-    Outbox.classify(entry.id, code).then(function(){
-      if (S.classifyEntryId === entry.id) { S.classifyGate = false; S.classifyEntryId = null; }
-      if (seq !== S.veredictoSeq) return;
-      bloque.textContent = "";
-      addNotice("Clasificación guardada: " + CLASS_DEFS[code].label + ".", "warn", false, bloque);
-      var qr = entry.evento && entry.evento.qr;
-
-      if (S.verdictRecuperado) {
-        /* Modal de pendientes: se encadena al siguiente, del más viejo al
-           más nuevo; la revalidación inmediata no aplica a un escaneo viejo. */
-        if (code === "snapshot_stale_possible") dispararRefrescoCatalogo();
-        Outbox.pendingClassification().then(function(list){
-          if (seq !== S.veredictoSeq) return;
-          if (list.length) mostrarClasificacionPendiente(list[0]);
-          else liberarCierre("Continuar");
-        }).catch(function(){ liberarCierre("Continuar"); });
-        return;
-      }
-      liberarCierre();
-      if (code === "snapshot_stale_possible" && qr) revalidarTrasRecarga(qr, seq);
-    }, function(e){
-      Array.prototype.forEach.call(botones, function(b){ b.disabled = false; });
-      console.warn("[Outbox] no se pudo guardar la clasificación: " + redactErr(e));
-      toast("No se pudo guardar la clasificación: " + redactErr(e), "err");
-    });
-  }
-
-  /* G6: "Puede ser desfase del catálogo" => recargar y, si el QR ya
-     aparece y este veredicto sigue en pantalla, revalidarlo y mostrar el
-     veredicto nuevo (que se registra como un evento propio). */
-  function revalidarTrasRecarga(qr, seq){
-    var aviso = addNotice("Recargando catálogo para revalidar este código…", "warn");
-    function setAviso(t){ var s = aviso.querySelector("span"); if (s) s.textContent = t; }
-    recargarCatalogo().then(function(){
-      if (S.blocked) return;
-      var persona = Catalog.lookup(qr);
-      var enPantalla = seq === S.veredictoSeq && ge("verdict").classList.contains("on");
-      if (!persona) {
-        if (enPantalla) setAviso("Catálogo recargado: el código sigue sin aparecer.");
-        return;
-      }
-      if (!enPantalla) {
-        toast("El código ya aparece en el catálogo actualizado: vuelve a escanearlo.", "ok");
-        return;
-      }
-      cerrarVeredicto(true);
-      procesar(qr, { revalidado: true });
-    }, function(e){
-      if (seq === S.veredictoSeq) setAviso("No se pudo recargar el catálogo (" + describirErrorCatalogo(e) + "). Verifica con gestor.");
-    });
-  }
-
-  /* Pendientes recuperados (recarga, reintento): cada uno en SU propio
-     modal, del más viejo al más nuevo, con su QR y la hora del escaneo. */
-  var fmtHora = null;
-  function horaEscaneo(ms){
-    try {
-      if (!fmtHora) fmtHora = new Intl.DateTimeFormat("es-MX", { timeZone: OBS_TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-      return fmtHora.format(new Date(ms));
-    } catch (_) { return new Date(ms).toISOString(); }
-  }
-
-  function mostrarClasificacionPendiente(entry){
-    if (S.blocked) return;
-    var seq = ++S.veredictoSeq;
-    S.busy = true;
-    S.verdictRecuperado = true;
-    S.verdictQr = (entry.evento && entry.evento.qr) || "";
-    prepararPanel("warn");
-    ge("v-title").textContent = "Clasificación pendiente de un escaneo anterior";
-    ge("v-why").textContent = "QR: " + (S.verdictQr || "—") + " · escaneado el " + horaEscaneo(entry.createdAt || Date.now());
-    abrirPanel();
-    renderClasificacion(entry, seq);
-  }
-
-  var revisandoPendientes = false;
-  function revisarPendientes(){
-    if (revisandoPendientes || S.busy || !enEscaneo()) return;
-    revisandoPendientes = true;
-    Outbox.pendingClassification().then(function(list){
-      revisandoPendientes = false;
-      if (!list.length || S.busy || !enEscaneo()) return;
-      mostrarClasificacionPendiente(list[0]);
-    }, function(e){
-      revisandoPendientes = false;
-      console.warn("[Outbox] no se pudieron leer los pendientes: " + redactErr(e));
-    });
+    actualizarBoton();
   }
 
   /* Traduce el error crudo de la descarga a algo diagnosticable en pantalla. */
@@ -2396,21 +2482,24 @@ var App = (function(){
      dura (tope: 2 × CFG.PHOTO_TIMEOUT_MS). `seq` es el token del veredicto
      que la disparó — si para cuando la foto llega ya hay otro veredicto
      en pantalla, se descarta en vez de pisar el estado de otra persona. */
-  async function cargarFotoVeredicto(docId, qr, seq){
+  async function cargarFotoVeredicto(docId, qr, seq, tok){
     var img = ge("v-photo");
     var photoWrap = ge("v-photo-wrap");
     var glyphEl = ge("v-glyph");
+    /* tok: el vivo pudo repintar este mismo veredicto (p.ej. revocado). */
+    function vigente(){ return seq === S.veredictoSeq && tok === S.fotoToken; }
 
     function liberarBoton(notaError){
-      if (seq !== S.veredictoSeq) return;
+      if (!vigente()) return;
       if (notaError) addNotice(notaError, "warn");   // textContent: sin HTML de datos/errores
-      liberarCierre();                                // no habilita si hay clasificación activa
+      S.esperaFoto = false;
+      actualizarBoton();                              // no habilita si falta la confirmación en vivo
     }
 
     try {
       var objectUrl = await conTimeout(GridClient.downloadDocumentAsObjectUrl(docId), CFG.PHOTO_TIMEOUT_MS * 2 + 1000,
         function(urlTardia){ URL.revokeObjectURL(urlTardia); });
-      if (seq !== S.veredictoSeq) { URL.revokeObjectURL(objectUrl); return; }
+      if (!vigente()) { URL.revokeObjectURL(objectUrl); return; }
 
       if (S.photoObjectUrl) URL.revokeObjectURL(S.photoObjectUrl);
       S.photoObjectUrl = objectUrl;
@@ -2420,7 +2509,7 @@ var App = (function(){
         img.onerror = function(){ resolve(false); };
         img.src = objectUrl;
       });
-      if (seq !== S.veredictoSeq) return;
+      if (!vigente()) return;
 
       if (!cargo) {
         console.warn("[foto] blob descargado pero <img> no lo pudo decodificar. qr=" + redactQR(qr));
@@ -2449,20 +2538,20 @@ var App = (function(){
     }
   }
 
-  function cerrarVeredicto(sinPendientes){
-    if (S.classifyGate) return;
+  function cerrarVeredicto(){
+    if (S.esperaVivo) return;   // el guardia debe esperar la confirmación en vivo
     ge("verdict").classList.remove("on");
+    S.esperaFoto = false;
+    S.fotoToken++;
     if (S.photoObjectUrl) { URL.revokeObjectURL(S.photoObjectUrl); S.photoObjectUrl = null; }
     ge("v-photo").removeAttribute("src");
     /* Anti-rebote también al CERRAR: el mismo QR que sigue en cuadro no
        se vuelve a aceptar durante SUPPRESS_MS. */
     if (S.verdictQr) S.lastCode = S.verdictQr;
     S.lastAt = Date.now();
-    S.verdictRecuperado = false;
     S.busy = S.blocked;
     if (S.blocked) return;
     armHid();
-    if (sinPendientes !== true) revisarPendientes();
   }
 
   /* ── Pantalla completa (Biblia §16.21) ────────────────────────────
@@ -2561,7 +2650,6 @@ var App = (function(){
         toast("No se pudo reintentar: " + redactErr(e), "err");
       });
     });
-    Outbox.onNeedsClassification(revisarPendientes);
     Outbox.onPermissionDenied(function(e, item){
       blocked("Falta permiso de escritura",
         "Grid rechazó el registro en la hoja \"" + CFG.SCAN_TAB + "\" del libro de Scan. El ACL se evalúa sobre el documento " + CFG.DOC_ADMIN + ": necesitas acceso de escritura (edición) sobre ese documento y sobre la hoja de ingresos para poder registrar.",
