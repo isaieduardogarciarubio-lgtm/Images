@@ -3108,7 +3108,7 @@ function updateBulkBar(){
   var bar=document.getElementById('bulkBar');
   if(!bar) return;
   bar.style.display = selectMode ? 'flex' : 'none';
-  var soloGestor=esGestor();
+  var soloGestor=puedeGestionar();
   var ba=document.getElementById('bulkAcceptBtn'); if(ba) ba.textContent=(soloGestor||esUsuarioLP())?(misEtapas().length>1||esUsuarioLP()?'Aprobar / Aceptar':'Aceptar'):'Aprobar';
   ['bulkExpiryBtn','bulkDeleteBtn'].forEach(function(bid){ var b=document.getElementById(bid); if(b) b.style.display=soloGestor?'':'none'; });
   var count=Object.keys(selectedIds).length;
@@ -3533,7 +3533,7 @@ function obsActBtn(act,id,cls,style,title,html){
   return '<button class="btn btn-block '+cls+'"'+(style?' style="'+style+'"':'')+(title?' title="'+esc(title)+'"':'')+' data-act="'+act+'" data-id="'+esc(id)+'">'+html+'</button>';
 }
 function buildActions(s){
-  var gestor=esGestor();
+  var gestor=puedeGestionar();
   /* Candados: datos inconsistentes / operación en curso (propia u otro gestor). */
   if(s.__inconsistent){
     return '<div class="flow-wait">'+ic.alertTri+' '+esc(OBS_MSG_INCONSISTENT)+'</div>';
@@ -3553,11 +3553,6 @@ function buildActions(s){
   if(s.estatus==='pendiente' && esMiTurnoIntermedio(s)){
     return obsActBtn('reject',s.id,'btn-danger-outline','','',ic.x+' Rechazar')+
            obsActBtn('approve-stage',s.id,'btn-primary','','',ic.check+' Aprobar ('+esc(ETAPA_LABEL[etapaActual(s)])+')');
-  }
-  /* LP sin rol gestor: puede aceptar/rechazar solicitudes sin flujo de etapas. */
-  if(!gestor && s.estatus==='pendiente' && puedeAceptarFinal(s)){
-    return obsActBtn('reject',s.id,'btn-danger-outline','','',ic.x+' Rechazar')+
-           obsActBtn('accept',s.id,'btn-primary','','',ic.check+' Aceptar');
   }
   if(!gestor){
     return '<div class="flow-wait">Sólo lectura</div>';
@@ -3670,9 +3665,9 @@ function obsActionBlock(s,kind,selfOwned){
   if(kind==='accept'){ if(!puedeAceptarFinal(s)) return 'La solicitud ya no está en tu etapa'; }
   else if(kind==='reject'){ if(!esMiTurno(s)) return 'La solicitud ya no está en tu etapa'; }
   else if(kind==='approve'){ if(!esMiTurnoIntermedio(s)) return 'La solicitud ya no está en tu etapa'; }
-  else if(kind==='revert'){ if(!esGestor()) return 'Sólo el gestor puede revertir'; if(s.estatus!=='aceptado'&&s.estatus!=='rechazado') return 'La solicitud ya no se puede revertir'; }
-  else if(kind==='expiry'){ if(!esGestor()) return 'Sólo el gestor puede editar el vencimiento'; if(s.estatus!=='aceptado') return 'Sólo se edita el vencimiento de accesos aceptados'; }
-  else if(kind==='archive'){ if(!esGestor()) return 'Sólo el gestor puede archivar'; }
+  else if(kind==='revert'){ if(!puedeGestionar()) return 'Sólo gestor o LP pueden revertir'; if(s.estatus!=='aceptado'&&s.estatus!=='rechazado') return 'La solicitud ya no se puede revertir'; }
+  else if(kind==='expiry'){ if(!puedeGestionar()) return 'Sólo gestor o LP pueden editar el vencimiento'; if(s.estatus!=='aceptado') return 'Sólo se edita el vencimiento de accesos aceptados'; }
+  else if(kind==='archive'){ if(!puedeGestionar()) return 'Sólo gestor o LP pueden archivar'; }
   return '';
 }
 function obsRefreshDetailActions(){
@@ -4596,6 +4591,10 @@ function misEtapas(){
   return String(inferred||'').split('|').map(obsId).filter(Boolean);
 }
 function esGestor(){ return misEtapas().indexOf('gestor')!==-1; }
+/* Gestión de accesos de sus sitios (revertir, vigencia, archivar, lotes):
+   el gestor y también LP. Las etapas de un flujo se siguen respetando en
+   esMiTurno/puedeAceptarFinal. */
+function puedeGestionar(){ return esGestor() || esUsuarioLP(); }
 function obsValidateAcceptedSession(row){
   return loadAppConfig().then(function(){
     var role=obsId(row.rol),status=obsId(row.estatus),areas=userAreas(row),sites=listSitios(row.sitios),expected=obsStageDefault(areas),stored=obsPipeJoin(row.etapa).toLowerCase(),stages=String(expected||'').split('|').map(obsId).filter(Boolean);
@@ -4945,12 +4944,13 @@ function obsPersistDecision(acceso,options){
 function obsPendingAgeMs(rec){ var t=Date.parse(rec&&rec._updated_at||''); return isFinite(t)?(Date.now()-t):Infinity; }
 function obsCanRecover(s,rec){
   if(!s||!rec||!visibleParaMi(s)) return false;
-  if(rec.desired_deleted_at) return esGestor();
+  if(rec.desired_deleted_at) return puedeGestionar();
   if(rec.desired_estatus==='rechazado'){
     var et=rec.flujo&&rec.flujo.rechazo&&rec.flujo.rechazo.etapa;
-    return esGestor()||(!!et&&misEtapas().indexOf(et)!==-1);
+    return puedeGestionar()||(!!et&&misEtapas().indexOf(et)!==-1);
   }
-  return esGestor();
+  /* Aceptación o reversión: gestor; LP sólo si la solicitud no tiene flujo. */
+  return esGestor() || (esUsuarioLP() && !tieneFlujo(s));
 }
 function obsReconcilePending(items){
   var rep={fixed:0,failed:0,attention:[]},chain=Promise.resolve();
