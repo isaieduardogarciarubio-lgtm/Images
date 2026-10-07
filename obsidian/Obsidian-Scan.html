@@ -257,6 +257,7 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
   display:flex;gap:11px;padding:13px 15px;border-radius:var(--radius-sm);
   font-size:13px;text-align:left;margin-bottom:18px;border:1px solid;
 }
+.notice.info{border-color:var(--border-specular);background:rgba(255,255,255,.04);color:var(--text-muted);}
 .notice.warn{border-color:rgba(255,158,69,.32);background:rgba(255,158,69,.08);color:#FFCF9E;}
 .notice.err{border-color:rgba(255,92,108,.32);background:rgba(255,92,108,.08);color:#FFB3BB;}
 .notice svg{flex:none;margin-top:1px;}
@@ -549,7 +550,7 @@ function obsBuildAccepted(metaValue, buildId){
    Management y Admin Panel). NO cambiar sin coordinar con las otras apps. */
 var OBS_BUILD_ID = 'obsidian-2026.10.06.4';
 /* Versión visible de esta app (badge inferior derecho). */
-var OBS_APP_VERSION = 'obsidian-scan-v3.2.0';
+var OBS_APP_VERSION = 'obsidian-scan-v3.2.1';
 
 var OBS_USERS_HEADERS = ['ldap','email','nombre','rol_app','estatus_app','areas','sitios','etapas','permiso_guardia','guardia_sitios','guardia_estatus','fecha_registro','fecha_resolucion','resuelto_por','origen'];
 var OBS_SCAN_HEADERS  = ['id','write_id','qr','nombre','empresa','sitio','resultado','razon','guardia_hash','guardia_source_field','ts','tz','app'];
@@ -577,7 +578,7 @@ var CFG = {
   GUARDIA_OK:     "aceptado",
   PHOTO_TIMEOUT_MS: 10000,   // por cada fetch de la foto (metadata y blob)
   BOOT_MAX_RETRIES: 6,       // reintentos de arranque ante red/429/5xx/timeout
-  LIVE_TIMEOUT_MS:  6000,    // tope total de la verificación en vivo de un escaneo (cola + gate 429 + red)
+  LIVE_TIMEOUT_MS:  8000,    // tope total de la verificación en vivo de un escaneo (cola + gate 429 + red)
 
   /* Gate de producción: sólo guardias aceptados en Usuarios Sheet.
      El sitio se asigna desde Admin Panel y Scan nunca lo elige. */
@@ -1102,19 +1103,50 @@ var Catalog = (function(){
     return s;
   }
 
-  function tramoVivo(){
+  /* Formatos de rango a intentar, en orden. El proxy de Grid no está
+     caracterizado para A1 con comillas, así que se prueba con comillas,
+     sin comillas y, como último recurso, la pestaña completa (el mismo
+     rango que ya usa la carga del catálogo). El que funcione se recuerda. */
+  var formatoVivo = null;
+  function tramoVivo(fmt){
     if (!colMap || !headerRow) return null;
     var idx = LIVE_FIELDS.map(function(f){ return colMap[f]; });
     var ini = Math.min.apply(null, idx), fin = Math.max.apply(null, idx);
-    return { ini: ini, fin: fin, range: "'" + CFG.SHEET_RANGE.replace(/'/g, "''") + "'!" + letraCol(ini) + "1:" + letraCol(fin) };
+    fmt = fmt || formatoVivo || "comillas";
+    if (fmt === "completa") return { ini: 0, fin: headerRow.length - 1, range: CFG.SHEET_RANGE, fmt: fmt };
+    var hoja = fmt === "comillas" ? "'" + CFG.SHEET_RANGE.replace(/'/g, "''") + "'" : CFG.SHEET_RANGE;
+    return { ini: ini, fin: fin, range: hoja + "!" + letraCol(ini) + "1:" + letraCol(fin), fmt: fmt };
+  }
+  var FORMATOS_VIVO = ["comillas", "simple", "completa"];
+  async function leerTramoVivo(deadline){
+    var orden = formatoVivo ? [formatoVivo] : FORMATOS_VIVO, ultimo = null;
+    for (var k = 0; k < orden.length; k++) {
+      var t = tramoVivo(orden[k]);
+      try {
+        var rows = await GridClient.readSheetLive(CFG.SHEET_ID, CFG.DOC_ADMIN, t.range, deadline);
+        if (!rows.length) { var ev = new Error("live_vacio"); ev.status = 0; throw ev; }
+        if (formatoVivo !== t.fmt) console.info("[Live] formato de rango en vivo: " + t.fmt);
+        formatoVivo = t.fmt;
+        return { t: t, rows: rows };
+      } catch (e) {
+        ultimo = e;
+        /* Sólo se prueba el siguiente formato si el rango fue rechazado
+           (400/404) o vino vacío; red/timeout/429 no se arreglan cambiando de rango. */
+        var rechazoRango = e && (e.status === 400 || e.status === 404 || e.message === "live_vacio");
+        console.warn("[Live] rango " + t.fmt + " falló: " + redactErr(e));
+        if (!rechazoRango) throw e;
+        if (formatoVivo === t.fmt) { formatoVivo = null; orden = FORMATOS_VIVO.filter(function(f){ return f !== t.fmt; }); k = -1; }
+      }
+    }
+    throw ultimo || new Error("live_sin_formato");
   }
 
   function normHeader(h){ return norm(h).replace(/_/g, " ").replace(/\s+/g, " ").trim(); }
 
   async function verificarEnVivo(qr, deadline){
-    var t = tramoVivo();
-    if (!t) { var e0 = new Error("catalog_sin_cargar"); throw e0; }
-    var rows = await GridClient.readSheetLive(CFG.SHEET_ID, CFG.DOC_ADMIN, t.range, deadline);
+    if (!tramoVivo()) { var e0 = new Error("catalog_sin_cargar"); throw e0; }
+    var lectura = await leerTramoVivo(deadline);
+    var t = lectura.t, rows = lectura.rows;
     var hdr = rows[0] || [];
     /* Mapa de campos relativo al tramo: sólo los campos cuya columna cae
        dentro de él; cada encabezado debe coincidir con el de la carga. */
@@ -2108,7 +2140,9 @@ var App = (function(){
     if (S.catalogError) { txt += " · no se pudo actualizar"; warn = true; }
     el.textContent = txt;
     el.classList.toggle("warn", warn);
-    el.title = S.catalogError ? "Último error: " + S.catalogError : "Credenciales en memoria: " + Catalog.size();
+    el.title = (S.catalogError ? "Último error: " + S.catalogError : "Credenciales en memoria: " + Catalog.size()) +
+      " · Verificación en vivo: " + statsVivo.ok + " ok / " + statsVivo.fallos + " sin confirmar" +
+      (statsVivo.ultimoError ? " (último: " + statsVivo.ultimoError + ")" : "");
   }
 
   function recargarCatalogo(){
@@ -2285,6 +2319,7 @@ var App = (function(){
         });
       }
       console.warn("[Live] no se pudo confirmar en vivo " + redactQR(qr) + ": " + redactErr(e));
+      statsVivo.ultimoError = e && e.status ? "HTTP " + e.status : (e && e.name === "TimeoutError") ? "timeout" : "red";
       return { vivo: false, error: e };
     });
   }
@@ -2335,7 +2370,6 @@ var App = (function(){
       if (fin.resultado === "permitido") {
         estadoVivo("warn", "No se pudo confirmar en vivo — verifica con gestor");
         /* Sin confirmación, el catálogo viejo vuelve a importar. */
-        if (catalogoDesactualizado()) addNotice("Catálogo desactualizado (" + catalogoEdadMin() + " min): confirma con gestor", "warn", true);
       } else {
         estadoVivo("warn", "Sin verificación en vivo");
       }
@@ -2369,10 +2403,17 @@ var App = (function(){
     return d;
   }
 
+  /* La verificación en vivo es silenciosa para el guardia: sólo se ve
+     si CAMBIA el veredicto (banner). El resultado queda en la razón del
+     evento (· verificado en vivo / · sin verificación en vivo) y en el
+     tooltip de la línea de edad del catálogo. */
+  var statsVivo = { ok: 0, fallos: 0, ultimoError: "" };
   function estadoVivo(tipo, texto){
     var el = ge("v-live");
-    el.className = "live-tag on " + tipo;
-    el.textContent = texto;
+    el.className = "live-tag";
+    el.textContent = "";
+    if (tipo === "ok") statsVivo.ok++;
+    else if (tipo === "warn") statsVivo.fallos++;
   }
 
   function banner(tipo, texto){
@@ -2409,7 +2450,7 @@ var App = (function(){
   function actualizarBoton(){
     var closeBtn = ge("v-close");
     closeBtn.disabled = S.esperaVivo || S.esperaFoto;
-    closeBtn.textContent = S.esperaVivo ? "Confirmando en vivo…" : S.esperaFoto ? "Verificando foto…" : "Siguiente escaneo";
+    closeBtn.textContent = S.esperaFoto ? "Cargando foto…" : S.esperaVivo ? "Cargando…" : "Siguiente escaneo";
   }
 
   /* resultado: "permitido" | "bloqueado" | "verificando" (desconocido en
@@ -2450,15 +2491,16 @@ var App = (function(){
       var foto = Photos.lookup(qr);
       if (foto && foto.docId) {
         S.esperaFoto = true;
+        S.avisoFoto = addNotice("Cargando foto…", "info");
         cargarFotoVeredicto(foto.docId, qr, seq, tok);
       } else if (foto && !foto.docId) {
         /* Sin foto que esperar — pero hay que decir POR QUÉ: son dos causas
            de datos distintas y confundirlas hace buscar en el lugar equivocado. */
         console.warn("[foto] fila encontrada en " + CFG.SHEET_RANGE_FOTOS + " para " + redactQR(qr) + " pero sin doc_id.");
-        addNotice("Este código tiene fila en \"" + CFG.SHEET_RANGE_FOTOS + "\" pero sin doc_id — no se puede descargar la foto desde Grid. Confirma la identidad manualmente.", "warn");
+        addNotice("Sin foto — verifica identidad manualmente.", "warn");
       } else {
         console.warn("[foto] " + redactQR(qr) + " no aparece en el índice de Photos (" + CFG.SHEET_RANGE_FOTOS + ").");
-        addNotice("Este código no tiene ninguna fila en la pestaña \"" + CFG.SHEET_RANGE_FOTOS + "\" — no hay foto que verificar. Confirma la identidad manualmente.", "warn");
+        addNotice("Sin foto — verifica identidad manualmente.", "warn");
       }
     }
     actualizarBoton();
@@ -2491,6 +2533,8 @@ var App = (function(){
 
     function liberarBoton(notaError){
       if (!vigente()) return;
+      if (S.avisoFoto && S.avisoFoto.parentNode) S.avisoFoto.parentNode.removeChild(S.avisoFoto);
+      S.avisoFoto = null;
       if (notaError) addNotice(notaError, "warn");   // textContent: sin HTML de datos/errores
       S.esperaFoto = false;
       actualizarBoton();                              // no habilita si falta la confirmación en vivo
@@ -2513,7 +2557,7 @@ var App = (function(){
 
       if (!cargo) {
         console.warn("[foto] blob descargado pero <img> no lo pudo decodificar. qr=" + redactQR(qr));
-        liberarBoton("Foto no disponible — verifica identidad manualmente. (El archivo " + docId + " no es una imagen válida o está dañado.)");
+        liberarBoton("Foto no disponible — verifica identidad manualmente.");
         return;
       }
 
@@ -2533,8 +2577,8 @@ var App = (function(){
       liberarBoton(null);
 
     } catch (e) {
-      console.warn("[foto] fallo al descargar. qr=" + redactQR(qr) + ": " + redactErr(e));
-      liberarBoton("Foto no disponible — verifica identidad manualmente. " + describirErrorFoto(e) + " (doc_id: " + docId + ")");
+      console.warn("[foto] fallo al descargar. qr=" + redactQR(qr) + ": " + redactErr(e) + " · " + describirErrorFoto(e));
+      liberarBoton("Foto no disponible — verifica identidad manualmente.");
     }
   }
 
