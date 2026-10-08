@@ -2684,14 +2684,16 @@ function visibleParaMi(s){
 /* Es mi turno si la etapa actual de la solicitud es una de mis etapas. */
 function esMiTurno(s){
   if(!s || s.estatus!=='pendiente' || !visibleParaMi(s)) return false;
-  /* LP puede resolver (aceptar/rechazar) cualquier solicitud SIN flujo de
-     etapas; las que tienen flujo respetan su etapa actual. */
-  if(!tieneFlujo(s) && esUsuarioLP()) return true;
+  /* LP y SHE pueden resolver (aceptar/rechazar) cualquier solicitud SIN
+     flujo de etapas que vean; las que tienen flujo respetan su etapa actual. */
+  if(!tieneFlujo(s) && esUsuarioLPoSHE()) return true;
   return misEtapas().indexOf(etapaActual(s))!==-1;
 }
 /* Aceptación final: el gestor en su etapa, o LP en solicitudes sin flujo. */
-function puedeAceptarFinal(s){ return esMiTurnoFinal(s) && (esGestor() || (!tieneFlujo(s) && esUsuarioLP())); }
+function puedeAceptarFinal(s){ return esMiTurnoFinal(s) && (esGestor() || (!tieneFlujo(s) && esUsuarioLPoSHE())); }
 function esUsuarioLP(){ return misEtapas().indexOf('lp')!==-1 || userAreas(SESSION.usuario||{}).some(areaEsLP); }
+function esUsuarioSHE(){ return misEtapas().indexOf('she')!==-1 || userAreas(SESSION.usuario||{}).some(areaEsSHE); }
+function esUsuarioLPoSHE(){ return esUsuarioLP() || esUsuarioSHE(); }
 /* Mi turno en una etapa intermedia (LP/SHE) => se resuelve con "Aprobar etapa". */
 function esMiTurnoIntermedio(s){ return esMiTurno(s) && etapaActual(s)!=='gestor'; }
 /* Mi turno en la etapa final => aceptar con vencimiento (escribe el Sheet). */
@@ -3109,7 +3111,7 @@ function updateBulkBar(){
   if(!bar) return;
   bar.style.display = selectMode ? 'flex' : 'none';
   var soloGestor=puedeGestionar();
-  var ba=document.getElementById('bulkAcceptBtn'); if(ba) ba.textContent=(soloGestor||esUsuarioLP())?(misEtapas().length>1||esUsuarioLP()?'Aprobar / Aceptar':'Aceptar'):'Aprobar';
+  var ba=document.getElementById('bulkAcceptBtn'); if(ba) ba.textContent=soloGestor?(misEtapas().length>1||esUsuarioLPoSHE()?'Aprobar / Aceptar':'Aceptar'):'Aprobar';
   ['bulkExpiryBtn','bulkDeleteBtn'].forEach(function(bid){ var b=document.getElementById(bid); if(b) b.style.display=soloGestor?'':'none'; });
   var count=Object.keys(selectedIds).length;
   var countEl=document.getElementById('bulkCount');
@@ -3665,9 +3667,9 @@ function obsActionBlock(s,kind,selfOwned){
   if(kind==='accept'){ if(!puedeAceptarFinal(s)) return 'La solicitud ya no está en tu etapa'; }
   else if(kind==='reject'){ if(!esMiTurno(s)) return 'La solicitud ya no está en tu etapa'; }
   else if(kind==='approve'){ if(!esMiTurnoIntermedio(s)) return 'La solicitud ya no está en tu etapa'; }
-  else if(kind==='revert'){ if(!puedeGestionar()) return 'Sólo gestor o LP pueden revertir'; if(s.estatus!=='aceptado'&&s.estatus!=='rechazado') return 'La solicitud ya no se puede revertir'; }
-  else if(kind==='expiry'){ if(!puedeGestionar()) return 'Sólo gestor o LP pueden editar el vencimiento'; if(s.estatus!=='aceptado') return 'Sólo se edita el vencimiento de accesos aceptados'; }
-  else if(kind==='archive'){ if(!puedeGestionar()) return 'Sólo gestor o LP pueden archivar'; }
+  else if(kind==='revert'){ if(!puedeGestionar()) return 'Sin permiso para revertir'; if(s.estatus!=='aceptado'&&s.estatus!=='rechazado') return 'La solicitud ya no se puede revertir'; }
+  else if(kind==='expiry'){ if(!puedeGestionar()) return 'Sin permiso para editar el vencimiento'; if(s.estatus!=='aceptado') return 'Sólo se edita el vencimiento de accesos aceptados'; }
+  else if(kind==='archive'){ if(!puedeGestionar()) return 'Sin permiso para archivar'; }
   return '';
 }
 function obsRefreshDetailActions(){
@@ -4591,10 +4593,10 @@ function misEtapas(){
   return String(inferred||'').split('|').map(obsId).filter(Boolean);
 }
 function esGestor(){ return misEtapas().indexOf('gestor')!==-1; }
-/* Gestión de accesos de sus sitios (revertir, vigencia, archivar, lotes):
-   el gestor y también LP. Las etapas de un flujo se siguen respetando en
+/* Gestión de accesos visibles (revertir, vigencia, archivar, lotes): el
+   gestor, LP y SHE. Las etapas de un flujo se siguen respetando en
    esMiTurno/puedeAceptarFinal. */
-function puedeGestionar(){ return esGestor() || esUsuarioLP(); }
+function puedeGestionar(){ return esGestor() || esUsuarioLPoSHE(); }
 function obsValidateAcceptedSession(row){
   return loadAppConfig().then(function(){
     var role=obsId(row.rol),status=obsId(row.estatus),areas=userAreas(row),sites=listSitios(row.sitios),expected=obsStageDefault(areas),stored=obsPipeJoin(row.etapa).toLowerCase(),stages=String(expected||'').split('|').map(obsId).filter(Boolean);
@@ -4950,7 +4952,7 @@ function obsCanRecover(s,rec){
     return puedeGestionar()||(!!et&&misEtapas().indexOf(et)!==-1);
   }
   /* Aceptación o reversión: gestor; LP sólo si la solicitud no tiene flujo. */
-  return esGestor() || (esUsuarioLP() && !tieneFlujo(s));
+  return esGestor() || (esUsuarioLPoSHE() && !tieneFlujo(s));
 }
 function obsReconcilePending(items){
   var rep={fixed:0,failed:0,attention:[]},chain=Promise.resolve();
