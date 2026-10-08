@@ -1,0 +1,3062 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Control de Accesos · Obsidian</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   OBSIDIAN v2026.1 — tokens
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --obsidian-canvas:#0E0E12;
+  --surface-low:#14151B;
+  --surface-mid:#1B1D25;
+  --surface-high:#252834;
+
+  --kinetic-gold:#FFD100;
+  --kinetic-glow:rgba(255,209,0,.18);
+  --border-active:rgba(255,209,0,.45);
+  --text-on-accent:#0E0E12;          /* REGLA CRÍTICA: único color sobre amarillo */
+
+  --border-specular:rgba(255,255,255,.08);
+  --border-specular-strong:rgba(255,255,255,.16);
+
+  --text-primary:#F4F5F8;
+  --text-muted:#8E95A5;
+
+  --ok:#00D689;
+  --err:#FF5C6C;
+  --warn:#FF9E45;
+
+  --radius-sm:8px; --radius-md:14px; --radius-lg:20px; --radius-pill:999px;
+  --shadow-elevation:0 12px 32px -4px rgba(0,0,0,.7);
+
+  --font-display:'Space Grotesk','Geist Sans','Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-ui:'Geist Sans','Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  background:var(--obsidian-canvas);
+  background-image:
+    radial-gradient(1100px 700px at 100% -10%, rgba(255,209,0,.055), transparent 58%),
+    radial-gradient(820px 560px at -14% 110%, rgba(255,209,0,.028), transparent 62%);
+  background-attachment:fixed;
+  color:var(--text-primary);
+  font-family:var(--font-ui);
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em;font-weight:600;}
+.mono{font-family:var(--font-mono);font-variant-ligatures:none;}
+
+:focus-visible{outline:2px solid var(--kinetic-gold);outline-offset:3px;border-radius:4px;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+
+/* ── Layout raíz ───────────────────────────────────────────────── */
+.screen{display:none;position:fixed;inset:0;flex-direction:column;overflow-y:auto;}
+.screen.on{display:flex;}
+
+.topbar{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 20px;
+  padding-top:calc(16px + env(safe-area-inset-top));
+}
+.brand{display:flex;align-items:center;gap:11px;flex:1;min-width:0;}
+.brand-txt h1{font-size:16px;line-height:1.2;}
+.brand-txt p{font-size:12px;color:var(--text-muted);letter-spacing:.01em;}
+
+.pill{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--surface-mid);border:1px solid var(--border-specular);
+  border-radius:var(--radius-pill);padding:7px 13px;
+  font-family:var(--font-ui);font-size:13px;font-weight:500;letter-spacing:.01em;color:var(--text-muted);
+  white-space:nowrap;
+}
+.pill b{color:var(--text-primary);font-weight:600;}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--kinetic-gold);flex:none;}
+.pill.pill-err{border-color:rgba(255,92,108,.35);color:#FFB3BB;}
+.pill.pill-err .dot{background:var(--err);}
+.pill-action{
+  font-family:inherit;font-size:12px;font-weight:600;margin-left:6px;
+  background:transparent;border:1px solid rgba(255,92,108,.45);color:#FFB3BB;
+  border-radius:var(--radius-pill);padding:3px 10px;cursor:pointer;
+}
+.pill-action:hover{border-color:var(--err);color:var(--text-primary);}
+.cat-age{font-size:11px;color:var(--text-muted);letter-spacing:.01em;}
+.cat-age.warn{color:var(--warn);}
+
+.btn-refresh{
+  width:38px;height:38px;flex:none;border-radius:50%;
+  background:var(--surface-mid);border:1px solid var(--border-specular);color:var(--text-muted);
+  display:grid;place-items:center;cursor:pointer;transition:all .15s;
+}
+.btn-refresh:hover{color:var(--text-primary);border-color:var(--border-active);}
+.btn-refresh:disabled{opacity:.5;cursor:not-allowed;}
+.btn-refresh.spinning svg{animation:btn-refresh-spin .7s linear infinite;}
+@keyframes btn-refresh-spin{to{transform:rotate(360deg);}}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));
+  transform:translateX(-50%) translateY(12px);
+  background:var(--surface-high);border:1px solid var(--border-specular);
+  border-radius:var(--radius-md);padding:11px 18px;
+  font-family:var(--font-ui);font-size:13px;font-weight:500;color:var(--text-primary);
+  box-shadow:var(--shadow-elevation);z-index:200;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+  max-width:88vw;text-align:center;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.err{border-color:rgba(255,92,108,.35);color:#FFB3BB;}
+.toast.ok{border-color:rgba(0,214,137,.32);color:#7FE9C2;}
+
+.body{flex:1;display:flex;flex-direction:column;padding:8px 20px 24px;}
+.wrap{width:100%;max-width:560px;margin:0 auto;}
+
+/* ── Centrado a pantalla completa ─────────────────────────────── */
+.center{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;}
+.center .wrap{text-align:center;}
+
+.spinner{
+  width:34px;height:34px;margin:0 auto 20px;
+  border:2.5px solid var(--border-specular);border-top-color:var(--kinetic-gold);
+  border-radius:50%;animation:spin .75s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.glyph{
+  width:60px;height:60px;margin:0 auto 20px;
+  border-radius:var(--radius-md);display:grid;place-items:center;
+  border:1px solid var(--border-specular);background:var(--surface-mid);
+}
+.glyph.ok{color:var(--ok);border-color:rgba(0,214,137,.32);background:rgba(0,214,137,.08);}
+.glyph.err{color:var(--err);border-color:rgba(255,92,108,.32);background:rgba(255,92,108,.08);}
+.glyph.warn{color:var(--warn);border-color:rgba(255,158,69,.32);background:rgba(255,158,69,.08);}
+
+.v-photo-wrap{position:relative;width:100%;height:260px;background:var(--surface-mid);overflow:hidden;}
+.v-photo{width:100%;height:100%;object-fit:contain;object-position:center;display:block;}
+.v-photo-wrap::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:64px;
+  background:linear-gradient(to top, var(--surface-low), transparent);
+  pointer-events:none;
+}
+.v-photo-badge{
+  position:absolute;right:14px;bottom:14px;width:42px;height:42px;border-radius:50%;
+  background:var(--kinetic-gold);color:var(--text-on-accent);
+  display:grid;place-items:center;border:3px solid var(--surface-low);
+  box-shadow:0 6px 16px -4px rgba(0,0,0,.5);
+}
+
+/* ── Botones ───────────────────────────────────────────────────── */
+.btn{
+  font-family:inherit;font-size:14px;font-weight:600;
+  border-radius:var(--radius-pill);padding:12px 22px;
+  border:1px solid transparent;cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary{background:var(--kinetic-gold);color:var(--text-on-accent);}
+.btn-primary:hover{filter:brightness(1.07);}
+.btn-primary svg{stroke:var(--text-on-accent);}
+.btn-ghost{background:var(--surface-mid);border-color:var(--border-specular);color:var(--text-primary);}
+.btn-ghost:hover{border-color:var(--border-specular-strong);}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none;}
+.btn-block{width:100%;}
+
+/* ── Escáner ───────────────────────────────────────────────────── */
+.modebar{
+  display:inline-flex;gap:4px;padding:4px;
+  background:var(--surface-mid);border:1px solid var(--border-specular);
+  border-radius:var(--radius-pill);margin-bottom:18px;
+}
+.modebar button{
+  font-family:var(--font-ui);font-size:13px;font-weight:500;letter-spacing:.01em;
+  padding:8px 18px;border-radius:var(--radius-pill);
+  border:none;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;
+}
+.modebar button.active{background:var(--kinetic-gold);color:var(--text-on-accent);font-weight:600;}
+.modebar button:disabled{opacity:.35;cursor:not-allowed;}
+
+/* ── Superficie de escaneo sin teclado visible ──────────────────
+   El input HID real vive fuera de la vista (1x1px, opacity 0) para
+   que el lector físico tenga un campo genuinamente editable y
+   enfocado sin disparar el teclado en pantalla — ver armHid() en JS:
+   el truco es cambiar inputmode DESPUÉS del focus, no en el focus. */
+.hh-hid-input{
+  position:fixed;top:0;left:0;width:1px;height:1px;
+  opacity:0;pointer-events:none;border:0;padding:0;margin:0;font-size:16px;
+}
+.hh-scan-area{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:44px 20px 8px;cursor:default;user-select:none;
+  transition:background .2s;border-radius:var(--radius-lg);
+}
+.hh-scan-area.error{background:rgba(255,92,108,.06);}
+.hh-scan-area.shake{animation:shake .2s ease;}
+@keyframes shake{
+  0%,100%{transform:translateX(0);} 20%{transform:translateX(-5px);}
+  40%{transform:translateX(5px);} 60%{transform:translateX(-5px);} 80%{transform:translateX(5px);}
+}
+.hh-mark{width:128px;height:128px;margin-bottom:22px;transition:filter .3s,opacity .3s;opacity:.68;}
+.hh-mark.armed{opacity:1;filter:drop-shadow(0 0 20px var(--kinetic-glow));}
+.hh-mark.idle{animation:hh-float 4s ease-in-out infinite;}
+@keyframes hh-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+.hh-instruction{font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em;color:var(--text-primary);}
+
+.cam-stage{
+  position:relative;width:100%;aspect-ratio:4/3;max-height:52dvh;
+  background:#000;border:1px solid var(--border-specular);border-radius:var(--radius-md);
+  overflow:hidden;
+}
+.cam-stage video{width:100%;height:100%;object-fit:cover;display:block;}
+.reticle{
+  position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;
+}
+.reticle i{
+  width:54%;aspect-ratio:1;border-radius:14px;
+  box-shadow:0 0 0 100vmax rgba(14,14,18,.55);
+  border:2px solid var(--kinetic-gold);
+}
+
+.hint{font-family:var(--font-ui);font-size:13px;font-weight:500;letter-spacing:.01em;color:var(--text-muted);text-align:center;margin-top:14px;}
+
+.statline{
+  text-align:center;margin-top:28px;
+  font-family:var(--font-ui);font-size:11px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);opacity:.6;
+}
+
+/* ── Veredicto ─────────────────────────────────────────────────── */
+.verdict{
+  position:fixed;inset:0;z-index:70;
+  display:none;align-items:center;justify-content:center;padding:24px;
+  background:rgba(14,14,18,.93);backdrop-filter:blur(8px);
+}
+.verdict.on{display:flex;}
+.verdict .panel{
+  width:100%;max-width:460px;max-height:calc(100dvh - 48px);
+  background:var(--surface-low);border:1px solid var(--border-specular);
+  border-radius:var(--radius-lg);overflow-x:hidden;overflow-y:auto;text-align:center;
+}
+.panel-body{padding:28px 26px 32px;}
+.verdict.ok .panel{border-color:rgba(0,214,137,.3);}
+.verdict.err .panel{border-color:rgba(255,92,108,.3);}
+.verdict.warn .panel{border-color:rgba(255,158,69,.3);}
+.verdict h2{font-size:22px;line-height:1.25;letter-spacing:-.01em;margin-bottom:10px;}
+.verdict .why{font-size:14px;color:var(--text-muted);margin-bottom:22px;}
+
+.notice{
+  display:flex;gap:11px;padding:13px 15px;border-radius:var(--radius-sm);
+  font-size:13px;text-align:left;margin-bottom:18px;border:1px solid;
+}
+.notice.info{border-color:var(--border-specular);background:rgba(255,255,255,.04);color:var(--text-muted);}
+.notice.warn{border-color:rgba(255,158,69,.32);background:rgba(255,158,69,.08);color:#FFCF9E;}
+.notice.err{border-color:rgba(255,92,108,.32);background:rgba(255,92,108,.08);color:#FFB3BB;}
+.notice svg{flex:none;margin-top:1px;}
+.glyph.info{color:var(--text-muted);border-color:var(--border-specular);background:rgba(255,255,255,.04);}
+.verdict.info .panel{border-color:var(--border-specular);}
+
+/* Estado de la verificación en vivo del veredicto (v3.2). */
+.live-tag{
+  display:none;align-items:center;justify-content:center;gap:8px;
+  margin:0 auto 14px;padding:6px 12px;border-radius:var(--radius-pill);
+  font-size:12px;font-weight:600;letter-spacing:.01em;border:1px solid;width:max-content;max-width:100%;
+}
+.live-tag.on{display:flex;}
+.live-tag.pending{color:var(--text-muted);border-color:var(--border-specular);background:rgba(255,255,255,.04);}
+.live-tag.pending::before{
+  content:"";width:11px;height:11px;border-radius:50%;flex:none;
+  border:2px solid currentColor;border-right-color:transparent;animation:live-spin .8s linear infinite;
+}
+@keyframes live-spin{to{transform:rotate(360deg);}}
+.live-tag.ok{color:var(--ok);border-color:rgba(0,214,137,.32);background:rgba(0,214,137,.08);}
+.live-tag.ok::before{content:"\2713";}
+.live-tag.warn{color:var(--warn);border-color:rgba(255,158,69,.32);background:rgba(255,158,69,.08);}
+.live-banner{
+  padding:14px 16px;border-radius:var(--radius-sm);margin:0 0 18px;
+  font-size:15px;font-weight:700;text-align:center;border:2px solid;
+}
+.live-banner.err{color:#fff;border-color:var(--err);background:rgba(255,92,108,.28);}
+.live-banner.ok{color:#fff;border-color:var(--ok);background:rgba(0,214,137,.22);}
+
+@media(max-width:560px){
+  .panel-body{padding:22px 20px 26px;}
+  .v-photo-wrap{height:200px;}
+  .verdict h2{font-size:19px;}
+}
+</style>
+<script>(function(){function _ok(r,onOk){return r.json().then(function(b){if(!r.ok)throw b;onOk(b);return b;});}window.GRID=window.GRID||{};window.GRID.docId="01M2EWM4BEMGAADH0H7JH4WJ78";window.GRID._stateUpdatedAt='';window.GRID._stateUpdatedAtByName=window.GRID._stateUpdatedAtByName||{};window.GRID.states={get:function(name){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n)).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},set:function(name,data,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});},patch:function(name,patchData,ifUpdatedAt){var n=String(name||'').trim();if(!n)return Promise.reject({error:'validation_error',detail:'state name is required'});return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/states/'+encodeURIComponent(n),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAtByName[n]||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAtByName[n]=b.updated_at||'';});});}};window.GRID.state={get:function(){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state').then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},set:function(data,ifUpdatedAt){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:data,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});},patch:function(patchData,ifUpdatedAt){return fetch('/api/v1/documents/'+"01M2EWM4BEMGAADH0H7JH4WJ78"+'/state',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch:patchData,if_updated_at:(typeof ifUpdatedAt==='string'?ifUpdatedAt:(window.GRID._stateUpdatedAt||''))})}).then(function(r){return _ok(r,function(b){window.GRID._stateUpdatedAt=b.updated_at||'';});});}};}());</script></head>
+<body>
+
+<!-- ═══ Isotipo: «El Portal Tezcatl Bisecado» — Obsidian v2026.1 §2 ═══
+     Fuente SVG original de la marca. Hemisferio occidental (espejo
+     especular, #F4F5F8) y hemisferio oriental (núcleo basáltico,
+     #252834) en asimetría deliberada — mitad reflejo, mitad piedra.
+     Haz umbral bisector: rect x=250 width=12 height=360 rx=6 en
+     #FFD100, centrado real en X=256, sobre lienzo maestro 512×512
+     con esquinas rx=112 en --obsidian-canvas. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="tezcatl" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0E0E12" stroke="rgba(255,255,255,.08)" stroke-width="2"/>
+
+      <!-- Hemisferio occidental: espejo especular exterior -->
+      <path d="M 242 96
+               C 146 96 96 146 96 256
+               C 96 366 146 416 242 416
+               L 242 344
+               C 182 344 166 316 166 256
+               C 166 196 182 168 242 168
+               Z" fill="#F4F5F8" stroke="rgba(14,14,18,.35)" stroke-width="1.5"/>
+
+      <!-- Hemisferio oriental: núcleo basáltico protegido -->
+      <path d="M 270 96
+               C 366 96 416 146 416 256
+               C 416 366 366 416 270 416
+               L 270 344
+               C 330 344 346 316 346 256
+               C 346 196 330 168 270 168
+               Z" fill="#252834" stroke="rgba(255,255,255,.24)" stroke-width="3"/>
+
+      <!-- Haz umbral bisector: fisura continua de autorización activa -->
+      <rect x="250" y="76" width="12" height="360" rx="6" fill="#FFD100"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ═══ 1 · Arranque ═══════════════════════════════════════════════ -->
+<div class="screen on" id="scr-boot">
+  <div class="center">
+    <div class="wrap">
+      <div class="spinner"></div>
+      <h2 style="font-family:var(--font-ui);font-size:18px;font-weight:600">Comprobando acceso…</h2>
+      <p id="boot-msg" style="color:var(--text-muted);font-size:13px;margin-top:8px;max-width:400px;margin-left:auto;margin-right:auto"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 2 · Bloqueo ════════════════════════════════════════════════ -->
+<div class="screen" id="scr-blocked">
+  <div class="center">
+    <div class="wrap">
+      <div class="glyph err">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg>
+      </div>
+      <h2 style="font-size:20px" id="blocked-title">Acceso denegado</h2>
+      <p style="color:var(--text-muted);font-size:14px;margin-top:8px;max-width:400px;margin-left:auto;margin-right:auto" id="blocked-msg"></p>
+      <p class="mono" style="color:var(--text-muted);font-size:12px;margin-top:16px" id="blocked-detail"></p>
+      <button class="btn btn-ghost" style="margin-top:22px" onclick="location.reload()">Reintentar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 3 · Escáner ════════════════════════════════════════════════ -->
+<div class="screen" id="scr-scan">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-txt">
+        <h1 id="scan-sitio">—</h1>
+        <p id="scan-user">—</p>
+        <p class="cat-age" id="catalog-age" aria-live="polite"></p>
+      </div>
+    </div>
+    <span class="pill" id="outbox-pill" style="display:none" title="Eventos aún no confirmados en Grid">
+      <span class="dot"></span><b id="outbox-count">0</b>&nbsp;por sincronizar
+    </span>
+    <span class="pill pill-err" id="dead-pill" style="display:none" title="Registros que no se pudieron sincronizar">
+      <span class="dot"></span><b id="dead-count">0</b>&nbsp;registros con error
+      <button type="button" class="pill-action" id="dead-retry">Reintentar</button>
+    </span>
+    <button class="btn-refresh" id="btn-fullscreen" title="Pantalla completa" aria-label="Activar pantalla completa" aria-pressed="false">
+      <svg class="ico-expand" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>
+      </svg>
+      <svg class="ico-collapse" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="display:none">
+        <path d="M9 3v4a1 1 0 0 1-1 1H4M20 9h-4a1 1 0 0 1-1-1V4M4 15h4a1 1 0 0 1 1 1v4M15 20v-4a1 1 0 0 1 1-1h4"/>
+      </svg>
+    </button>
+    <button class="btn-refresh" id="btn-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
+      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </button>
+    <button class="btn-refresh" id="btn-refresh-catalog" title="Actualizar catálogo ahora" aria-label="Actualizar catálogo ahora">
+      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+    </button>
+  </div>
+  <div class="body">
+    <div class="wrap">
+      <div style="text-align:center">
+        <div class="modebar">
+          <button id="mode-handheld" class="active">Lector</button>
+          <button id="mode-camera">Cámara</button>
+        </div>
+      </div>
+
+      <div id="stage-handheld">
+        <div class="hh-scan-area" id="hh-scan-area">
+          <svg class="hh-mark idle" id="hh-mark" viewBox="0 0 512 512"><use href="#tezcatl"/></svg>
+          <div class="hh-instruction">Escanea el QR</div>
+        </div>
+        <!-- Input HID real (el lector necesita un campo genuinamente
+             editable y enfocado); se mantiene 1x1px e invisible, y se
+             evita el teclado en pantalla alternando inputmode después
+             del focus, no en el focus mismo — ver armHid() en JS. -->
+        <input class="hh-hid-input" id="scan-field" type="text"
+               autocomplete="off" autocorrect="off" autocapitalize="off"
+               spellcheck="false" tabindex="0" />
+      </div>
+
+      <div id="stage-camera" style="display:none">
+        <div class="cam-stage">
+          <video id="cam-video" playsinline muted></video>
+          <div class="reticle"><i></i></div>
+        </div>
+        <p class="hint" id="cam-hint">Encuadra el QR dentro del marco.</p>
+      </div>
+
+      <div class="statline"><span>Loss Prevention</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 4 · Sesión cerrada (Biblia §16.23) ════════════════════════ -->
+<div class="screen" id="scr-logout">
+  <div class="center">
+    <div class="wrap">
+      <div class="glyph ok">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h2 style="font-size:20px">Sesión cerrada</h2>
+      <p style="color:var(--text-muted);font-size:14px;margin-top:8px;max-width:400px;margin-left:auto;margin-right:auto">Tu sesión se cerró en Grid y en las demás apps con el mismo inicio de sesión. Vuelve a abrir la app desde Grid para entrar de nuevo.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Confirmación de cierre de sesión ═══════════════════════════ -->
+<div class="verdict warn" id="lo-confirm" role="dialog" aria-modal="true" aria-labelledby="lo-title">
+  <div class="panel">
+    <div class="panel-body">
+      <div class="glyph warn">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </div>
+      <h2 id="lo-title">Cerrar sesión</h2>
+      <p class="why" id="lo-msg"></p>
+      <div class="notice err" id="lo-err" style="display:none" role="alert"></div>
+      <button class="btn btn-primary btn-block" id="lo-ok">Cerrar sesión</button>
+      <button class="btn btn-ghost btn-block" id="lo-cancel" style="margin-top:10px">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Veredicto ═════════════════════════════════════════════════ -->
+<div class="verdict" id="verdict">
+  <div class="panel">
+    <div class="v-photo-wrap" id="v-photo-wrap" style="display:none">
+      <img class="v-photo" id="v-photo" alt="" />
+      <div class="v-photo-badge">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="live-banner" id="v-live-banner" style="display:none" role="alert"></div>
+      <div class="glyph" id="v-glyph"></div>
+      <div class="live-tag" id="v-live" aria-live="polite"></div>
+      <h2 id="v-title"></h2>
+      <p class="why" id="v-why"></p>
+      <div id="v-notice"></div>
+      <button class="btn btn-primary btn-block" id="v-close">Siguiente escaneo</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   OBSIDIAN SHARED v1 — mantener IDÉNTICO en Access Management, Admin Panel y Scan.
+   Si cambias algo aquí, cámbialo en las 3 apps.
+   ============================================================================ */
+var OBS_TZ = 'America/Mexico_City';
+var OBS_FETCH_TIMEOUT_MS = 25000;
+var OBS_RETRY_AFTER_MAX_MS = 60000;
+
+/* Clave normalizada para comparar sitios/áreas/zonas: sin acentos, trim,
+   espacios colapsados, mayúsculas. Solo para COMPARAR, nunca para escribir. */
+function obsNormKey(s){
+  return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+/* Fecha de calendario estricta, siempre DÍA-PRIMERO (México).
+   Acepta: serial de Sheets (número), ISO YYYY-MM-DD[...], DD/MM/YYYY, DD/MM/YY,
+   DD-MM-YYYY, DD.MM.YYYY. Cualquier otra cosa -> null (sin Date.parse). */
+function obsParseFechaMX(v){
+  if (v == null) return null;
+  var y, m, d;
+  if (typeof v === 'number' && isFinite(v) && v > 20000 && v < 80000) {
+    var dt = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 86400000);
+    y = dt.getUTCFullYear(); m = dt.getUTCMonth() + 1; d = dt.getUTCDate();
+  } else {
+    var s = String(v).trim(), r;
+    if (!s) return null;
+    if ((r = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|[T\s])/.exec(s))) { y = +r[1]; m = +r[2]; d = +r[3]; }
+    else if ((r = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})(?:$|\s)/.exec(s))) {
+      d = +r[1]; m = +r[2]; y = +r[3]; if (r[3].length === 2) y += 2000;
+    } else return null;
+  }
+  if (m < 1 || m > 12 || d < 1) return null;
+  var dim = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  if (d > dim) return null;
+  var iso = y + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  return { y: y, m: m, d: d, ord: y * 10000 + m * 100 + d, iso: iso };
+}
+
+/* Hoy (o la fecha de un Date) en zona México, mismo formato que obsParseFechaMX. */
+function obsTodayMX(date){
+  var p = new Intl.DateTimeFormat('en-CA', { timeZone: OBS_TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(date || new Date()); // YYYY-MM-DD
+  return obsParseFechaMX(p);
+}
+
+/* fetch con timeout. Un timeout se rechaza como TypeError-like {name:'TimeoutError'}
+   para que la capa de red lo trate como error de red (ambiguo en escrituras). */
+function obsFetchWithTimeout(fetchImpl, url, opts, ms){
+  opts = opts || {};
+  if (typeof AbortController === 'undefined') return fetchImpl(url, opts);
+  var ac = new AbortController(), timer = setTimeout(function(){ ac.abort(); }, ms || OBS_FETCH_TIMEOUT_MS);
+  if (opts.signal) { try { opts.signal.addEventListener('abort', function(){ ac.abort(); }); } catch (_) {} }
+  var o = {}; for (var k in opts) o[k] = opts[k]; o.signal = ac.signal;
+  return fetchImpl(url, o).then(function(r){ clearTimeout(timer); return r; }, function(e){
+    clearTimeout(timer);
+    if (ac.signal.aborted) { var t = new Error('timeout ' + (ms || OBS_FETCH_TIMEOUT_MS) + 'ms'); t.name = 'TimeoutError'; t.network = true; throw t; }
+    throw e;
+  });
+}
+
+/* Retry-After (segundos o fecha HTTP) -> ms, con tope. */
+function obsRetryAfterMsCapped(h, fallbackMs){
+  var ms = NaN;
+  if (h != null && h !== '') {
+    var n = Number(h);
+    ms = isFinite(n) ? n * 1000 : (Date.parse(h) - Date.now());
+  }
+  if (!isFinite(ms) || ms < 0) ms = fallbackMs || 2000;
+  return Math.min(ms, OBS_RETRY_AFTER_MAX_MS);
+}
+
+/* Clasificación de status HTTP. */
+function obsIsPermanentHttp(status){ return status >= 400 && status < 500 && status !== 408 && status !== 409 && status !== 429; }
+
+/* Escape para HTML (texto y atributos con comillas dobles o simples). */
+function obsEscHtml(s){
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* Valor de texto libre que no puede empezar como fórmula de Sheets. */
+function obsLooksLikeFormula(s){ return /^[=+\-@\t\r]/.test(String(s == null ? '' : s)); }
+
+/* Contrato de build: Meta.build_contract puede listar varios builds separados por '|'. */
+function obsBuildAccepted(metaValue, buildId){
+  return String(metaValue == null ? '' : metaValue).split('|').map(function(x){ return x.trim(); })
+    .filter(Boolean).indexOf(buildId) >= 0;
+}
+/* ============================== /OBSIDIAN SHARED v1 ========================= */
+
+/* ══════════════════════════════════════════════════════════════════
+   CONFIGURACIÓN — Ecosistema Grid
+   ══════════════════════════════════════════════════════════════════ */
+/* Contrato de build: debe aparecer en Meta.build_contract del libro de
+   Usuarios (CFG.ADMIN_SHEET_ID, Meta!A:D — el mismo Meta que leen Access
+   Management y Admin Panel). NO cambiar sin coordinar con las otras apps. */
+var OBS_BUILD_ID = 'obsidian-2026.10.06.4';
+/* Versión visible de esta app (badge inferior derecho). */
+var OBS_APP_VERSION = 'obsidian-scan-v3.2.1';
+
+var OBS_USERS_HEADERS = ['ldap','email','nombre','rol_app','estatus_app','areas','sitios','etapas','permiso_guardia','guardia_sitios','guardia_estatus','fecha_registro','fecha_resolucion','resuelto_por','origen'];
+var OBS_SCAN_HEADERS  = ['id','write_id','qr','nombre','empresa','sitio','resultado','razon','guardia_hash','guardia_source_field','ts','tz','app'];
+var OBS_META_HEADERS  = ['clave','valor','actualizado_en','notas'];
+var OBS_SITES_HEADERS = ['sitio','activo','origen'];
+var OBS_STABLE_MS = 650;   // espera de la segunda lectura de durabilidad (§15.18)
+
+var CFG = {
+  DOC_ADMIN:      "01KWWVPQ6S6RDW2213S9911CDS",           // resuelve OAuth del owner para Sheets (ACL de lectura y escritura)
+  SHEET_ID:       "1YpDd-1ketJfGu3gyoQ-qU85F3972CyK_tAy9gHoutXA",
+  SHEET_RANGE:    "Respuestas de formulario 1",
+  SHEET_RANGE_FOTOS: "Publicados_activos",   // nuevo_qr -> doc_id (+ view_url opcional); misma pestaña que Access Management
+  TZ:             OBS_TZ,
+  ADMIN_SHEET_ID:  "1Lb_c0yPjVCLGYl-Tx9dVn9ESAbpE_PubPvKN1FWyhf8",
+  USERS_TAB:       "Usuarios",
+  SITES_TAB:       "Sitios",
+  META_TAB:        "Meta",
+  SCAN_SHEET_ID:   "1WE7vhQIy7uV_lw3j5e_7xQazELH102WtvEsO9eOZPE8",
+  SCAN_TAB:        "Ingresos",
+
+  MAX_ATTEMPTS:        6,    // reintentos del ciclo optimista dentro de una escritura
+  OUTBOX_MAX_ATTEMPTS: 8,    // ciclos de drenado antes de mover un registro a "con error"
+  SUPPRESS_MS:    3000,      // ventana anti-rebote del mismo código
+  ESTATUS_OK:     "aceptado",
+  GUARDIA_OK:     "aceptado",
+  PHOTO_TIMEOUT_MS: 10000,   // por cada fetch de la foto (metadata y blob)
+  BOOT_MAX_RETRIES: 6,       // reintentos de arranque ante red/429/5xx/timeout
+  LIVE_TIMEOUT_MS:  8000,    // tope total de la verificación en vivo de un escaneo (cola + gate 429 + red)
+
+  /* Gate de producción: sólo guardias aceptados en Usuarios Sheet.
+     El sitio se asigna desde Admin Panel y Scan nunca lo elige. */
+
+  /* Relectura periódica y silenciosa del catálogo en segundo plano —
+     el guardia no hace nada, no se interrumpe el escaneo en curso.
+     No hay endpoint de "sólo esta fila" en Grid (§7/§16.10: el proxy de
+     Sheets sólo lee por rango posicional), así que "refrescar" siempre
+     implica releer la hoja completa; 5 min es muy conservador frente al
+     único dato de carga que tenemos (ráfaga de 20 lecturas a ~2/seg sin
+     fallo, §16.9) — esto es ~600x más lento que eso. */
+  CATALOG_REFRESH_MS: 5 * 60 * 1000,
+  /* A partir de esta edad el catálogo se considera desactualizado: los
+     veredictos "permitido" muestran un aviso para confirmar con gestor. */
+  CATALOG_STALE_MS:  15 * 60 * 1000
+};
+
+function fnv1a(str){
+  var h = 0x811c9dc5;
+  for (var i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return ("00000000" + h.toString(16)).slice(-8);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Utilidades
+   ══════════════════════════════════════════════════════════════════ */
+function ge(id){ return document.getElementById(id); }
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+/* Confirmación breve en pantalla, sin bloquear nada — para acciones
+   puntuales como el refresco manual del catálogo. */
+var toastTimer = null;
+function toast(msg, type){
+  var el = document.getElementById("toast");
+  if (!el) return;
+  clearTimeout(toastTimer);
+  el.textContent = msg;
+  el.className = "toast on" + (type ? " " + type : "");
+  toastTimer = setTimeout(function(){ el.classList.remove("on"); }, 3200);
+}
+function jitter(base){ return base + Math.floor(Math.random() * base); }
+
+function uuid(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  var b = new Uint8Array(16);
+  (window.crypto || {}).getRandomValues ? crypto.getRandomValues(b)
+    : (function(){ for (var i=0;i<16;i++) b[i] = Math.floor(Math.random()*256); })();
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  var h = []; for (var i=0;i<16;i++) h.push(("0"+b[i].toString(16)).slice(-2));
+  return h.slice(0,4).join("")+"-"+h.slice(4,6).join("")+"-"+h.slice(6,8).join("")+"-"+
+         h.slice(8,10).join("")+"-"+h.slice(10,16).join("");
+}
+
+async function sha256Hex(str){
+  if (window.crypto && crypto.subtle && crypto.subtle.digest) {
+    var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(function(b){
+      return ("0" + b.toString(16)).slice(-2);
+    }).join("");
+  }
+  return "nc_" + fnv1a(str) + fnv1a(str.split("").reverse().join(""));
+}
+
+/* ── Privacidad en logs (§15.17 regla 17) ─────────────────────────
+   La consola nunca imprime QR completos, nombres, ldap ni correos:
+   del QR sólo los últimos 4 caracteres; de un error, su tipo y mensaje
+   recortado con correos enmascarados. */
+function redactQR(qr){
+  var s = String(qr == null ? "" : qr);
+  return s ? "…" + s.slice(-4) : "(vacío)";
+}
+function redactErr(e){
+  if (e == null) return "(sin detalle)";
+  var s = (e.name && e.name !== "Error" ? e.name + ": " : "") + String(e.message || e);
+  return s.replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+/g, "<correo>").slice(0, 160);
+}
+
+/* Error de esquema/configuración (no transitorio): bloquea el arranque. */
+function obsAssertHeaders(row, expected, tab){
+  var got = (row || []).map(function(x){ return String(x == null ? "" : x).trim(); });
+  var e;
+  if (got.length < expected.length) { e = new Error(tab + ": esquema incompleto"); e.code = "schema"; e.tab = tab; throw e; }
+  for (var i = 0; i < expected.length; i++) {
+    if (got[i] !== expected[i]) {
+      e = new Error(tab + ": columna " + (i + 1) + " esperada \"" + expected[i] + "\", recibida \"" + (got[i] || "(vacía)") + "\"");
+      e.code = "schema"; e.tab = tab; throw e;
+    }
+  }
+}
+
+/* ── Normalización ───────────────────────────────────────────────── */
+function norm(s){
+  return String(s == null ? "" : s).trim().toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+/* Payload del QR: puede llegar desnudo, envuelto en URL o en JSON. */
+function normalizeQR(raw){
+  var s = String(raw == null ? "" : raw).trim();
+  if (!s) return "";
+  if (s.charAt(0) === "{") {
+    try {
+      var o = JSON.parse(s);
+      var keys = ["qr","id","codigo","code","credencial","uuid"];
+      for (var i = 0; i < keys.length; i++) {
+        if (o[keys[i]] != null && String(o[keys[i]]).trim()) return String(o[keys[i]]).trim().toUpperCase();
+      }
+    } catch (e) { /* no era JSON, sigue como texto */ }
+  }
+  if (/^https?:\/\//i.test(s)) {
+    var clean = s.split(/[?#]/)[0].replace(/\/+$/, "");
+    var seg = clean.split("/").pop();
+    if (seg) s = seg;
+  }
+  return s.toUpperCase();
+}
+
+/* Fecha {y,m,d} de obsParseFechaMX -> DD/MM/AAAA para mostrar. */
+function fechaLabel(f){
+  return f ? ("0" + f.d).slice(-2) + "/" + ("0" + f.m).slice(-2) + "/" + f.y : "";
+}
+
+/* Promesa con tope de tiempo. Si la original resuelve tarde, onLate
+   recibe el valor (p.ej. para revocar un object URL que ya nadie usa). */
+function conTimeout(p, ms, onLate){
+  return new Promise(function(resolve, reject){
+    var vencido = false;
+    var t = setTimeout(function(){
+      vencido = true;
+      var e = new Error("timeout " + ms + "ms"); e.name = "TimeoutError"; e.network = true;
+      reject(e);
+    }, ms);
+    p.then(function(v){
+      if (vencido) { if (onLate) { try { onLate(v); } catch (_) {} } return; }
+      clearTimeout(t); resolve(v);
+    }, function(e){
+      if (vencido) return;
+      clearTimeout(t); reject(e);
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   GridClient — transporte + gate global de 429 (§15.17 regla 8)
+   Todas las llamadas a /api/v1/sheets/ pasan por una cola serializada
+   con separación mínima entre arranques; todas las peticiones llevan
+   timeout (obsFetchWithTimeout). Un timeout cuenta como error de red:
+   en GET se reintenta con backoff; en POST (append) es un commit
+   ambiguo que WriteQueue resuelve releyendo el write_id (§15.18).
+
+   La cola tiene dos carriles: el prioritario (verificación en vivo de
+   un escaneo, el guardia está esperando) siempre se atiende antes que
+   el normal (outbox, fotos, refresco del catálogo). Sigue siendo UNA
+   sola petición de Sheets a la vez, con la misma separación GAP entre
+   arranques y el mismo gate de 429: la prioridad sólo cambia el orden.
+   ══════════════════════════════════════════════════════════════════ */
+var GridClient = (function(){
+  var gateUntil = 0, lastStart = 0, GAP = 700;
+  var carrilAlto = [], carrilNormal = [], corriendo = false;
+
+  function waitGate(){ return gateUntil > Date.now() ? sleep(gateUntil - Date.now()) : Promise.resolve(); }
+
+  function openGate(res){
+    var ms = obsRetryAfterMsCapped(res.headers.get("Retry-After"), 2000);
+    gateUntil = Math.max(gateUntil, Date.now() + Math.max(1000, ms));
+    return ms;
+  }
+
+  /* El trabajo se elige DESPUÉS de esperar el GAP: si mientras tanto
+     llegó uno prioritario, pasa primero. Un trabajo prioritario cuyo
+     plazo ya venció se descarta sin tocar la red. */
+  function schedule(task, prio, deadline){
+    return new Promise(function(res, rej){
+      (prio ? carrilAlto : carrilNormal).push({ task: task, res: res, rej: rej, deadline: deadline || 0 });
+      pump();
+    });
+  }
+  function pump(){
+    if (corriendo || (!carrilAlto.length && !carrilNormal.length)) return;
+    corriendo = true;
+    var gap = Math.max(0, lastStart + GAP - Date.now());
+    (gap ? sleep(gap) : Promise.resolve()).then(function(){
+      var job = carrilAlto.shift() || carrilNormal.shift();
+      if (!job) return;
+      if (job.deadline && Date.now() >= job.deadline) {
+        var e = new Error("timeout en cola"); e.name = "TimeoutError"; e.network = true;
+        job.rej(e);
+        return;
+      }
+      lastStart = Date.now();
+      var p;
+      try { p = Promise.resolve(job.task()); } catch (err) { p = Promise.reject(err); }
+      return p.then(job.res, job.rej);
+    }).then(function(){ corriendo = false; pump(); }, function(){ corriendo = false; pump(); });
+  }
+
+  function isSheet(path){ return /^\/api\/v1\/sheets\//.test(String(path || "")); }
+
+  /* Cualquier rechazo de fetch (incluido el timeout) se marca como error
+     de red, para distinguirlo de un error de programación al arrancar. */
+  function netFetch(url, opts, ms){
+    return obsFetchWithTimeout(fetch, url, Object.assign({ credentials: "include" }, opts || {}), ms)
+      .catch(function(err){ if (err && typeof err === "object") err.network = true; throw err; });
+  }
+
+  function backoff(attempt){ return sleep(Math.min(12000, 700 * Math.pow(2, attempt))); }
+
+  function raw(path, opts, attempt){
+    attempt = attempt || 0;
+    var method = String((opts && opts.method) || "GET").toUpperCase();
+    return waitGate().then(function(){ return netFetch(path, opts, OBS_FETCH_TIMEOUT_MS); }).then(function(res){
+      if (res.status === 429 && attempt < 6) {
+        var ms = openGate(res);
+        console.warn("[Scan] 429: gate global " + Math.ceil(ms / 1000) + " s");
+        return waitGate().then(function(){ return sleep(150 + Math.floor(Math.random() * 300)); })
+          .then(function(){ return raw(path, opts, attempt + 1); });
+      }
+      if ((res.status === 502 || res.status === 503 || res.status === 504) && method === "GET" && attempt < 4) {
+        return backoff(attempt).then(function(){ return raw(path, opts, attempt + 1); });
+      }
+      return res;
+    }, function(err){
+      if (method === "GET" && attempt < 4) return backoff(attempt).then(function(){ return raw(path, opts, attempt + 1); });
+      throw err;
+    });
+  }
+
+  function call(path, opts){ return isSheet(path) ? schedule(function(){ return raw(path, opts, 0); }) : raw(path, opts, 0); }
+
+  /* Lectura prioritaria con plazo absoluto (verificación en vivo): un
+     solo intento de red con el tiempo que quede; ante 429 se respeta el
+     gate global y sólo se reintenta si el gate abre antes del plazo; 5xx,
+     red o timeout fallan de inmediato — el llamador conserva el veredicto
+     local. Nunca reintenta en bucle: el guardia está esperando. */
+  function readSheetLive(sheetId, docId, range, deadline){
+    var path = "/api/v1/sheets/" + encodeURIComponent(sheetId) + "?doc_id=" + encodeURIComponent(docId) + "&range=" + encodeURIComponent(range);
+    function vencido(){ var e = new Error("timeout verificación en vivo"); e.name = "TimeoutError"; e.network = true; return e; }
+    function intento(n){
+      if (gateUntil >= deadline) return Promise.reject(vencido());
+      return waitGate().then(function(){
+        var resta = deadline - Date.now();
+        if (resta <= 50) throw vencido();
+        return netFetch(path, null, resta);
+      }).then(function(r){
+        if (r.status === 429) {
+          openGate(r);
+          if (n < 2 && gateUntil < deadline) return intento(n + 1);
+          var e429 = new Error("sheet_read_429"); e429.status = 429; throw e429;
+        }
+        if (!r.ok) { var e = new Error("sheet_read_" + r.status); e.status = r.status; e.range = range; throw e; }
+        return r.json();
+      });
+    }
+    return schedule(function(){ return intento(0); }, true, deadline)
+      .then(function(b){ var rows = values(b); return Array.isArray(rows) ? rows : []; });
+  }
+
+  function values(body){ return body && (body.values || (body.data && body.data.values) || body.rows) || (Array.isArray(body) ? body : []); }
+
+  function readSheet(sheetId, docId, range){
+    var path = "/api/v1/sheets/" + encodeURIComponent(sheetId) + "?doc_id=" + encodeURIComponent(docId) + "&range=" + encodeURIComponent(range);
+    return call(path).then(function(r){
+      if (r.status === 403) { var e = new Error("permission_denied"); e.status = 403; e.docId = docId; e.range = range; throw e; }
+      if (!r.ok) {
+        var e2 = new Error("sheet_read_" + r.status); e2.status = r.status; e2.range = range; e2.sheetId = sheetId;
+        return r.json().catch(function(){ return null; }).then(function(b){ e2.detail = b && (b.detail || b.error); throw e2; });
+      }
+      return r.json();
+    }).then(function(b){ var rows = values(b); return Array.isArray(rows) ? rows : []; });
+  }
+
+  function appendSheet(sheetId, docId, range, rows){
+    var path = "/api/v1/sheets/" + encodeURIComponent(sheetId) + "/append?doc_id=" + encodeURIComponent(docId);
+    return call(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ range: range, values: rows }) })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ return { res: r, body: b }; }); });
+  }
+
+  function me(){
+    return call("/api/v1/me").then(function(r){
+      if (!r.ok) { var e = new Error("me_" + r.status); e.status = r.status; throw e; }
+      return r.json();
+    });
+  }
+
+  /* El método real para bajar el archivo: GET /documents/{id}/download
+     NO sirve el binario directo — devuelve metadata JSON con
+     download_url (o agent_download_url), que hay que volver a
+     fetchear para obtener el blob real. El segundo fetch es a una URL
+     firmada aparte, por eso no pasa por el gate 429 — es tráfico
+     distinto al de la API de Grid. Ambos fetch llevan su propio timeout
+     corto (CFG.PHOTO_TIMEOUT_MS) y sin reintentos: la foto es una ayuda
+     visual y el guardia no debe quedarse esperando. */
+  async function downloadDocumentAsObjectUrl(docId){
+    await waitGate();
+    var metaRes = await netFetch("/api/v1/documents/" + encodeURIComponent(docId) + "/download", null, CFG.PHOTO_TIMEOUT_MS);
+    if (metaRes.status === 429) openGate(metaRes);
+    if (!metaRes.ok) { var e = new Error("download_meta_" + metaRes.status); e.status = metaRes.status; throw e; }
+    var meta = await metaRes.json();
+    var url = meta && (meta.download_url || meta.agent_download_url);
+    if (!url) { throw new Error("sin download_url en la respuesta"); }
+
+    var blobRes = await netFetch(url, null, CFG.PHOTO_TIMEOUT_MS);
+    if (!blobRes.ok) { var e2 = new Error("download_blob_" + blobRes.status); e2.status = blobRes.status; throw e2; }
+    var blob = await blobRes.blob();
+    return URL.createObjectURL(blob);
+  }
+
+  return {
+    call: call, readSheet: readSheet, readSheetLive: readSheetLive, appendSheet: appendSheet, me: me,
+    downloadDocumentAsObjectUrl: downloadDocumentAsObjectUrl
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   MÓDULO 1 · Identidad
+   Se conserva el LDAP sólo en memoria y sólo para resolver el
+   registry. Lo único que se escribe en el evento es el hash.
+   ══════════════════════════════════════════════════════════════════ */
+var Identity = (function(){
+  async function resolve(){
+    var raw = await GridClient.me();
+    raw = raw && typeof raw === "object" ? raw : {};
+    var ldap = String(raw.ldap || raw.username || "").trim().toLowerCase();
+    var email = String(raw.email || "").trim().toLowerCase();
+    var nombre = String(raw.full_name || raw.name || "").trim();
+    raw = null;
+    var material = ldap || email;
+    if (!material) throw new Error("me_sin_ldap_email");
+    var hash = await sha256Hex(material);
+    return { hash:hash, source_field:ldap?"ldap":"email", ldap:ldap, email:email, nombre:nombre, short:hash.slice(0,10) };
+  }
+  return { resolve: resolve };
+})();
+
+/* Resuelve {campo: índiceDeColumna} a partir de una fila de encabezados y
+   una lista [campo, [nombresExactos...], [patrones...]] EN ORDEN DE
+   PRIORIDAD DE CAMPO.
+
+   Pasada 1 — coincidencia EXACTA (encabezado normalizado == nombre): se
+   reservan primero todas las columnas con nombre exacto, para que un
+   patrón genérico de otro campo nunca le robe su columna a un campo que
+   la nombra literalmente (p.ej. "Nuevo_QR" para qr, "Sitio" para sitio).
+
+   Pasada 2 — patrones, sólo para los campos sin coincidencia exacta.
+   Dentro de un campo, se agota el patrón más específico contra TODAS las
+   columnas antes de probar el siguiente, en vez de tomar la primera
+   columna (de izquierda a derecha) que matchee CUALQUIER patrón.
+
+   El guión bajo cuenta como carácter de palabra para \b, así que
+   "Nuevo_QR" se leería como un solo token: aquí "_" se reemplaza por
+   espacio antes de comparar. Usada por Catalog y Photos. */
+function resolveColumnsByPriority(headerRow, fieldPatterns){
+  var used = {};
+  var map = {};
+  var headers = (headerRow || []).map(function(h){ return norm(h).replace(/_/g, " ").replace(/\s+/g, " ").trim(); });
+
+  fieldPatterns.forEach(function(entry){
+    var field = entry[0], exactos = entry[1] || [];
+    for (var x = 0; x < exactos.length && map[field] === undefined; x++) {
+      for (var j = 0; j < headers.length; j++) {
+        if (used[j] || !headers[j]) continue;
+        if (headers[j] === exactos[x]) { map[field] = j; used[j] = true; break; }
+      }
+    }
+  });
+
+  fieldPatterns.forEach(function(entry){
+    var field = entry[0], patterns = entry[2] || [];
+    if (map[field] !== undefined) return;
+    for (var p = 0; p < patterns.length; p++) {
+      var encontrada = -1;
+      for (var j = 0; j < headers.length; j++) {
+        if (used[j] || !headers[j]) continue;
+        if (patterns[p].test(headers[j])) { encontrada = j; break; }
+      }
+      if (encontrada !== -1) { map[field] = encontrada; used[encontrada] = true; break; }
+    }
+  });
+  return map;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MÓDULO 2 · Catálogo vía Sheets proxy
+   Snapshot indexado en memoria (§16.10), refrescado en segundo plano.
+
+   La pestaña real es una respuesta de Google Form ("Respuestas de
+   formulario 1"): el orden de columnas lo define el orden en que se
+   crearon las preguntas, no un contrato fijo. Por eso las columnas se
+   resuelven por NOMBRE de encabezado (exacto primero, luego patrón),
+   nunca por posición fija.
+
+   Encabezados reales conocidos (Access Management): uniqueid, Marca
+   temporal, Correo electrónico, Nombre, Apellido paterno, Apellido
+   materno, Empresa, Puesto, Sitio, CURP, Foto, INE, Pasaporte, Correo
+   líder que justifique el ingreso, Nacionalidad, ¿Eres driver?,
+   Aceptado o rechazado, Rechazo, Fecha de vencimiento, Nuevo_QR.
+   ══════════════════════════════════════════════════════════════════ */
+var Catalog = (function(){
+  var index = null, count = 0, loadedAt = null, colMap = null, headerRow = null;
+
+  /* "estatus" busca específicamente "Aceptado o rechazado" — la hoja
+     real también tiene una "Rechazo" (motivo en texto libre); no se usan
+     patrones genéricos ahí para no atarse a la columna equivocada.
+     El QR NO acepta /\bid\b/: "uniqueid" no es el QR, lo es Nuevo_QR. */
+  var FIELD_PATTERNS = [
+    ["qr",        ["nuevo qr", "qr"],                       [/\bqr\b/, /c[oó]digo/, /credencial/]],
+    ["apellidoP", ["apellido paterno", "primer apellido"],   [/apellido patern/, /primer apellido/]],
+    ["apellidoM", ["apellido materno", "segundo apellido"],  [/apellido matern/, /segundo apellido/]],
+    ["nombre",    ["nombre", "nombres", "nombre completo"],  [/^(?!.*empresa)(?!.*apellido)(?!.*correo).*\bnombres?\b/]],
+    ["empresa",   ["empresa"],                               [/empresa/, /compan/, /contratista/, /raz[oó]n social/]],
+    ["sitio",     ["sitio", "sitios"],                       [/\bsitios?\b/]],
+    ["vence",     ["fecha de vencimiento", "vencimiento", "vigencia"], [/venc/, /vigencia/]],
+    ["estatus",   ["aceptado o rechazado"],                  [/aceptado.*rechazado/, /aceptad.*o.*rechazad/]]
+  ];
+  var REQUIRED = ["qr", "sitio", "vence", "estatus"];
+
+  function celda(r, i){ return i === undefined ? "" : String(r[i] == null ? "" : r[i]).trim(); }
+
+  /* Fila -> persona. `cm` mapea campo -> índice DENTRO de la fila `r`
+     (en la lectura en vivo la fila es sólo el tramo de columnas leído;
+     un campo fuera del tramo llega undefined y queda vacío). */
+  function personaDeFila(qr, r, cm){
+    var pila     = celda(r, cm.nombre);
+    var apP      = celda(r, cm.apellidoP);
+    var apM      = celda(r, cm.apellidoM);
+    var sitioRaw = celda(r, cm.sitio);
+    var venceCel = r[cm.vence];
+    return {
+      qr:       qr,
+      nombre:   [pila, apP, apM].filter(Boolean).join(" "),
+      pila:     pila,
+      empresa:  celda(r, cm.empresa),
+      sitios:   sitioRaw.split(/[,;|]/).map(function(x){ return obsNormKey(x); }).filter(Boolean),
+      sitiosRaw:sitioRaw,
+      vence:    obsParseFechaMX(typeof venceCel === "number" ? venceCel : String(venceCel == null ? "" : venceCel).trim()),
+      venceRaw: celda(r, cm.vence),
+      estatus:  celda(r, cm.estatus)
+    };
+  }
+
+  async function load(){
+    var rows = await GridClient.readSheet(CFG.SHEET_ID, CFG.DOC_ADMIN, CFG.SHEET_RANGE);
+    /* Sin fila de encabezados no hay forma de saber qué es cada columna:
+       se conserva el índice anterior en vez de reemplazarlo por vacío. */
+    if (!rows.length || !(rows[0] || []).length) { var e0 = new Error("catalog_empty"); throw e0; }
+
+    var newColMap = resolveColumnsByPriority(rows[0], FIELD_PATTERNS);
+    console.info("[Catalog] columnas resueltas: " + Object.keys(newColMap).map(function(f){
+      return f + "='" + rows[0][newColMap[f]] + "'";
+    }).join(", "));
+    var faltantes = REQUIRED.filter(function(f){ return newColMap[f] === undefined; });
+    if (faltantes.length) {
+      var e = new Error("catalog_headers");
+      e.faltantes = faltantes;
+      e.encabezados = rows[0];
+      throw e;
+    }
+
+    /* Se construye en una variable local y sólo se publica al final:
+       así un refresco en curso nunca deja el índice a medias mientras
+       un escaneo hace lookup() en paralelo. */
+    var newIndex = Object.create(null);
+    var newCount = 0, dupQr = 0, dupFilas = 0;
+
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i] || [];
+      if (!r.length) continue;
+
+      var qr = normalizeQR(r[newColMap.qr]);
+      if (!qr) continue;
+
+      /* QR repetido en varias filas: no hay forma segura de saber cuál
+         fila manda (estatus, vigencia y sitio pueden diferir), así que
+         se marca ambiguo y el escaneo se bloquea (fail-closed). */
+      var prev = newIndex[qr];
+      if (prev) {
+        if (!prev.ambiguous) { newIndex[qr] = { qr: qr, ambiguous: true, filas: 2 }; dupQr++; dupFilas += 2; }
+        else { prev.filas++; dupFilas++; }
+        continue;
+      }
+
+      newIndex[qr] = personaDeFila(qr, r, newColMap);
+      newCount++;
+    }
+    if (dupQr) console.warn("[Catalog] " + dupQr + " QR duplicado(s) en el catálogo (" + dupFilas + " filas): se bloquean hasta que un gestor los corrija.");
+
+    /* Guardia contra lecturas truncadas: si el catálogo nuevo trae menos
+       de la mitad de credenciales que el anterior, se conserva el
+       anterior. Una baja masiva legítima se aplica al recargar la página. */
+    if (count > 0 && newCount < count * 0.5) {
+      var es = new Error("catalog_shrink"); es.prev = count; es.next = newCount;
+      console.warn("[Catalog] el catálogo nuevo bajó de " + count + " a " + newCount + " credenciales; se conserva el anterior.");
+      throw es;
+    }
+
+    colMap = newColMap;
+    headerRow = rows[0].slice();
+    index = newIndex;
+    count = newCount;
+    loadedAt = new Date();
+    return count;
+  }
+
+  function lookup(qr){ return index ? (index[qr] || null) : null; }
+
+  /* ── Verificación en vivo de UN código (v3.2) ─────────────────────
+     Grid no filtra del lado del servidor, así que se lee sólo el tramo
+     contiguo de columnas que cubre qr, estatus, vence y sitio (p.ej.
+     'Respuestas de formulario 1'!I1:T), con la fila 1 incluida para
+     comprobar que los encabezados del tramo siguen siendo los mismos.
+     Si alguna columna se movió => e.code "live_headers" y el llamador
+     recarga el catálogo completo. Mismas reglas que load(): mismo
+     normalizeQR, QR repetido => ambiguo (fail-closed). */
+  var LIVE_FIELDS = ["qr", "estatus", "vence", "sitio"];
+
+  function letraCol(i){
+    var s = "";
+    for (i = i + 1; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s;
+    return s;
+  }
+
+  /* Formatos de rango a intentar, en orden. El proxy de Grid no está
+     caracterizado para A1 con comillas, así que se prueba con comillas,
+     sin comillas y, como último recurso, la pestaña completa (el mismo
+     rango que ya usa la carga del catálogo). El que funcione se recuerda. */
+  var formatoVivo = null;
+  function tramoVivo(fmt){
+    if (!colMap || !headerRow) return null;
+    var idx = LIVE_FIELDS.map(function(f){ return colMap[f]; });
+    var ini = Math.min.apply(null, idx), fin = Math.max.apply(null, idx);
+    fmt = fmt || formatoVivo || "comillas";
+    if (fmt === "completa") return { ini: 0, fin: headerRow.length - 1, range: CFG.SHEET_RANGE, fmt: fmt };
+    var hoja = fmt === "comillas" ? "'" + CFG.SHEET_RANGE.replace(/'/g, "''") + "'" : CFG.SHEET_RANGE;
+    return { ini: ini, fin: fin, range: hoja + "!" + letraCol(ini) + "1:" + letraCol(fin), fmt: fmt };
+  }
+  var FORMATOS_VIVO = ["comillas", "simple", "completa"];
+  async function leerTramoVivo(deadline){
+    var orden = formatoVivo ? [formatoVivo] : FORMATOS_VIVO, ultimo = null;
+    for (var k = 0; k < orden.length; k++) {
+      var t = tramoVivo(orden[k]);
+      try {
+        var rows = await GridClient.readSheetLive(CFG.SHEET_ID, CFG.DOC_ADMIN, t.range, deadline);
+        if (!rows.length) { var ev = new Error("live_vacio"); ev.status = 0; throw ev; }
+        if (formatoVivo !== t.fmt) console.info("[Live] formato de rango en vivo: " + t.fmt);
+        formatoVivo = t.fmt;
+        return { t: t, rows: rows };
+      } catch (e) {
+        ultimo = e;
+        /* Sólo se prueba el siguiente formato si el rango fue rechazado
+           (400/404) o vino vacío; red/timeout/429 no se arreglan cambiando de rango. */
+        var rechazoRango = e && (e.status === 400 || e.status === 404 || e.message === "live_vacio");
+        console.warn("[Live] rango " + t.fmt + " falló: " + redactErr(e));
+        if (!rechazoRango) throw e;
+        if (formatoVivo === t.fmt) { formatoVivo = null; orden = FORMATOS_VIVO.filter(function(f){ return f !== t.fmt; }); k = -1; }
+      }
+    }
+    throw ultimo || new Error("live_sin_formato");
+  }
+
+  function normHeader(h){ return norm(h).replace(/_/g, " ").replace(/\s+/g, " ").trim(); }
+
+  async function verificarEnVivo(qr, deadline){
+    if (!tramoVivo()) { var e0 = new Error("catalog_sin_cargar"); throw e0; }
+    var lectura = await leerTramoVivo(deadline);
+    var t = lectura.t, rows = lectura.rows;
+    var hdr = rows[0] || [];
+    /* Mapa de campos relativo al tramo: sólo los campos cuya columna cae
+       dentro de él; cada encabezado debe coincidir con el de la carga. */
+    var cm = {};
+    Object.keys(colMap).forEach(function(f){
+      var j = colMap[f];
+      if (j < t.ini || j > t.fin) return;
+      cm[f] = j - t.ini;
+    });
+    var movidas = Object.keys(cm).filter(function(f){ return normHeader(hdr[cm[f]]) !== normHeader(headerRow[colMap[f]]); });
+    if (movidas.length) { var eh = new Error("live_headers"); eh.code = "live_headers"; eh.campos = movidas; throw eh; }
+
+    var filas = [];
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i] || [];
+      if (r.length && normalizeQR(r[cm.qr]) === qr) filas.push(r);
+    }
+
+    var previo = lookup(qr);
+    var persona = null;
+    if (filas.length > 1) {
+      persona = { qr: qr, ambiguous: true, filas: filas.length };
+    } else if (filas.length === 1) {
+      persona = personaDeFila(qr, filas[0], cm);
+      /* Nombre/empresa fuera del tramo: se conservan los del catálogo local. */
+      if (previo && !previo.ambiguous) {
+        ["nombre", "pila", "empresa"].forEach(function(k){ if (!persona[k]) persona[k] = previo[k]; });
+      }
+    }
+
+    /* El resultado en vivo reemplaza la entrada en memoria (alta, cambio o baja). */
+    if (index) {
+      var antesCuenta = previo && !previo.ambiguous ? 1 : 0;
+      var despuesCuenta = persona && !persona.ambiguous ? 1 : 0;
+      if (persona) index[qr] = persona; else delete index[qr];
+      count += despuesCuenta - antesCuenta;
+    }
+    return persona;
+  }
+
+  return {
+    load: load, lookup: lookup, verificarEnVivo: verificarEnVivo, tramoVivo: tramoVivo,
+    size: function(){ return count; },
+    loadedAt: function(){ return loadedAt; }
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   MÓDULO 2B · Fotos ("Publicados_activos", mismo libro, otra pestaña)
+   Misma pestaña y misma clave que usa Access Management: nuevo_qr ->
+   doc_id (+ view_url opcional). Igual que el catálogo: no existe un
+   filtro server-side en Grid (§4.8/§16.10), así que se carga la pestaña
+   completa y se indexa en memoria.
+
+   A diferencia del catálogo, un fallo aquí NO bloquea el arranque:
+   la foto es una ayuda visual para el veredicto positivo, no parte
+   de la decisión de acceso. Si algo sale mal, se registra y la app
+   sigue con el último índice bueno (o sin fotos) hasta el siguiente
+   refresco. */
+var Photos = (function(){
+  var index = null, count = 0;
+
+  var FIELD_PATTERNS = [
+    ["qr",       ["nuevo qr", "qr"],                [/\bqr\b/]],
+    ["doc_id",   ["doc id", "docid"],               [/doc.?id/]],
+    ["view_url", ["view url", "viewurl", "url"],    [/view.?url/, /^url$/]]
+  ];
+  var REQUIRED = ["qr", "doc_id"];
+
+  async function load(){
+    try {
+      var rows = await GridClient.readSheet(CFG.SHEET_ID, CFG.DOC_ADMIN, CFG.SHEET_RANGE_FOTOS);
+      if (!rows.length || !(rows[0] || []).length) {
+        console.warn("[Photos] la pestaña \"" + CFG.SHEET_RANGE_FOTOS + "\" no devolvió encabezados; se conserva el índice anterior.");
+        if (index === null) { index = {}; count = 0; }
+        return count;
+      }
+
+      var colMap = resolveColumnsByPriority(rows[0], FIELD_PATTERNS);
+      console.info("[Photos] columnas resueltas: " + (Object.keys(colMap).map(function(f){
+        return f + "='" + rows[0][colMap[f]] + "'";
+      }).join(", ") || "(ninguna)"));
+      var faltantes = REQUIRED.filter(function(f){ return colMap[f] === undefined; });
+      if (faltantes.length) {
+        console.warn("[Photos] no se reconocen las columnas: falta(n) " + faltantes.join(", ") + ". Encabezados: " +
+          rows[0].map(function(h, i){ return "[" + i + "] " + h; }).join("  ·  "));
+        if (index === null) { index = {}; count = 0; }
+        return count;
+      }
+
+      var newIndex = Object.create(null);
+      var newCount = 0, sinQr = 0, sinDoc = 0;
+      for (var i = 1; i < rows.length; i++) {
+        var r = rows[i] || [];
+        if (!r.length) continue;
+        var qr = normalizeQR(r[colMap.qr]);
+        if (!qr) { sinQr++; continue; }
+        var docId = String(r[colMap.doc_id] == null ? "" : r[colMap.doc_id]).trim();
+        if (!docId) sinDoc++;
+        newIndex[qr] = {
+          docId: docId,
+          viewUrl: colMap.view_url !== undefined ? String(r[colMap.view_url] == null ? "" : r[colMap.view_url]).trim() : ""
+        };
+        newCount++;
+      }
+      if (count > 0 && newCount < count * 0.5) {
+        console.warn("[Photos] el índice nuevo bajó de " + count + " a " + newCount + " fotos; se conserva el anterior.");
+        return count;
+      }
+      index = newIndex;
+      count = newCount;
+      console.info("[Photos] " + newCount + " fotos indexadas (" + sinQr + " filas sin QR, " + sinDoc + " sin doc_id, de " + (rows.length - 1) + " filas totales).");
+      return count;
+
+    } catch (e) {
+      console.warn("[Photos] fallo al cargar la pestaña \"" + CFG.SHEET_RANGE_FOTOS + "\": " + redactErr(e));
+      if (index === null) { index = {}; count = 0; }
+      return count;
+    }
+  }
+
+  function lookup(qr){ return index ? (index[qr] || null) : null; }
+
+  return { load: load, lookup: lookup, size: function(){ return count; } };
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   MÓDULO 3 · Validación
+   Vigencia: fecha día-primero (obsParseFechaMX) comparada contra "hoy"
+   en zona México (obsTodayMX) — la credencial vale hasta el fin del día
+   de vencimiento. Fecha ilegible => bloqueado (fail-closed).
+   Sitio: obsNormKey en ambos lados (sin acentos, espacios ni mayúsculas).
+   ══════════════════════════════════════════════════════════════════ */
+function validar(persona, sitio){
+  if (persona.ambiguous) {
+    return { ok: false, razon: "QR duplicado en catálogo — verificar con gestor" };
+  }
+  if (norm(persona.estatus) !== CFG.ESTATUS_OK) {
+    return { ok: false, razon: persona.estatus ? "estatus " + persona.estatus.toLowerCase() : "sin estatus asignado" };
+  }
+  if (!persona.vence) {
+    return { ok: false, razon: "Fecha de vencimiento inválida" };
+  }
+  var hoy = obsTodayMX();
+  if (!hoy || persona.vence.ord < hoy.ord) {
+    return { ok: false, razon: "credencial vencida el " + fechaLabel(persona.vence) };
+  }
+  if (persona.sitios.indexOf(obsNormKey(sitio)) === -1) {
+    return { ok: false, razon: persona.sitiosRaw
+      ? "autorizado para " + persona.sitiosRaw + ", no para " + sitio
+      : "sin sitio autorizado" };
+  }
+  return { ok: true, razon: null };
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MÓDULO 4 · Protocolo de escritura V20.2 (§15.18) sobre Sheets append
+   Una sola escritura lógica en vuelo. HTTP 200 no es prueba de
+   durabilidad: se verifica el write_id con relectura inmediata y
+   relectura estable. 429/5xx/red/timeout = commit ambiguo: se busca el
+   mismo write_id antes de reintentar.
+   ══════════════════════════════════════════════════════════════════ */
+function obsFindWriteId(writeId){
+  return GridClient.readSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, CFG.SCAN_TAB + "!B:B").then(function(rows){
+    var count = 0, rowNum = null;
+    for (var i = 1; i < rows.length; i++) {
+      if (String((rows[i] && rows[i][0]) || "") === writeId) { count++; rowNum = i + 1; }
+    }
+    return { count: count, row: rowNum };
+  });
+}
+function obsResolveAmbiguousWrite(writeId){
+  var tries = 0;
+  function check(){
+    tries++;
+    return obsFindWriteId(writeId).then(function(x){
+      if (x.count || tries >= 4) return x;
+      return sleep(400 * Math.pow(2, tries - 1)).then(check);
+    });
+  }
+  return check();
+}
+function obsUpdatedRange(body){
+  return body && (body.updatedRange || (body.updates && body.updates.updatedRange) || (body.data && body.data.updates && body.data.updates.updatedRange)) || "";
+}
+function obsVerifyRange(range, writeId, stable){
+  if (!range) {
+    return obsResolveAmbiguousWrite(writeId).then(function(x){
+      if (!x.count) return false;
+      if (!stable) return true;
+      return sleep(OBS_STABLE_MS).then(function(){ return obsFindWriteId(writeId); }).then(function(y){ return y.count > 0; });
+    });
+  }
+  return GridClient.readSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, range).then(function(rows){
+    var ok = !!(rows[0] && String(rows[0][1] || "") === writeId);
+    if (!ok || !stable) return ok;
+    return sleep(OBS_STABLE_MS).then(function(){ return GridClient.readSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, range); })
+      .then(function(r2){ return !!(r2[0] && String(r2[0][1] || "") === writeId); });
+  });
+}
+
+/* Anti-inyección de fórmulas: cualquier texto que Sheets pudiera
+   interpretar como fórmula (=, +, -, @, tab, CR) se escribe con "'"
+   delante. La verificación de durabilidad es sólo por write_id (UUID),
+   que nunca empieza así, así que esto no la afecta. */
+function celdaSegura(v){
+  if (v == null) return "";
+  return (typeof v === "string" && obsLooksLikeFormula(v)) ? "'" + v : v;
+}
+
+var WriteQueue = (function(){
+  var chain = Promise.resolve();
+  function enqueue(task){ var p = chain.then(task, task); chain = p.catch(function(){}); return p; }
+
+  function commit(bucket, evento, key, writeId, options){
+    options = options || {};
+    var row = [key, writeId, evento.qr, evento.nombre, evento.empresa, evento.sitio, evento.resultado, evento.razon,
+               evento.guardia_hash, evento.guardia_source_field, evento.ts, evento.tz, evento.app].map(celdaSegura);
+    var attempt = 0;
+
+    function appendRun(){
+      attempt++;
+      return GridClient.appendSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, CFG.SCAN_TAB, [row]).then(function(x){
+        var res = x.res, range = obsUpdatedRange(x.body);
+        if (res.ok) {
+          return obsVerifyRange(range, writeId, true).then(function(ok){
+            if (ok) return { ok: true, key: key, writeId: writeId, attempts: attempt };
+            var e = new Error("append 2xx no verificable"); e.ambiguous = true; throw e;
+          });
+        }
+        if (res.status === 403) { var e403 = new Error("permission_denied"); e403.status = 403; throw e403; }
+        if (obsIsPermanentHttp(res.status)) {
+          /* El cuerpo de la respuesta no se guarda: puede traer datos de la fila. */
+          var ep = new Error("append rechazado HTTP " + res.status); ep.status = res.status; ep.permanent = true; throw ep;
+        }
+        var ea = new Error("append ambiguo HTTP " + res.status); ea.ambiguous = true; throw ea;
+      }).catch(function(err){
+        if (err && err.status === 403) throw err;
+        if (err && err.permanent) return { ok: false, key: key, writeId: writeId, attempts: attempt, error: redactErr(err), permanent: true };
+        return obsResolveAmbiguousWrite(writeId).then(function(check){
+          if (check.count) {
+            if (check.count > 1) console.error("[Scan] write_id duplicado " + writeId + " x" + check.count);
+            return { ok: true, key: key, writeId: writeId, recovered: true, attempts: attempt };
+          }
+          if (attempt < CFG.MAX_ATTEMPTS) return sleep(jitter(500 * attempt)).then(appendRun);
+          return { ok: false, key: key, writeId: writeId, attempts: attempt, error: redactErr(err) };
+        });
+      });
+    }
+
+    if (options.precheck) {
+      return obsResolveAmbiguousWrite(writeId).then(function(existing){
+        if (existing.count) {
+          if (existing.count > 1) console.error("[Scan] write_id duplicado " + writeId + " x" + existing.count);
+          return { ok: true, key: key, writeId: writeId, recovered: true, attempts: 0 };
+        }
+        return appendRun();
+      });
+    }
+    return appendRun();
+  }
+
+  return { write: function(bucket, evento, key, writeId, options){ return enqueue(function(){ return commit(bucket, evento, key, writeId, options); }); } };
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   LocalDB — única conexión IndexedDB de la app (accesos-obsidian).
+   Prefs y Outbox comparten la misma base de datos: dos módulos
+   abriendo la misma DB con versiones distintas se pisarían el
+   upgrade entre sí, así que open() y el control de versión viven
+   aquí una sola vez.
+   ══════════════════════════════════════════════════════════════════ */
+var LocalDB = (function(){
+  var NAME = "accesos-obsidian", VERSION = 2;
+  var dbPromise = null;
+
+  function open(){
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise(function(res, rej){
+      var rq = indexedDB.open(NAME, VERSION);
+      rq.onupgradeneeded = function(e){
+        var db = e.target.result;
+        if (!db.objectStoreNames.contains("prefs")) db.createObjectStore("prefs");
+        if (!db.objectStoreNames.contains("outbox")) {
+          var os = db.createObjectStore("outbox", { keyPath: "id" });
+          os.createIndex("createdAt", "createdAt");
+        }
+      };
+      rq.onsuccess = function(e){ res(e.target.result); };
+      rq.onerror   = function(e){ dbPromise = null; rej(e.target.error); };
+    });
+    return dbPromise;
+  }
+
+  return { open: open };
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   Preferencia de modo de escaneo. IndexedDB a propósito: el Upload
+   Scanner de Grid bloquea el almacenamiento web síncrono desde 3.6.2.
+   ══════════════════════════════════════════════════════════════════ */
+var Prefs = (function(){
+  var STORE = "prefs";
+  return {
+    get: async function(key, dflt){
+      try {
+        var db = await LocalDB.open();
+        return await new Promise(function(res){
+          var rq = db.transaction(STORE, "readonly").objectStore(STORE).get(key);
+          rq.onsuccess = function(){ res(rq.result === undefined ? dflt : rq.result); };
+          rq.onerror   = function(){ res(dflt); };
+        });
+      } catch (e) { return dflt; }
+    },
+    set: async function(key, val){
+      try {
+        var db = await LocalDB.open();
+        db.transaction(STORE, "readwrite").objectStore(STORE).put(val, key);
+      } catch (e) { /* silencioso: es una preferencia, no datos */ }
+    }
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   Outbox — cola local-first para el registro de eventos (V21 #2).
+   procesar() despliega el veredicto al instante contra el catálogo en
+   memoria, lo confirma en vivo y encola UN evento con el veredicto
+   final; el registro durable en Grid pasa por aquí en segundo plano, aplicando el protocolo V20.2 de WriteQueue con
+   una sola escritura lógica en vuelo.
+
+   - La clave (`id`) y el `writeId` se generan al ENCOLAR: si la página
+     se recarga a medio drenado, el siguiente intento reutiliza la misma
+     clave. `appendStarted` se marca ANTES de la petición; sólo las
+     entradas reanudadas hacen la búsqueda previa de idempotencia (B:B).
+   - Compatibilidad: entradas de versiones previas con
+     `needsClassification` sin clasificar se drenan solas como
+     'bloqueado' (ver migrarSinClasificar); ya no hay clasificación.
+   - Error permanente (4xx no reintentable) o más de
+     CFG.OUTBOX_MAX_ATTEMPTS ciclos fallidos => `status:'dead'`: se queda
+     en IndexedDB, se salta y el drenado sigue con los demás. "Reintentar"
+     los devuelve a pendiente.
+   - Si IndexedDB falla, la entrada vive en memoria (`memory:true`) y
+     drena igual; se pierde sólo si la página se recarga antes.
+   - Confirmado el commit se borra el registro local.
+   ══════════════════════════════════════════════════════════════════ */
+var Outbox = (function(){
+  var STORE = "outbox";
+  var draining = false;
+  var retryTimer = null;
+  var permissionDeniedHandler = null;
+  var queueChangeHandler = null;
+  var mem = Object.create(null);   // respaldo en memoria si IndexedDB no está disponible
+  var memAvisado = false;
+
+  function store(mode){
+    return LocalDB.open().then(function(db){ return db.transaction(STORE, mode).objectStore(STORE); });
+  }
+
+  function idbPut(entry){
+    return store("readwrite").then(function(os){
+      return new Promise(function(res, rej){
+        var rq = os.put(entry);
+        rq.onsuccess = function(){ res(); };
+        rq.onerror   = function(){ rej(rq.error); };
+      });
+    });
+  }
+  function put(entry){
+    if (entry.memory) { mem[entry.id] = entry; return Promise.resolve(); }
+    return idbPut(entry);
+  }
+
+  function get(id){
+    if (mem[id]) return Promise.resolve(mem[id]);
+    return store("readonly").then(function(os){
+      return new Promise(function(res){
+        var rq = os.get(id);
+        rq.onsuccess = function(){ res(rq.result || null); };
+        rq.onerror   = function(){ res(null); };
+      });
+    }).catch(function(){ return null; });
+  }
+
+  function remove(id){
+    if (mem[id]) { delete mem[id]; return Promise.resolve(); }
+    return store("readwrite").then(function(os){
+      return new Promise(function(res){
+        var rq = os["delete"](id);
+        rq.onsuccess = function(){ res(); };
+        rq.onerror   = function(){ res(); };
+      });
+    });
+  }
+
+  /* Vía el índice createdAt: los ids son UUID, no son ordenables, y
+     el orden de drenado debe respetar el orden real de los escaneos.
+     Las entradas en memoria se mezclan y se reordena por createdAt. */
+  function ordered(){
+    return store("readonly").then(function(os){
+      return new Promise(function(res){
+        var out = [];
+        var rq = os.index("createdAt").openCursor();
+        rq.onsuccess = function(e){
+          var cur = e.target.result;
+          if (!cur) { res(out); return; }
+          out.push(cur.value);
+          cur.continue();
+        };
+        rq.onerror = function(){ res(out); };
+      });
+    }).catch(function(){ return []; }).then(function(out){
+      var ks = Object.keys(mem);
+      if (!ks.length) return out;
+      ks.forEach(function(k){ out.push(mem[k]); });
+      out.sort(function(a, b){ return (a.createdAt || 0) - (b.createdAt || 0); });
+      return out;
+    });
+  }
+
+  function esMuerto(x){ return x.status === "dead"; }
+  function esDrenable(x){ return !esMuerto(x); }
+
+  /* Registro de una versión ≤3.1 que esperaba clasificación del guardia:
+     se escribe como bloqueado, sin preguntar nada. */
+  function migrarSinClasificar(entry){
+    if (!entry || !entry.needsClassification) return false;
+    entry.evento = entry.evento || {};
+    entry.evento.resultado = "bloqueado";
+    entry.evento.razon = "Código no existe (registro previo sin clasificar)";
+    entry.needsClassification = false;
+    entry.migratedAt = Date.now();
+    return true;
+  }
+
+  function notify(){
+    if (!queueChangeHandler) return;
+    ordered().then(function(items){
+      var dead = items.filter(esMuerto);
+      queueChangeHandler({
+        pending: items.length - dead.length,
+        dead: dead.length,
+        lastError: dead.length ? (dead[dead.length - 1].lastError || "") : ""
+      });
+    }).catch(function(e){ console.warn("[Outbox] notify: " + redactErr(e)); });
+  }
+
+  async function enqueue(bucket, evento){
+    var entry = {
+      id: "evt_" + uuid(),
+      writeId: uuid(),
+      bucket: bucket,
+      evento: evento,
+      attempts: 0,
+      createdAt: Date.now(),
+      appendStarted: false,
+      status: "pending"
+    };
+    try {
+      await idbPut(entry);
+    } catch (e) {
+      /* IndexedDB no disponible (navegación privada, cuota, etc.): la
+         entrada vive en memoria y drena por el mismo camino. */
+      entry.memory = true;
+      mem[entry.id] = entry;
+      console.warn("[Outbox] IndexedDB no disponible; registro en memoria: " + redactErr(e));
+      if (!memAvisado) {
+        memAvisado = true;
+        toast("Sin almacenamiento local: los registros quedan en memoria hasta sincronizar. No recargues la página.", "err");
+      }
+    }
+    notify();
+    kick();
+    return entry;
+  }
+
+  function retryDead(){
+    return ordered().then(function(items){
+      var dead = items.filter(esMuerto);
+      return Promise.all(dead.map(function(x){
+        x.status = "pending"; x.attempts = 0; delete x.deadAt;
+        return put(x);
+      })).then(function(){ notify(); kick(); return dead.length; });
+    });
+  }
+
+  function kick(){
+    if (draining) return;
+    draining = true;
+    drainLoop().catch(function(e){ console.warn("[Outbox] drenado interrumpido: " + redactErr(e)); });
+  }
+
+  async function drainLoop(){
+    var stopRetrying = false;
+    try {
+      while (true) {
+        var items = await ordered();
+        var item = items.filter(esDrenable)[0];
+        if (!item) return;
+        if (migrarSinClasificar(item)) {
+          console.info("[Outbox] registro previo sin clasificar: se drena como bloqueado.");
+          await put(item);
+        }
+        var precheck = !!item.appendStarted;
+        item.appendStarted = true;
+        await put(item);
+        var res;
+        try {
+          res = await WriteQueue.write(item.bucket, item.evento, item.id, item.writeId, { precheck: precheck });
+        } catch (e) {
+          if (e.status === 403) {
+            stopRetrying = true;
+            if (permissionDeniedHandler) permissionDeniedHandler(e, item);
+            return;
+          }
+          res = { ok: false, error: redactErr(e) };
+        }
+        if (res.ok) {
+          await remove(item.id);
+          notify();
+          continue;
+        }
+        item.attempts = (item.attempts || 0) + 1;
+        item.lastError = res.error || "no confirmado";
+        if (res.permanent || item.attempts >= CFG.OUTBOX_MAX_ATTEMPTS) {
+          item.status = "dead";
+          item.deadAt = Date.now();
+          console.warn("[Outbox] registro movido a 'con error' tras " + item.attempts + " intento(s): " + item.lastError);
+          await put(item);
+          notify();
+          continue;   // se salta y se sigue con el resto
+        }
+        await put(item);
+        notify();
+        return;   // falla transitoria: se pausa el drenado hasta el próximo reintento programado
+      }
+    } finally {
+      draining = false;
+      if (!stopRetrying) scheduleRetry();
+    }
+  }
+
+  function scheduleRetry(){
+    if (retryTimer) return;
+    retryTimer = setTimeout(function(){
+      retryTimer = null;
+      ordered().then(function(items){
+        if (items.some(esDrenable)) kick();
+      }).catch(function(e){ console.warn("[Outbox] reintento programado: " + redactErr(e)); });
+    }, jitter(4000));
+  }
+
+  function resume(){
+    kick();
+    notify();
+  }
+
+  return {
+    enqueue: enqueue,
+    resume: resume,   // drenar lo que quedó pendiente de una sesión anterior
+    retryDead: retryDead,
+    onPermissionDenied: function(fn){ permissionDeniedHandler = fn; },
+    onQueueChange: function(fn){ queueChangeHandler = fn; }
+  };
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   ScannerEngine — handheld HID + cámara (BarcodeDetector nativo)
+   start() tiene candado "arrancando" + token de generación: si mientras
+   getUserMedia resuelve se cambió de modo o se llamó stop(), el stream
+   recién obtenido se detiene de inmediato. Nunca quedan dos streams.
+   ══════════════════════════════════════════════════════════════════ */
+var Scanner = (function(){
+  var stream = null, detector = null, running = false, raf = null;
+  var starting = false, gen = 0;
+
+  async function cameraSupported(){
+    if (!("BarcodeDetector" in window)) return false;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+    try {
+      var formats = await window.BarcodeDetector.getSupportedFormats();
+      return formats.indexOf("qr_code") !== -1;
+    } catch (e) { return true; }   // el detector existe aunque no liste formatos
+  }
+
+  function detenerStream(s){
+    if (s) { try { s.getTracks().forEach(function(t){ t.stop(); }); } catch (_) {} }
+  }
+
+  /* sigueVigente(): el llamador confirma que el modo cámara sigue activo.
+     Devuelve true si la cámara quedó (o ya estaba) corriendo, false si el
+     arranque quedó obsoleto. */
+  async function start(videoEl, onDetect, sigueVigente){
+    if (running || starting) return true;
+    starting = true;
+    var miGen = ++gen;
+    function vigente(){ return miGen === gen && (!sigueVigente || sigueVigente()); }
+    var s = null;
+    try {
+      s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } }, audio: false
+      });
+      if (!vigente()) { detenerStream(s); return false; }
+      stream = s;
+      videoEl.srcObject = s;
+      await new Promise(function(r){ if (videoEl.readyState >= 1) r(); else videoEl.onloadedmetadata = r; });
+      await videoEl.play();
+      if (!vigente()) {
+        detenerStream(s);
+        if (stream === s) { stream = null; videoEl.srcObject = null; }
+        return false;
+      }
+      detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      running = true;
+
+      var loop = async function(){
+        if (!running || miGen !== gen) return;
+        try {
+          var found = await detector.detect(videoEl);
+          if (found && found.length && running && miGen === gen) onDetect(found[0].rawValue);
+        } catch (e) { /* frame ilegible: el siguiente sirve */ }
+        if (running && miGen === gen) raf = requestAnimationFrame(loop);
+      };
+      loop();
+      return true;
+    } catch (e) {
+      if (s) { detenerStream(s); if (stream === s) stream = null; }
+      if (!vigente()) return false;
+      throw e;
+    } finally {
+      if (miGen === gen) starting = false;
+    }
+  }
+
+  function stop(){
+    gen++;
+    starting = false;
+    running = false;
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    if (stream) { detenerStream(stream); stream = null; }
+    detector = null;
+  }
+
+  return { start: start, stop: stop, supported: cameraSupported, isRunning: function(){ return running; } };
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   Fuentes del gate (libro de Usuarios) — esquemas estrictos
+   ══════════════════════════════════════════════════════════════════ */
+/* Usuarios: encabezados exactos (OBS_USERS_HEADERS). Un ldap/correo que
+   aparece en más de una fila NO bloquea a todos: sólo esa identidad queda
+   denegada (fail-closed para ella) y el resto opera normalmente. */
+function parseAdminUsers(rows){
+  var e;
+  if (!rows || !rows.length) { e = new Error("Usuarios vacío"); e.code = "usuarios_schema"; throw e; }
+  try { obsAssertHeaders(rows[0], OBS_USERS_HEADERS, "Usuarios"); }
+  catch (err) { err.code = "usuarios_schema"; throw err; }
+  var users = [], conteo = Object.create(null);
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i] || [];
+    if (!r.length) continue;
+    var o = {
+      ldap: String(r[0] || "").trim().toLowerCase(),
+      email: String(r[1] || "").trim().toLowerCase(),
+      nombre: String(r[2] || "").trim(),
+      permiso_guardia: String(r[8] || "").trim().toLowerCase(),
+      guardia_sitios: String(r[9] || "").trim(),
+      guardia_estatus: String(r[10] || "").trim().toLowerCase()
+    };
+    if (!o.ldap && !o.email) continue;
+    [o.ldap, o.email].filter(Boolean).forEach(function(a){ conteo[a] = (conteo[a] || 0) + 1; });
+    users.push(o);
+  }
+  var duplicados = Object.create(null), nDup = 0;
+  Object.keys(conteo).forEach(function(a){ if (conteo[a] > 1) { duplicados[a] = true; nDup++; } });
+  if (nDup) console.warn("[Usuarios] " + nDup + " identidad(es) duplicada(s) en Usuarios: se deniegan sólo ésas.");
+  return { users: users, duplicados: duplicados };
+}
+function findGuardiaSheet(rows, id){
+  var parsed = parseAdminUsers(rows);
+  var ldap = String(id.ldap || "").toLowerCase(), email = String(id.email || "").toLowerCase();
+  if ((ldap && parsed.duplicados[ldap]) || (email && parsed.duplicados[email])) return { duplicado: true };
+  for (var i = 0; i < parsed.users.length; i++) {
+    var u = parsed.users[i];
+    if ((ldap && u.ldap === ldap) || (email && u.email === email)) return u;
+  }
+  return null;
+}
+/* Sitios: encabezados exactos; sin ningún sitio activo se devuelve un
+   marcador imposible para que cualquier sitio asignado quede bloqueado. */
+function activeSitesFromRows(rows){
+  var e;
+  if (!rows || !rows.length) { e = new Error("Sitios vacío"); e.code = "schema"; throw e; }
+  obsAssertHeaders(rows[0], OBS_SITES_HEADERS, "Sitios");
+  var out = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i] || [], active = String(r[1] || "").trim().toLowerCase();
+    if (r[0] && ["si", "sí", "true", "1", "activo"].indexOf(active) !== -1) out.push(String(r[0]).trim());
+  }
+  if (!out.length) return ["__CONFIG_EMPTY__"];
+  return out;
+}
+
+/* Meta!A:D (clave | valor | actualizado_en | notas) -> {clave: valor} */
+function leerMeta(sheetId, etiqueta){
+  return GridClient.readSheet(sheetId, CFG.DOC_ADMIN, CFG.META_TAB + "!A:D").then(function(rows){
+    if (!rows.length) { var e = new Error("Meta (" + etiqueta + ") vacío"); e.code = "schema"; throw e; }
+    obsAssertHeaders(rows[0], OBS_META_HEADERS, "Meta (" + etiqueta + ")");
+    var map = {};
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i] && rows[i][0]) map[String(rows[i][0]).trim()] = String(rows[i][1] || "").trim();
+    }
+    return map;
+  });
+}
+/* Contrato de build: mismo Meta del libro de Usuarios que usan AM y AP. */
+function validarContratoBuild(){
+  return leerMeta(CFG.ADMIN_SHEET_ID, "Usuarios").then(function(meta){
+    if (!obsBuildAccepted(meta.build_contract, OBS_BUILD_ID)) {
+      var e = new Error("Build incompatible: Sheet=" + (meta.build_contract || "(vacío)") + " app=" + OBS_BUILD_ID);
+      e.code = "build"; throw e;
+    }
+  });
+}
+/* Libro de Scan: encabezados de Ingresos + Meta.ingresos_headers. */
+function validarEsquemaIngresos(){
+  return GridClient.readSheet(CFG.SCAN_SHEET_ID, CFG.DOC_ADMIN, CFG.SCAN_TAB + "!A1:M2").then(function(rows){
+    if (!rows.length) { var e = new Error("Ingresos vacío"); e.code = "schema"; throw e; }
+    obsAssertHeaders(rows[0], OBS_SCAN_HEADERS, "Ingresos");
+    return leerMeta(CFG.SCAN_SHEET_ID, "Scan");
+  }).then(function(meta){
+    if (meta.ingresos_headers !== OBS_SCAN_HEADERS.join("|")) {
+      var e2 = new Error("Meta.ingresos_headers no coincide"); e2.code = "schema"; throw e2;
+    }
+  });
+}
+
+function obsBuildBadge(){
+  if (ge("obs-build-badge")) return;
+  var d = document.createElement("div");
+  d.id = "obs-build-badge";
+  d.textContent = OBS_APP_VERSION;
+  d.title = "Contrato de build: " + OBS_BUILD_ID;
+  d.style.cssText = "position:fixed;right:8px;bottom:8px;z-index:9999;font:10px monospace;color:#8E95A5;background:rgba(14,14,18,.88);padding:4px 7px;border-radius:7px;pointer-events:none";
+  document.body.appendChild(d);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   APP
+   ══════════════════════════════════════════════════════════════════ */
+var App = (function(){
+  var S = {
+    id: null,          // { hash, source_field, ldap, email, short }
+    perfil: null,      // fila de Usuarios con permiso_guardia activo
+    sitio: null,       // asignado desde el admin panel — el guardia no lo elige
+    scanMode: "handheld",
+    busy: false,       // candado: hay un veredicto/modal en pantalla
+    blocked: false,    // pantalla de bloqueo activa: no se procesa nada más
+    photoObjectUrl: null, // URL.createObjectURL() de la última foto — se revoca antes de crear la siguiente
+    lastCode: "",
+    lastAt: 0,
+    count: 0,
+    veredictoSeq: 0,   // token del veredicto en pantalla — descarta fotos/resultados en vivo que lleguen tarde
+    verdictQr: "",     // QR del veredicto en pantalla (anti-rebote al cerrar)
+    verdictOpenedAt: 0,
+    esperaVivo: false, // el veredicto en pantalla aún espera su confirmación en vivo
+    esperaFoto: false, // el veredicto en pantalla aún espera su foto
+    fotoToken: 0,      // invalida una foto en curso si el vivo repinta el veredicto
+    catalogError: null,       // último error de refresco del catálogo (texto ya redactado)
+    edadTimer: null
+  };
+
+  var ICON_OK   = '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+  var ICON_ERR  = '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  var ICON_WARN = '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+  var ICON_WARN_SM = ICON_WARN.replace(/width="26" height="26"/, 'width="16" height="16"');
+
+  /* ── Pantallas ─────────────────────────────────────────────────── */
+  function show(id){
+    ["scr-boot","scr-blocked","scr-scan","scr-logout"].forEach(function(s){
+      ge(s).classList.toggle("on", s === id);
+    });
+  }
+  function enEscaneo(){ return ge("scr-scan").classList.contains("on") && !S.blocked; }
+
+  /* Bloqueo: detiene cámara y refresco, y deja la app "ocupada" para que
+     ningún veredicto se pinte encima de esta pantalla. */
+  function blocked(title, msg, detail){
+    S.blocked = true;
+    S.busy = true;
+    try { Scanner.stop(); } catch (_) {}
+    pausarRefrescoCatalogo();
+    if (S.edadTimer) { clearInterval(S.edadTimer); S.edadTimer = null; }
+    ge("verdict").classList.remove("on");
+    ge("blocked-title").textContent = title;
+    ge("blocked-msg").textContent = msg;
+    ge("blocked-detail").textContent = detail || "";
+    show("scr-blocked");
+  }
+
+  function bootMsg(txt){ var el = ge("boot-msg"); if (el) el.textContent = txt || ""; }
+
+  /* ── Arranque ──────────────────────────────────────────────────── */
+  /* Red caída, timeout, 429 o 5xx: transitorio, se reintenta con backoff.
+     Todo lo demás (esquema, contrato, permisos, 4xx) es configuración y
+     bloquea con un mensaje específico. */
+  function esErrorTransitorio(e){
+    if (!e) return false;
+    if (e.network || e.name === "TimeoutError") return true;
+    var st = e.status;
+    return st === 429 || st === 408 || (st >= 500 && st < 600);
+  }
+
+  async function init(){
+    obsBuildBadge();
+    wireUI();
+    var intento = 0;
+    while (true) {
+      try {
+        await arrancar();
+        return;
+      } catch (e) {
+        if (esErrorTransitorio(e) && intento < CFG.BOOT_MAX_RETRIES) {
+          intento++;
+          var espera = Math.min(2000 * Math.pow(2, intento - 1), 30000);
+          console.warn("[Boot] error transitorio (intento " + intento + "): " + redactErr(e));
+          bootMsg("No se pudo conectar con Grid… reintentando en " + Math.round(espera / 1000) + " s (intento " + intento + " de " + CFG.BOOT_MAX_RETRIES + ").");
+          await sleep(espera);
+          bootMsg("Reintentando…");
+          continue;
+        }
+        console.warn("[Boot] arranque fallido: " + redactErr(e));
+        return mostrarErrorArranque(e, intento);
+      }
+    }
+  }
+
+  async function arrancar(){
+    S.id = await Identity.resolve();
+    /* Contrato de build en el Meta del libro de Usuarios (mismo que AM/AP). */
+    await validarContratoBuild();
+
+    /* Gate obligatorio contra la fuente de verdad en Sheets. */
+    var userRows = await GridClient.readSheet(CFG.ADMIN_SHEET_ID, CFG.DOC_ADMIN, CFG.USERS_TAB + "!A:O");
+    var perfil = findGuardiaSheet(userRows, S.id);
+    if (perfil && perfil.duplicado) {
+      return blocked("Usuario duplicado", "Tu usuario está duplicado en Usuarios; contacta a un admin.", S.id.ldap ? "Usuario: " + S.id.ldap : "");
+    }
+    if (!perfil || perfil.permiso_guardia !== "si") {
+      return blocked("Sin registro", "Tu cuenta no está dada de alta como guardia en el sistema de accesos. Pide a un administrador que te registre y te asigne un sitio.", S.id.ldap ? "Usuario: " + S.id.ldap : "");
+    }
+    if (norm(perfil.guardia_estatus) !== CFG.GUARDIA_OK) {
+      return blocked("Acceso a Scan no activo", "Tu registro de guardia existe, pero no está activo. Un administrador debe aprobarlo o reactivarlo antes de que puedas operar.", "Estatus actual: " + (perfil.guardia_estatus || "—"));
+    }
+    var guardSites = String(perfil.guardia_sitios || "").split("|").map(function(x){ return x.trim(); }).filter(Boolean);
+    if (guardSites.length !== 1) {
+      return blocked("Sitio de guardia inválido", "Scan requiere exactamente un sitio asignado por guardia.", guardSites.length ? "Sitios: " + guardSites.join(", ") : "Sin sitio asignado");
+    }
+    perfil.sitio = guardSites[0];
+    S.perfil = perfil;
+    var siteRows = await GridClient.readSheet(CFG.ADMIN_SHEET_ID, CFG.DOC_ADMIN, CFG.SITES_TAB + "!A:C");
+    var vigentes = activeSitesFromRows(siteRows).map(obsNormKey);
+    if (vigentes.length && vigentes.indexOf(obsNormKey(perfil.sitio)) === -1) {
+      return blocked("Sitio asignado ya no existe", "Tu sitio asignado (\"" + perfil.sitio + "\") ya no está en la configuración vigente. Pide a un administrador que te reasigne.", "");
+    }
+    S.sitio = perfil.sitio;
+
+    await validarEsquemaIngresos();
+
+    /* Secuencial, no Promise.all: lecturas simultáneas justo después de
+       /me son exactamente el tipo de ráfaga que un limitador castiga. */
+    bootMsg("Cargando catálogo…");
+    await Catalog.load();
+    await Photos.load();
+    bootMsg("");
+    iniciarTurno();
+  }
+
+  function mostrarErrorArranque(e, intentos){
+    var detalle = redactErr(e);
+    if (esErrorTransitorio(e)) {
+      if (e.status === 429) {
+        return blocked("Grid está limitando las solicitudes",
+          "Se recibieron demasiadas peticiones en poco tiempo (HTTP 429) y se reintentó " + intentos + " veces sin éxito, con espera creciente entre cada una. Esto no es un problema de VPN — si persiste, probablemente haya otra sesión, pestaña o app golpeando el mismo documento al mismo tiempo.",
+          "Detalle: " + detalle);
+      }
+      return blocked("No se pudo conectar con Grid",
+        "Se reintentó " + intentos + " veces sin respuesta válida (red, tiempo de espera o error temporal del servidor). Verifica tu conexión a la red/VPN y vuelve a intentar.",
+        "Detalle: " + detalle);
+    }
+    if (e.status === 403) {
+      return blocked("Falta permiso en Grid",
+        "Grid rechazó la lectura con el documento " + (e.docId || CFG.DOC_ADMIN) + ". El ACL se evalúa sobre ese documento antes de resolver el OAuth: necesitas acceso explícito a él (lectura para validar y escritura para registrar ingresos en la hoja \"" + CFG.SCAN_TAB + "\").",
+        "Pide acceso al documento " + CFG.DOC_ADMIN + " y vuelve a entrar." + (e.range ? " Rango: " + e.range : ""));
+    }
+    if (e.code === "usuarios_schema") {
+      return blocked("La hoja Usuarios tiene un formato inválido",
+        "Scan se bloqueó de forma segura porque la pestaña \"" + CFG.USERS_TAB + "\" no tiene las columnas esperadas, en el orden esperado. Pide a un administrador que la revise.",
+        detalle);
+    }
+    if (e.code === "build") {
+      return blocked("Versión de Scan no autorizada",
+        "Esta versión de Scan (" + OBS_APP_VERSION + ") no está en el contrato de build del libro de Usuarios (Meta.build_contract). Pide a un administrador que actualice la app o el contrato.",
+        detalle);
+    }
+    if (e.code === "schema") {
+      return blocked("Configuración inválida",
+        "Scan se bloqueó de forma segura porque no pudo validar su fuente de verdad.",
+        detalle);
+    }
+    if (e.message === "catalog_headers") {
+      return blocked("No se reconocen las columnas del catálogo",
+        "No encontré encabezados para: " + e.faltantes.join(", ") + ". La pestaña es una respuesta de Google Form, así que el orden de columnas lo define el orden de las preguntas, no una posición fija — el emparejamiento es por texto del encabezado.",
+        "Encabezados leídos: " + (e.encabezados || []).map(function(h, i){ return "[" + i + "] " + h; }).join("  ·  "));
+    }
+    if (e.message === "catalog_empty") {
+      return blocked("El catálogo llegó vacío",
+        "La pestaña \"" + CFG.SHEET_RANGE + "\" no devolvió ni la fila de encabezados. Scan no opera sin catálogo.",
+        "Sheet ID: " + CFG.SHEET_ID);
+    }
+    if (/^sheet_read_4/.test(e.message || "")) {
+      return blocked("No se pudo leer una hoja de configuración",
+        "Grid rechazó la lectura (" + e.message.replace("sheet_read_", "HTTP ") + ") del rango \"" + (e.range || "—") + "\". Casi siempre es que la pestaña no existe con ese nombre exacto o que el ID de la hoja está mal.",
+        e.detail ? "Detalle de Grid: " + (typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail)).slice(0, 200) : "Sheet ID: " + (e.sheetId || "—"));
+    }
+    if (e.message === "me_sin_ldap_email") {
+      return blocked("No se pudo identificar tu usuario",
+        "Grid no devolvió ldap ni correo para tu sesión. Cierra sesión en Grid, vuelve a entrar e inténtalo de nuevo.", "");
+    }
+    return blocked("No se pudo iniciar",
+      "Ocurrió un error inesperado al iniciar Scan.",
+      "Detalle: " + detalle);
+  }
+
+  /* ── Arranque directo a escaneo (sitio ya fijo, sin elección) ──── */
+  async function iniciarTurno(){
+    if (S.blocked) return;
+    ge("scan-sitio").textContent = S.sitio;
+    ge("scan-user").textContent  = S.perfil.nombre || S.id.nombre || S.id.ldap;
+
+    S.scanMode = await Prefs.get("scanMode", "handheld");
+    var camOk = await Scanner.supported();
+    ge("mode-camera").disabled = !camOk;
+    if (!camOk) {
+      S.scanMode = "handheld";
+      ge("cam-hint").textContent = "Este navegador no expone un detector de QR nativo.";
+    }
+    if (S.blocked) return;
+    show("scr-scan");
+    setMode(S.scanMode, camOk);
+    iniciarRefrescoCatalogo();
+    actualizarEdadCatalogo();
+    if (!S.edadTimer) S.edadTimer = setInterval(actualizarEdadCatalogo, 30000);
+    Outbox.resume();   // drena lo que quedó pendiente de una sesión anterior
+  }
+
+  /* ── Catálogo: refresco, edad visible y desfase ──────────────────
+     No hay forma de pedirle a Grid "sólo esta fila" (§7/§16.10), así que
+     refrescar siempre implica releer la hoja completa. Si falla, se
+     registra (redactado), se marca en la línea de edad del catálogo y se
+     reintenta en el siguiente ciclo: la app sigue con el último catálogo
+     bueno conocido. Las recargas simultáneas (timer, botón, vivo con columnas movidas)
+     comparten la misma promesa. */
+  var refrescoIniciado = false;
+  var refrescoTimer = null;
+  var recargaEnCurso = null;
+
+  function catalogoEdadMs(){
+    var at = Catalog.loadedAt();
+    return at ? Date.now() - at.getTime() : Infinity;
+  }
+  function catalogoEdadMin(){ return Math.floor(catalogoEdadMs() / 60000); }
+  function catalogoDesactualizado(){ return catalogoEdadMs() > CFG.CATALOG_STALE_MS; }
+
+  function describirErrorCatalogo(e){
+    if (!e) return "";
+    if (e.message === "catalog_shrink") return "el catálogo nuevo bajó de " + e.prev + " a " + e.next + " credenciales; se mantiene el anterior";
+    if (e.message === "catalog_empty") return "la hoja llegó sin encabezados; se mantiene el catálogo anterior";
+    if (e.message === "catalog_headers") return "no se reconocen las columnas; se mantiene el catálogo anterior";
+    if (e.network || e.name === "TimeoutError") return "sin conexión con Grid";
+    if (e.status) return "Grid respondió HTTP " + e.status;
+    return redactErr(e);
+  }
+
+  function actualizarEdadCatalogo(){
+    var el = ge("catalog-age");
+    if (!el) return;
+    if (!Catalog.loadedAt()) { el.textContent = "Catálogo: sin cargar"; el.classList.add("warn"); return; }
+    var min = catalogoEdadMin();
+    var txt = "Catálogo: hace " + (min < 1 ? "<1" : min) + " min";
+    var warn = catalogoDesactualizado();
+    if (S.catalogError) { txt += " · no se pudo actualizar"; warn = true; }
+    el.textContent = txt;
+    el.classList.toggle("warn", warn);
+    el.title = (S.catalogError ? "Último error: " + S.catalogError : "Credenciales en memoria: " + Catalog.size()) +
+      " · Verificación en vivo: " + statsVivo.ok + " ok / " + statsVivo.fallos + " sin confirmar" +
+      (statsVivo.ultimoError ? " (último: " + statsVivo.ultimoError + ")" : "");
+  }
+
+  function recargarCatalogo(){
+    if (recargaEnCurso) return recargaEnCurso;
+    recargaEnCurso = Catalog.load().then(function(n){
+      S.catalogError = null;
+      return Photos.load().then(function(){ return n; });
+    }, function(e){
+      S.catalogError = describirErrorCatalogo(e);
+      console.warn("[Catalog] refresco falló: " + redactErr(e));
+      throw e;
+    }).then(function(n){
+      recargaEnCurso = null; actualizarEdadCatalogo(); return n;
+    }, function(e){
+      recargaEnCurso = null; actualizarEdadCatalogo(); throw e;
+    });
+    return recargaEnCurso;
+  }
+
+  function dispararRefrescoCatalogo(){
+    if (S.blocked) return;
+    recargarCatalogo().catch(function(){ /* ya registrado y visible en la línea de edad */ });
+  }
+
+  function iniciarRefrescoCatalogo(){
+    if (refrescoIniciado) return;
+    refrescoIniciado = true;
+    if (!document.hidden) refrescoTimer = setInterval(dispararRefrescoCatalogo, CFG.CATALOG_REFRESH_MS);
+  }
+
+  /* La pestaña puede pasar horas en segundo plano: se pausa el timer
+     entero, y al recuperar el foco se refresca una vez de inmediato en
+     vez de esperar al siguiente múltiplo de 5 min. */
+  function pausarRefrescoCatalogo(){
+    if (refrescoTimer) { clearInterval(refrescoTimer); refrescoTimer = null; }
+  }
+  function reanudarRefrescoCatalogo(){
+    if (S.blocked || !refrescoIniciado || refrescoTimer) return;
+    dispararRefrescoCatalogo();
+    refrescoTimer = setInterval(dispararRefrescoCatalogo, CFG.CATALOG_REFRESH_MS);
+  }
+
+  /* ── Modos de escaneo ──────────────────────────────────────────── */
+  async function setMode(mode, camOk){
+    if (S.blocked) return;
+    if (mode === "camera" && camOk === false) return;
+    S.scanMode = mode;
+    Prefs.set("scanMode", mode);
+
+    ge("mode-handheld").classList.toggle("active", mode === "handheld");
+    ge("mode-camera").classList.toggle("active", mode === "camera");
+    ge("stage-handheld").style.display = mode === "handheld" ? "" : "none";
+    ge("stage-camera").style.display   = mode === "camera" ? "" : "none";
+
+    if (mode === "handheld") {
+      Scanner.stop();
+      armHid();
+    } else {
+      try {
+        var ok = await Scanner.start(ge("cam-video"), onScan, function(){ return S.scanMode === "camera" && !S.blocked; });
+        if (ok) ge("cam-hint").textContent = "Encuadra el QR dentro del marco.";
+      } catch (e) {
+        console.warn("[Scanner] no se pudo abrir la cámara: " + redactErr(e));
+        if (S.scanMode !== "camera") return;
+        ge("cam-hint").textContent = "No se pudo abrir la cámara. Revisa el permiso del navegador.";
+        setMode("handheld", camOk);
+      }
+    }
+  }
+
+  /* ── HID sin teclado en pantalla ──────────────────────────────────
+     Técnica: enfocar con inputmode="none" (no dispara el teclado del
+     sistema), y ~50ms después, ya enfocado, cambiar a inputmode="text"
+     sin volver a disparar el teclado (los navegadores sólo lo muestran
+     en el evento de foco, no al cambiar el atributo después). Con eso
+     el lector físico conserva un canal de entrada real y editable sin
+     que aparezca el teclado. */
+  var raceArmed = false;
+
+  function hidActive(){
+    return S.scanMode === "handheld" && !S.busy && !S.blocked;
+  }
+
+  function armHid(){
+    var f = ge("scan-field");
+    if (!f || !hidActive()) return;
+    if (raceArmed && document.activeElement === f && f.getAttribute("inputmode") === "text") return;
+    raceArmed = false;
+    f.setAttribute("inputmode", "none");
+    f.focus({ preventScroll: true });
+    setTimeout(function(){
+      if (!hidActive() || document.activeElement !== f) return;
+      f.setAttribute("inputmode", "text");
+      raceArmed = true;
+    }, 50);
+  }
+
+  /* ── Entrada de escaneo ────────────────────────────────────────── */
+  function onScan(raw){
+    /* Candado: la cámara dispara ~60 veces por segundo mientras el QR
+       siga encuadrado; mientras haya un veredicto en pantalla (incluida
+       su confirmación en vivo) no se procesa nada. */
+    if (S.busy || S.blocked) return;
+    var qr = normalizeQR(raw);
+    if (!qr) return;
+
+    var now = Date.now();
+    if (qr === S.lastCode && (now - S.lastAt) < CFG.SUPPRESS_MS) return;
+    S.lastCode = qr; S.lastAt = now;
+
+    procesar(qr);
+  }
+
+  /* Veredicto contra una persona del catálogo (local o en vivo). */
+  function evaluar(persona){
+    if (!persona) return { resultado: null, razon: null };
+    var v = validar(persona, S.sitio);
+    return { resultado: v.ok ? "permitido" : "bloqueado", razon: v.razon };
+  }
+
+  /* Verificación híbrida (v3.2):
+     1. El veredicto se decide contra el catálogo en memoria y se muestra
+        AL INSTANTE (un código desconocido se muestra como "Verificando
+        código…", nunca en verde).
+     2. En paralelo se relee ESE código en vivo (carril prioritario de
+        GridClient, tope CFG.LIVE_TIMEOUT_MS). Mientras tanto "Siguiente
+        escaneo" queda deshabilitado: el guardia espera la confirmación.
+     3. Con el resultado final (vivo, o local si el vivo falló) se encola
+        UN solo evento en Ingresos.
+     Todo lo que se pinta va ligado a `seq`: un resultado en vivo tardío
+     de un escaneo anterior sólo alimenta el evento de ESE escaneo. */
+  function procesar(qr){
+    S.busy = true;
+    var ts = new Date().toISOString();
+    var local = Catalog.lookup(qr);
+    var vLocal = evaluar(local);
+
+    var seq = ++S.veredictoSeq;
+    S.verdictQr = qr;
+    S.esperaVivo = true;
+    pintarVeredicto(qr, vLocal.resultado || "verificando", vLocal.razon, local);
+    estadoVivo("pending", "Confirmando en vivo…");
+    abrirPanel();
+    S.count++;
+
+    confirmarEnVivo(qr).then(function(r){
+      var fin = decidirFinal(local, vLocal, r);
+      registrar(qr, ts, fin, seq);
+      if (seq !== S.veredictoSeq || S.blocked) return;   // ya hay otro veredicto en pantalla
+      aplicarFinal(qr, vLocal, fin);
+    }).catch(function(e){
+      /* Defensa: un error de programación aquí no debe dejar al guardia
+         con el botón bloqueado para siempre. */
+      console.warn("[Live] error inesperado al confirmar " + redactQR(qr) + ": " + redactErr(e));
+      if (seq === S.veredictoSeq) { S.esperaVivo = false; estadoVivo("warn", "No se pudo confirmar en vivo — verifica con gestor"); actualizarBoton(); }
+    });
+  }
+
+  /* Resuelve {vivo:true, persona} o {vivo:false, error}; nunca rechaza.
+     Si las columnas del tramo se movieron, recarga el catálogo completo
+     y valida contra él (cuenta como lectura en vivo: es la hoja actual). */
+  function confirmarEnVivo(qr){
+    var deadline = Date.now() + CFG.LIVE_TIMEOUT_MS;
+    return conTimeout(Catalog.verificarEnVivo(qr, deadline), CFG.LIVE_TIMEOUT_MS + 250).then(function(persona){
+      return { vivo: true, persona: persona };
+    }, function(e){
+      if (e && e.code === "live_headers") {
+        console.warn("[Live] los encabezados del tramo cambiaron (" + (e.campos || []).join(", ") + "): recarga completa del catálogo.");
+        return conTimeout(recargarCatalogo(), 20000).then(function(){
+          return { vivo: true, persona: Catalog.lookup(qr), recargado: true };
+        }, function(e2){
+          console.warn("[Live] la recarga completa falló: " + redactErr(e2));
+          return { vivo: false, error: e2 };
+        });
+      }
+      console.warn("[Live] no se pudo confirmar en vivo " + redactQR(qr) + ": " + redactErr(e));
+      statsVivo.ultimoError = e && e.status ? "HTTP " + e.status : (e && e.name === "TimeoutError") ? "timeout" : "red";
+      return { vivo: false, error: e };
+    });
+  }
+
+  function decidirFinal(local, vLocal, r){
+    if (r.vivo) {
+      if (!r.persona) return { resultado: "bloqueado", razon: "Código no existe", persona: null, vivo: true };
+      var v = evaluar(r.persona);
+      return { resultado: v.resultado, razon: v.razon, persona: r.persona, vivo: true };
+    }
+    if (!local) return { resultado: "bloqueado", razon: "Código no existe en el catálogo (sin verificación en vivo)", persona: null, vivo: false };
+    return { resultado: vLocal.resultado, razon: vLocal.razon, persona: local, vivo: false };
+  }
+
+  /* Un evento por escaneo, con el veredicto FINAL. Esquema de Ingresos
+     sin cambios: la verificación queda al final de la razón. */
+  function registrar(qr, ts, fin, seq){
+    var base = fin.razon || (fin.resultado === "permitido" ? "acceso permitido" : "sin razón");
+    var p = fin.persona && !fin.persona.ambiguous ? fin.persona : null;
+    var evento = {
+      qr: qr,
+      nombre: (p && p.nombre) || null,
+      empresa: (p && p.empresa) || null,
+      sitio: S.sitio,
+      resultado: fin.resultado,
+      razon: base + (fin.vivo ? " · verificado en vivo" : " · sin verificación en vivo"),
+      guardia_hash: S.id.hash,
+      guardia_source_field: S.id.source_field,
+      ts: ts,
+      tz: CFG.TZ,
+      app: "obsidian-scan/" + OBS_BUILD_ID
+    };
+    Outbox.enqueue(CFG.SCAN_TAB, evento).catch(function(e){
+      console.warn("[Outbox] no se pudo encolar el evento " + redactQR(qr) + ": " + redactErr(e));
+      if (seq === S.veredictoSeq) addNotice("No se pudo guardar el registro de este escaneo. Avisa a un administrador.", "err");
+    });
+  }
+
+  /* Pinta el resultado de la verificación en vivo sobre el veredicto en
+     pantalla (sólo se llama si `seq` sigue vigente). */
+  function aplicarFinal(qr, vLocal, fin){
+    S.esperaVivo = false;
+    var desconocido = !vLocal.resultado;
+    var cambio = desconocido || vLocal.resultado !== fin.resultado || vLocal.razon !== fin.razon;
+
+    if (!fin.vivo) {
+      if (desconocido) pintarVeredicto(qr, "bloqueado", fin.razon, null);
+      if (fin.resultado === "permitido") {
+        estadoVivo("warn", "No se pudo confirmar en vivo — verifica con gestor");
+        /* Sin confirmación, el catálogo viejo vuelve a importar. */
+      } else {
+        estadoVivo("warn", "Sin verificación en vivo");
+      }
+    } else if (!cambio) {
+      estadoVivo("ok", "Verificado en vivo");
+    } else {
+      pintarVeredicto(qr, fin.resultado, fin.razon, fin.persona);
+      estadoVivo("ok", "Verificado en vivo");
+      if (desconocido) {
+        if (fin.persona) banner(fin.resultado === "permitido" ? "ok" : "err", "Actualizado en vivo: código dado de alta recientemente");
+      } else if (vLocal.resultado === "permitido" && fin.resultado === "bloqueado") {
+        banner("err", "Actualizado en vivo: acceso revocado");
+      } else if (vLocal.resultado === "bloqueado" && fin.resultado === "permitido") {
+        banner("ok", "Actualizado en vivo: acceso aprobado recientemente");
+      } else {
+        banner("err", "Actualizado en vivo: cambió el motivo del bloqueo");
+      }
+    }
+    actualizarBoton();
+  }
+
+  /* ── Panel de veredicto ────────────────────────────────────────── */
+  function addNotice(texto, tipo, conIcono, host){
+    var d = document.createElement("div");
+    d.className = "notice " + (tipo || "warn");
+    if (conIcono) d.innerHTML = ICON_WARN_SM;   // SVG estático, sin datos
+    var s = document.createElement("span");
+    s.textContent = texto;
+    d.appendChild(s);
+    (host || ge("v-notice")).appendChild(d);
+    return d;
+  }
+
+  /* La verificación en vivo es silenciosa para el guardia: sólo se ve
+     si CAMBIA el veredicto (banner). El resultado queda en la razón del
+     evento (· verificado en vivo / · sin verificación en vivo) y en el
+     tooltip de la línea de edad del catálogo. */
+  var statsVivo = { ok: 0, fallos: 0, ultimoError: "" };
+  function estadoVivo(tipo, texto){
+    var el = ge("v-live");
+    el.className = "live-tag";
+    el.textContent = "";
+    if (tipo === "ok") statsVivo.ok++;
+    else if (tipo === "warn") statsVivo.fallos++;
+  }
+
+  function banner(tipo, texto){
+    var el = ge("v-live-banner");
+    el.className = "live-banner " + tipo;
+    el.textContent = texto;
+    el.style.display = "";
+  }
+
+  function prepararPanel(tipo){
+    var v = ge("verdict");
+    v.classList.remove("ok", "err", "warn", "info");
+    v.classList.add(tipo);
+    ge("v-photo-wrap").style.display = "none";
+    ge("v-photo-wrap").style.height = "";
+    var glyphEl = ge("v-glyph");
+    glyphEl.style.display = "";
+    glyphEl.className = "glyph " + tipo;
+    glyphEl.innerHTML = tipo === "ok" ? ICON_OK : tipo === "err" ? ICON_ERR : ICON_WARN;   // SVG estáticos
+    ge("v-notice").textContent = "";
+    var b = ge("v-live-banner");
+    b.style.display = "none"; b.textContent = "";
+  }
+
+  function abrirPanel(){
+    ge("verdict").classList.add("on");
+    S.verdictOpenedAt = Date.now();
+    /* El botón de cierre NO se enfoca: el Enter de un lector HID que
+       siga tecleando no debe cerrar el veredicto por accidente. */
+  }
+
+  /* "Siguiente escaneo" sólo se habilita cuando ya no se espera ni la
+     confirmación en vivo ni la foto del veredicto en pantalla. */
+  function actualizarBoton(){
+    var closeBtn = ge("v-close");
+    closeBtn.disabled = S.esperaVivo || S.esperaFoto;
+    closeBtn.textContent = S.esperaFoto ? "Cargando foto…" : S.esperaVivo ? "Cargando…" : "Siguiente escaneo";
+  }
+
+  /* resultado: "permitido" | "bloqueado" | "verificando" (desconocido en
+     espera del vivo: estado neutro, nunca verde). Se puede llamar de nuevo
+     sobre el mismo veredicto cuando el vivo lo cambia: invalida la foto
+     anterior (fotoToken) para que no se pinte sobre el estado nuevo. */
+  function pintarVeredicto(qr, resultado, razon, persona){
+    var tok = ++S.fotoToken;
+    var seq = S.veredictoSeq;
+    S.esperaFoto = false;
+    var tipo = resultado === "permitido" ? "ok" : resultado === "bloqueado" ? "err" : "info";
+    prepararPanel(tipo);
+
+    if (resultado === "bloqueado" && S.scanMode === "handheld") {
+      var area = ge("hh-scan-area");
+      if (area) {
+        area.classList.add("shake");
+        setTimeout(function(){ area.classList.remove("shake"); }, 220);
+      }
+    }
+
+    if (resultado === "permitido") {
+      var nombreVisible = persona && (persona.pila || persona.nombre);
+      ge("v-title").textContent = nombreVisible ? "¡Adelante, " + nombreVisible + "! Acceso habilitado." : "¡Adelante! Acceso habilitado.";
+      ge("v-why").textContent = persona && persona.empresa ? persona.empresa : "";
+    } else if (resultado === "bloqueado") {
+      ge("v-title").textContent = "Acceso bloqueado: " + razon + ".";
+      ge("v-why").textContent = persona && persona.ambiguous ? "No dejes pasar hasta que un gestor corrija el catálogo."
+        : persona ? "Pide al usuario revisar su credencial." : "QR: " + qr;
+    } else {
+      ge("v-title").textContent = "Verificando código…";
+      ge("v-why").textContent = "El código no está en el catálogo local. QR: " + qr;
+    }
+
+    /* Con foto que verificar, el guardia la necesita para comparar cara
+       contra credencial: el botón espera a que cargue (o falle). */
+    if (resultado === "permitido") {
+      var foto = Photos.lookup(qr);
+      if (foto && foto.docId) {
+        S.esperaFoto = true;
+        S.avisoFoto = addNotice("Cargando foto…", "info");
+        cargarFotoVeredicto(foto.docId, qr, seq, tok);
+      } else if (foto && !foto.docId) {
+        /* Sin foto que esperar — pero hay que decir POR QUÉ: son dos causas
+           de datos distintas y confundirlas hace buscar en el lugar equivocado. */
+        console.warn("[foto] fila encontrada en " + CFG.SHEET_RANGE_FOTOS + " para " + redactQR(qr) + " pero sin doc_id.");
+        addNotice("Sin foto — verifica identidad manualmente.", "warn");
+      } else {
+        console.warn("[foto] " + redactQR(qr) + " no aparece en el índice de Photos (" + CFG.SHEET_RANGE_FOTOS + ").");
+        addNotice("Sin foto — verifica identidad manualmente.", "warn");
+      }
+    }
+    actualizarBoton();
+  }
+
+  /* Traduce el error crudo de la descarga a algo diagnosticable en pantalla. */
+  function describirErrorFoto(e){
+    var msg = (e && e.message) || String(e);
+    if (e && e.name === "TimeoutError") return "Grid tardó demasiado en responder.";
+    if (e && e.status === 403) return "Grid rechazó el acceso al documento de la foto (sin permiso de lectura sobre ese documento).";
+    if (e && e.status === 404) return "El documento de la foto no existe en Grid (doc_id inválido o el archivo fue borrado/movido).";
+    if (e && e.status === 429) return "Grid está limitando las peticiones (HTTP 429).";
+    if (/^download_meta_/.test(msg)) return "Grid respondió HTTP " + msg.replace("download_meta_", "") + " al pedir los datos de descarga del documento.";
+    if (/^download_blob_/.test(msg)) return "Grid respondió HTTP " + msg.replace("download_blob_", "") + " al descargar el archivo (la URL firmada pudo haber expirado).";
+    if (msg === "sin download_url en la respuesta") return "Grid no devolvió una URL de descarga para este documento.";
+    if (e && e.network) return "Fallo de red al descargar la foto (revisa conexión/VPN).";
+    return "Error al descargar la foto.";
+  }
+
+  /* Carga de la foto de verificación: bloquea "Siguiente escaneo" mientras
+     dura (tope: 2 × CFG.PHOTO_TIMEOUT_MS). `seq` es el token del veredicto
+     que la disparó — si para cuando la foto llega ya hay otro veredicto
+     en pantalla, se descarta en vez de pisar el estado de otra persona. */
+  async function cargarFotoVeredicto(docId, qr, seq, tok){
+    var img = ge("v-photo");
+    var photoWrap = ge("v-photo-wrap");
+    var glyphEl = ge("v-glyph");
+    /* tok: el vivo pudo repintar este mismo veredicto (p.ej. revocado). */
+    function vigente(){ return seq === S.veredictoSeq && tok === S.fotoToken; }
+
+    function liberarBoton(notaError){
+      if (!vigente()) return;
+      if (S.avisoFoto && S.avisoFoto.parentNode) S.avisoFoto.parentNode.removeChild(S.avisoFoto);
+      S.avisoFoto = null;
+      if (notaError) addNotice(notaError, "warn");   // textContent: sin HTML de datos/errores
+      S.esperaFoto = false;
+      actualizarBoton();                              // no habilita si falta la confirmación en vivo
+    }
+
+    try {
+      var objectUrl = await conTimeout(GridClient.downloadDocumentAsObjectUrl(docId), CFG.PHOTO_TIMEOUT_MS * 2 + 1000,
+        function(urlTardia){ URL.revokeObjectURL(urlTardia); });
+      if (!vigente()) { URL.revokeObjectURL(objectUrl); return; }
+
+      if (S.photoObjectUrl) URL.revokeObjectURL(S.photoObjectUrl);
+      S.photoObjectUrl = objectUrl;
+
+      var cargo = await new Promise(function(resolve){
+        img.onload  = function(){ resolve(true); };
+        img.onerror = function(){ resolve(false); };
+        img.src = objectUrl;
+      });
+      if (!vigente()) return;
+
+      if (!cargo) {
+        console.warn("[foto] blob descargado pero <img> no lo pudo decodificar. qr=" + redactQR(qr));
+        liberarBoton("Foto no disponible — verifica identidad manualmente.");
+        return;
+      }
+
+      photoWrap.style.display = ""; glyphEl.style.display = "none";
+      /* object-fit:contain garantiza que la foto se vea completa; se ajusta
+         el alto de la caja al aspecto real de la foto, con un rango
+         razonable para no deformar el modal. */
+      if (img.naturalWidth && img.naturalHeight) {
+        var anchoCaja = Math.min(460, window.innerWidth - 40);
+        var altoIdeal = anchoCaja * (img.naturalHeight / img.naturalWidth);
+        var esMovil = window.matchMedia("(max-width:560px)").matches;
+        var maxAltoPorViewport = window.innerHeight * 0.35;
+        var maxAlto = Math.min(esMovil ? 320 : 400, maxAltoPorViewport);
+        var minAlto = Math.min(esMovil ? 160 : 200, maxAlto);
+        photoWrap.style.height = Math.max(minAlto, Math.min(altoIdeal, maxAlto)) + "px";
+      }
+      liberarBoton(null);
+
+    } catch (e) {
+      console.warn("[foto] fallo al descargar. qr=" + redactQR(qr) + ": " + redactErr(e) + " · " + describirErrorFoto(e));
+      liberarBoton("Foto no disponible — verifica identidad manualmente.");
+    }
+  }
+
+  function cerrarVeredicto(){
+    if (S.esperaVivo) return;   // el guardia debe esperar la confirmación en vivo
+    ge("verdict").classList.remove("on");
+    S.esperaFoto = false;
+    S.fotoToken++;
+    if (S.photoObjectUrl) { URL.revokeObjectURL(S.photoObjectUrl); S.photoObjectUrl = null; }
+    ge("v-photo").removeAttribute("src");
+    /* Anti-rebote también al CERRAR: el mismo QR que sigue en cuadro no
+       se vuelve a aceptar durante SUPPRESS_MS. */
+    if (S.verdictQr) S.lastCode = S.verdictQr;
+    S.lastAt = Date.now();
+    S.busy = S.blocked;
+    if (S.blocked) return;
+    armHid();
+  }
+
+  /* ── Pantalla completa (Biblia §16.21) ────────────────────────────
+     Runtime confirmado dentro del viewer embebido de Grid: requestFullscreen()
+     disparado por un gesto explícito del usuario resuelve, dispara
+     fullscreenchange, y no requiere fallback distinto salvo el prefijo
+     webkit (Safari). No se entra en fullscreen automáticamente al cargar
+     — sólo por el botón, que es exactamente la regla de producción §16.21.5. */
+  function fullscreenSoportado(){
+    return !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+  }
+  function enFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+  function entrarFullscreen(){
+    var el = document.documentElement;
+    var p = el.requestFullscreen ? el.requestFullscreen() : el.webkitRequestFullscreen();
+    if (p && p.catch) p.catch(function(){ toast("El navegador rechazó pantalla completa.", "err"); });
+  }
+  function salirFullscreen(){
+    if (!enFullscreen()) return;
+    var p = document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen();
+    if (p && p.catch) p.catch(function(){});
+  }
+  function sincronizarBotonFullscreen(){
+    var btn = ge("btn-fullscreen");
+    if (!btn) return;
+    var activo = enFullscreen();
+    btn.querySelector(".ico-expand").style.display = activo ? "none" : "";
+    btn.querySelector(".ico-collapse").style.display = activo ? "" : "none";
+    btn.title = activo ? "Salir de pantalla completa" : "Pantalla completa";
+    btn.setAttribute("aria-label", btn.title);
+    btn.setAttribute("aria-pressed", activo ? "true" : "false");
+  }
+
+  /* ── Cableado de UI ────────────────────────────────────────────── */
+  function wireUI(){
+    ge("mode-handheld").addEventListener("click", function(){ setMode("handheld"); });
+    ge("mode-camera").addEventListener("click", function(){ setMode("camera", true); });
+
+    var f = ge("scan-field");
+    f.addEventListener("keydown", function(e){
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      var val = f.value;
+      f.value = "";
+      onScan(val);
+    });
+    f.addEventListener("focus", function(){ ge("hh-mark").classList.add("armed"); });
+    f.addEventListener("blur",  function(){
+      ge("hh-mark").classList.remove("armed");
+      raceArmed = false;
+      requestAnimationFrame(armHid);
+    });
+
+    ge("hh-scan-area").addEventListener("click", function(){
+      if (hidActive()) f.focus({ preventScroll: true });
+    });
+
+    /* B15: el cierre exige un gesto deliberado. Se ignora Enter/Espacio
+       sobre "Siguiente escaneo" en los primeros 600 ms del veredicto o si
+       llega dentro de una ráfaga de teclas típica de un lector HID. */
+    var closeBtn = ge("v-close");
+    var teclas = [];
+    document.addEventListener("keydown", function(e){
+      var now = Date.now();
+      teclas.push(now);
+      while (teclas.length && now - teclas[0] > 300) teclas.shift();
+      if (e.key !== "Enter" && e.key !== " ") return;
+      if (document.activeElement !== closeBtn || !ge("verdict").classList.contains("on")) return;
+      if (now - S.verdictOpenedAt < 600 || teclas.length >= 4) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
+    closeBtn.addEventListener("click", function(e){
+      if (e.detail === 0 && Date.now() - S.verdictOpenedAt < 600) return;   // activación por teclado demasiado pronto
+      cerrarVeredicto();
+    });
+
+    Outbox.onQueueChange(function(st){
+      var pill = ge("outbox-pill");
+      if (pill) {
+        pill.style.display = st.pending > 0 ? "" : "none";
+        ge("outbox-count").textContent = st.pending;
+      }
+      var dead = ge("dead-pill");
+      if (dead) {
+        dead.style.display = st.dead > 0 ? "" : "none";
+        ge("dead-count").textContent = st.dead;
+        dead.title = st.lastError ? "Último error: " + st.lastError : "Registros que no se pudieron sincronizar";
+      }
+    });
+    ge("dead-retry").addEventListener("click", function(){
+      Outbox.retryDead().then(function(n){
+        toast(n ? "Reintentando " + n + " registro(s)…" : "No hay registros con error.", "ok");
+      }).catch(function(e){
+        console.warn("[Outbox] reintento manual falló: " + redactErr(e));
+        toast("No se pudo reintentar: " + redactErr(e), "err");
+      });
+    });
+    Outbox.onPermissionDenied(function(e, item){
+      blocked("Falta permiso de escritura",
+        "Grid rechazó el registro en la hoja \"" + CFG.SCAN_TAB + "\" del libro de Scan. El ACL se evalúa sobre el documento " + CFG.DOC_ADMIN + ": necesitas acceso de escritura (edición) sobre ese documento y sobre la hoja de ingresos para poder registrar.",
+        "Documento: " + CFG.DOC_ADMIN + " · Hoja: " + CFG.SCAN_SHEET_ID + " / " + item.bucket);
+    });
+
+    var fsBtn = ge("btn-fullscreen");
+    if (!fullscreenSoportado()) {
+      fsBtn.style.display = "none";   // §16.21.5 regla 5: no asumir disponibilidad, degradar sin ruido
+    } else {
+      fsBtn.addEventListener("click", function(){
+        if (enFullscreen()) salirFullscreen(); else entrarFullscreen();
+      });
+      document.addEventListener("fullscreenchange", sincronizarBotonFullscreen);
+      document.addEventListener("webkitfullscreenchange", sincronizarBotonFullscreen);
+      document.addEventListener("fullscreenerror", function(){ toast("El navegador rechazó pantalla completa.", "err"); });
+      document.addEventListener("webkitfullscreenerror", function(){ toast("El navegador rechazó pantalla completa.", "err"); });
+      sincronizarBotonFullscreen();
+    }
+
+    var refreshBtn = ge("btn-refresh-catalog");
+    var refrescandoManual = false;
+    refreshBtn.addEventListener("click", function(){
+      if (refrescandoManual || S.blocked) return;
+      refrescandoManual = true;
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add("spinning");
+      recargarCatalogo().then(function(n){
+        toast("Catálogo actualizado — " + n + " credenciales.", "ok");
+      }).catch(function(e){
+        toast("No se pudo actualizar (" + describirErrorCatalogo(e) + ").", "err");
+      }).then(function(){
+        refrescandoManual = false;
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove("spinning");
+      });
+    });
+
+    iniciarLogoutUI();
+
+    document.addEventListener("visibilitychange", function(){
+      if (document.hidden) {
+        Scanner.stop();
+        pausarRefrescoCatalogo();
+      } else {
+        reanudarRefrescoCatalogo();
+        actualizarEdadCatalogo();
+        /* B6: al volver, la cámara se había detenido: se reabre. */
+        if (enEscaneo() && S.scanMode === "camera") setMode("camera", true);
+      }
+    });
+  }
+
+  /* ── Cierre de sesión (Biblia §16.23) ─────────────────────────────
+     Iframe oculto al logout de la pasarela de login + verificación con
+     GET /api/v1/me. Nunca se muestra "Sesión cerrada" sin esa verificación;
+     un `load` del iframe no prueba nada. */
+  var LOGOUT_URL = "https://login.adminml.com/logout?callbackURL=" + encodeURIComponent("https://grid.adminml.com");
+  var logoutBusy = false;
+
+  function cargarLogoutEnIframe(){
+    var f = document.createElement("iframe");
+    f.setAttribute("aria-hidden", "true");
+    f.tabIndex = -1;
+    f.style.cssText = "position:absolute;width:0;height:0;border:0;visibility:hidden;";
+    return new Promise(function(resolve){
+      var t = setTimeout(resolve, 15000);
+      f.addEventListener("load", function(){ clearTimeout(t); setTimeout(resolve, 1500); }, { once: true });
+      f.src = LOGOUT_URL;                 // src ANTES de insertar el iframe
+      document.body.appendChild(f);
+    }).then(function(){ f.remove(); });
+  }
+
+  async function sesionCerrada(){
+    for (var i = 0; i < 4; i++) {
+      if (i > 0) await sleep(1500);
+      var ctrl = new AbortController();
+      var timer = setTimeout(function(){ ctrl.abort(); }, 8000);
+      try {
+        var r = await fetch("/api/v1/me", { credentials: "include", redirect: "manual", cache: "no-store", signal: ctrl.signal });
+        if (r.type === "opaqueredirect" || r.status === 401 || r.status === 403) return true;
+      } catch (_) { /* un error de red no prueba nada: se reintenta */ }
+      finally { clearTimeout(timer); }
+    }
+    return false;
+  }
+
+  async function ejecutarLogout(){
+    await cargarLogoutEnIframe();
+    return sesionCerrada();
+  }
+
+  /* Gancho onLoggedOut: detiene todo, limpia memoria y bloquea la UI. */
+  function onLoggedOut(){
+    S.blocked = true;
+    S.busy = true;
+    try { Scanner.stop(); } catch (_) {}
+    pausarRefrescoCatalogo();
+    if (S.edadTimer) { clearInterval(S.edadTimer); S.edadTimer = null; }
+    ge("verdict").classList.remove("on");
+    ge("lo-confirm").classList.remove("on");
+    if (S.photoObjectUrl) { URL.revokeObjectURL(S.photoObjectUrl); S.photoObjectUrl = null; }
+    S.id = null; S.perfil = null; S.sitio = null; S.lastCode = "";
+    show("scr-logout");
+  }
+
+  function iniciarLogoutUI(){
+    var modal = ge("lo-confirm"), ok = ge("lo-ok"), cancel = ge("lo-cancel"), err = ge("lo-err");
+    function abrir(){
+      if (S.blocked || S.busy || logoutBusy) return;
+      var pend = ge("outbox-pill").style.display === "none" ? 0 : (parseInt(ge("outbox-count").textContent, 10) || 0);
+      ge("lo-msg").textContent = "Se cerrará tu sesión en Grid y en las demás apps con el mismo inicio de sesión (*.adminml.com)."
+        + (pend > 0 ? " Hay " + pend + " evento(s) por sincronizar: se conservan en este dispositivo y se enviarán cuando vuelvas a iniciar sesión." : "");
+      err.style.display = "none";
+      ok.textContent = "Cerrar sesión";
+      ok.disabled = false; cancel.disabled = false;
+      S.busy = true;                       // el lector no debe procesar QR con el modal abierto
+      modal.classList.add("on");
+      cancel.focus();                      // foco en Cancelar: un Enter del lector no cierra la sesión
+    }
+    function cerrarModal(){
+      if (logoutBusy) return;
+      modal.classList.remove("on");
+      S.busy = S.blocked;
+      if (!S.blocked) armHid();
+    }
+    ge("btn-logout").addEventListener("click", abrir);
+    cancel.addEventListener("click", cerrarModal);
+    document.addEventListener("keydown", function(e){
+      if (e.key === "Escape" && modal.classList.contains("on")) cerrarModal();
+    });
+    ok.addEventListener("click", async function(){
+      if (logoutBusy) return;
+      logoutBusy = true;
+      ok.disabled = true; cancel.disabled = true;
+      ok.textContent = "Cerrando…";
+      err.style.display = "none";
+      var cerrada = false;
+      try { cerrada = await ejecutarLogout(); } catch (_) {}
+      logoutBusy = false;
+      if (cerrada) { onLoggedOut(); return; }
+      err.textContent = "No se pudo verificar el cierre de sesión. Revisa tu conexión e inténtalo de nuevo.";
+      err.style.display = "";
+      ok.textContent = "Reintentar";
+      ok.disabled = false; cancel.disabled = false;
+    });
+  }
+
+  return { init: init };
+})();
+
+App.init();
+</script>
+<script>
+/* Grid: only allow approved Grid domains to open unsandboxed tabs */
+(function(){
+  var allowedHosts = ["figma.com", "www.figma.com", "furydocs.io", "zeroheight.com", "google.com", "docs.google.com", "meet.google.com", "grid.adminml.com", "grid-artifacts.adminml.com", "mercadolibre.atlassian.net", "mercadolibre-opsgenie.atlassian.net", "app.datadoghq.com", "grafana-service.furycloud.io", "web.furycloud.io", "nasdaq-meli.app.opsgenie.com", "meli.enterprise.slack.com"];
+  var allowedSuffixes = [".adminml.com", ".atlassian.net", ".google.com", ".furycloud.io", ".melioffice.com", ".melisystems.com"];
+  var allowedPathPrefixes = {"github.com": ["/melisource/"], "www.github.com": ["/melisource/"], "reclameaqui.com.br": ["/empresa/mercado-pago/"], "www.reclameaqui.com.br": ["/empresa/mercado-pago/"]};
+  function normalizeUrl(rawUrl){
+    try {
+      return new URL(String(rawUrl || ""), window.location.href);
+    } catch (_err) {
+      return null;
+    }
+  }
+  function isAllowedUrl(rawUrl){
+    var parsed = normalizeUrl(rawUrl);
+    if(!parsed) return false;
+    if(parsed.protocol === "slack:") return true;
+    if(parsed.protocol !== "https:") return false;
+    var h = (parsed.hostname || "").toLowerCase();
+    if(!h) return false;
+    if(allowedHosts.indexOf(h) !== -1) return true;
+    for(var i = 0; i < allowedSuffixes.length; i++){
+      var s = allowedSuffixes[i];
+      if(h === s.slice(1) || (h.length > s.length && h.slice(-s.length) === s)) return true;
+    }
+    var pathPrefixes = allowedPathPrefixes[h];
+    if(pathPrefixes){
+      var p = parsed.pathname || "/";
+      for(var j = 0; j < pathPrefixes.length; j++){
+        if(p.slice(0, pathPrefixes[j].length) === pathPrefixes[j]) return true;
+      }
+    }
+    return false;
+  }
+  function requestParentPopup(rawUrl){
+    var parsed = normalizeUrl(rawUrl);
+    if(!parsed || !window.parent || window.parent === window) return false;
+    try {
+      window.parent.postMessage({type: "grid-open-safe-popup", url: parsed.href}, window.location.origin);
+      return true;
+    } catch (_err) {
+      return false;
+    }
+  }
+  /* Open synchronously from the parent window, inside the click's call stack, so
+     the browser keeps the transient user activation (a click in a same-origin
+     child propagates activation to its ancestors). Forwarding via postMessage
+     runs window.open in an async handler, which popup blockers reject.
+     We deliberately open WITHOUT the "noopener" feature: with it the browser
+     returns null even on success, so a genuinely blocked popup would be
+     indistinguishable from a successful one. Instead we detect a real block via a
+     null handle and sever the opener ourselves.
+     Returns true only when a tab actually opened; false when there is no
+     accessible parent, the call throws (opaque/cross-origin), or the popup was
+     blocked — the caller then lets the native target="_blank" run.
+     SECURITY: rawUrl is always gated by isAllowedUrl() first, and popup.opener is
+     nulled to prevent reverse tabnabbing (equivalent guarantee to "noopener"). */
+  function openInParent(rawUrl){
+    if(!window.parent || window.parent === window) return false;
+    var parsed = normalizeUrl(rawUrl);
+    if(!parsed) return false;
+    try {
+      var popup = window.parent.open(parsed.href, "_blank");
+      if(!popup) return false;
+      try { popup.opener = null; } catch (_e) {}
+      return true;
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  document.addEventListener("click", function(event){
+    var target = event.target;
+    var anchor = target && target.closest ? target.closest("a[href]") : null;
+    if(!anchor) return;
+    var href = anchor.getAttribute("href") || "";
+    if(!href || href.charAt(0) === "#") return;
+    var opensNewTab = anchor.target === "_blank" || event.ctrlKey || event.metaKey || event.button === 1;
+    if(!opensNewTab) return;
+    // SECURITY: only allowlisted destinations may escape the sandbox.
+    if(!isAllowedUrl(href)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    /* Open a clean tab from the unsandboxed parent, within the click gesture.
+       Suppress the native navigation ONLY when the parent open actually
+       succeeded; otherwise (no parent, cross-origin, or popup blocked) let the
+       native target="_blank" proceed so the allowed link still opens. We do NOT
+       fall back to the async postMessage bridge here: by the time it runs the
+       user activation is gone, so it cannot reopen a blocked popup — it would
+       just swallow the click and leave the link dead. */
+    if(openInParent(href)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+
+  var nativeOpen = window.open;
+  window.open = function(rawUrl, target, features){
+    if(!isAllowedUrl(rawUrl)) return null;
+    if(openInParent(rawUrl)) return null;
+    if(requestParentPopup(rawUrl)) return null;
+    return nativeOpen ? nativeOpen.call(window, normalizeUrl(rawUrl).href, target, features) : null;
+  };
+})();
+</script>
+<script>
+/* Grid: video/audio embed diagnostics & proxy fallback */
+(function(){
+  var TAG='[Grid:media-diag]';
+  function patchMedia(el){
+    if(el._gridPatched) return;
+    el._gridPatched=true;
+    el.addEventListener('error',function handler(ev){
+      var src=el.currentSrc||el.src||'';
+      var code=el.error?el.error.code:'?';
+      var msg=el.error?el.error.message:'unknown';
+      console.warn(TAG,'load failed',{tag:el.tagName,src:src,code:code,message:msg});
+      var origSrc=el.getAttribute('src')||'';
+      if(origSrc && origSrc.indexOf('proxy=1')===-1 && origSrc.indexOf('://')===-1){
+        var proxySrc=origSrc+(origSrc.indexOf('?')!==-1?'&':'?')+'proxy=1';
+        console.info(TAG,'retrying via proxy',proxySrc);
+        el.removeEventListener('error',handler);
+        el.src=proxySrc;
+        el.load();
+      }
+    },true);
+  }
+  document.querySelectorAll('video,audio,video source,audio source').forEach(patchMedia);
+  var obs=new MutationObserver(function(muts){
+    muts.forEach(function(m){
+      m.addedNodes.forEach(function(n){
+        if(n.nodeType!==1)return;
+        if(/^(VIDEO|AUDIO|SOURCE)$/.test(n.tagName))patchMedia(n);
+        if(n.querySelectorAll){
+          n.querySelectorAll('video,audio,video source,audio source').forEach(patchMedia);
+        }
+      });
+    });
+  });
+  obs.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+<script>
+/* Grid: sync iframe URL mutations to parent address bar */
+(function(){
+  function notifyParent(search, hash){
+    if(!window.parent || window.parent === window) return;
+    try{
+      window.parent.postMessage(
+        {type:"grid-url-sync", search:search, hash:hash},
+        window.location.origin
+      );
+    }catch(_){}
+  }
+  function parseAndNotify(url){
+    try{
+      var p = new URL(String(url), window.location.href);
+      notifyParent(p.search, p.hash);
+    }catch(_){}
+  }
+  var _push = history.pushState.bind(history);
+  var _replace = history.replaceState.bind(history);
+  history.pushState = function(state, title, url){
+    _push(state, title, url);
+    if(url != null) parseAndNotify(url);
+  };
+  history.replaceState = function(state, title, url){
+    _replace(state, title, url);
+    if(url != null) parseAndNotify(url);
+  };
+  window.addEventListener("hashchange", function(){
+    notifyParent(window.location.search, window.location.hash);
+  });
+})();
+</script>
+</body>
+</html>
