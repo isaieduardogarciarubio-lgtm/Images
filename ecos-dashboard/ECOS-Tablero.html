@@ -333,7 +333,7 @@ html:fullscreen { overflow-y: auto; background: var(--canvas); }
       <div>
         <p class="eyebrow">OPERACIÓN CON EVIDENCIA</p>
         <h1 class="page-title">Lo que pasa entre sitios</h1>
-        <p class="page-sub" id="page-sub">Incidencias registradas en recepción, por sitio de origen y sitio que reporta.</p>
+        <p class="page-sub" id="page-sub">Incidencias por sitio que las causa (origen) y sitio que las detecta (reporta).</p>
       </div>
       <div class="card-tools">
         <button type="button" class="secondary-button" id="export-btn"><svg class="material-icon" viewBox="0 -960 960 960" aria-hidden="true"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>Exportar CSV</button>
@@ -358,8 +358,8 @@ html:fullscreen { overflow-y: auto; background: var(--canvas); }
         <div class="filter"><label for="date-from">Desde</label><input type="date" id="date-from"></div>
         <div class="filter"><label for="date-to">Hasta</label><input type="date" id="date-to"></div>
       </div>
-      <div class="filter"><label for="f-origin">Sitio origen</label><select id="f-origin"></select></div>
-      <div class="filter"><label for="f-reporter">Sitio que reporta</label><select id="f-reporter"></select></div>
+      <div class="filter"><label for="f-origin">Sitio origen (causa)</label><select id="f-origin"></select></div>
+      <div class="filter"><label for="f-reporter">Sitio que reporta (detecta)</label><select id="f-reporter"></select></div>
       <div class="filter"><label for="f-type">Tipo de incidencia</label><select id="f-type"></select></div>
       <span class="spacer"></span>
       <button type="button" class="text-button" id="clear-filters" hidden>Limpiar filtros</button>
@@ -380,11 +380,11 @@ html:fullscreen { overflow-y: auto; background: var(--canvas); }
 
     <div class="grid">
       <section class="card span-6" aria-labelledby="t-origin">
-        <div class="card-head"><div><h2 class="card-title" id="t-origin">Sitios origen con más incidencias</h2><p class="card-sub">De dónde viene el problema. Clic para filtrar.</p></div></div>
+        <div class="card-head"><div><h2 class="card-title" id="t-origin">Sitios que causan más incidencias</h2><p class="card-sub">Sitio origen: donde se generó el problema. Clic para filtrar.</p></div></div>
         <div id="rank-origin"></div>
       </section>
       <section class="card span-6" aria-labelledby="t-reporter">
-        <div class="card-head"><div><h2 class="card-title" id="t-reporter">Sitios que más reportan</h2><p class="card-sub">Quién recibe y documenta. Clic para filtrar.</p></div></div>
+        <div class="card-head"><div><h2 class="card-title" id="t-reporter">Sitios que más detectan</h2><p class="card-sub">Sitio que reporta: donde se recibió y documentó. Clic para filtrar.</p></div></div>
         <div id="rank-reporter"></div>
       </section>
     </div>
@@ -392,7 +392,7 @@ html:fullscreen { overflow-y: auto; background: var(--canvas); }
     <div class="grid">
       <section class="card" aria-labelledby="t-matrix">
         <div class="card-head">
-          <div><h2 class="card-title" id="t-matrix">Matriz de flujo: origen → sitio que reporta</h2><p class="card-sub" id="matrix-sub">Cada celda es una ruta entre sitios. Clic en una celda para ver su evidencia.</p></div>
+          <div><h2 class="card-title" id="t-matrix">Matriz de flujo: causa (origen) → detecta (reporta)</h2><p class="card-sub" id="matrix-sub">Cada celda es una ruta entre sitios. Clic en una celda para ver su evidencia.</p></div>
           <div class="seq-legend" aria-hidden="true">Menos <i style="background:var(--seq-1)"></i><i style="background:var(--seq-2)"></i><i style="background:var(--seq-3)"></i><i style="background:var(--seq-4)"></i><i style="background:var(--seq-5)"></i><i style="background:var(--seq-6)"></i> Más</div>
         </div>
         <div class="matrix-wrap" id="matrix"></div>
@@ -401,7 +401,7 @@ html:fullscreen { overflow-y: auto; background: var(--canvas); }
 
     <div class="grid">
       <section class="card span-7" aria-labelledby="t-mix">
-        <div class="card-head"><div><h2 class="card-title" id="t-mix">Perfil de incidencias por sitio origen</h2><p class="card-sub">Composición por tipo en los sitios origen con más volumen.</p></div></div>
+        <div class="card-head"><div><h2 class="card-title" id="t-mix">Perfil de incidencias por sitio que causa</h2><p class="card-sub">Qué tipo de problema genera cada sitio origen con más volumen.</p></div></div>
         <div id="mix"></div>
       </section>
       <section class="card span-5" aria-labelledby="t-hours">
@@ -691,7 +691,7 @@ html:fullscreen { overflow-y: auto; background: var(--canvas); }
     const cur = inRange(base, range);
     const prev = inRange(base, { from: range.from - days, to: range.from - 1 });
     const label = S.filters.period === 'today' ? `hoy (${fmtDay(numDay(range.to))})` : `${fmtDay(numDay(range.from))} – ${fmtDay(numDay(range.to))} · ${days} días`;
-    $('page-sub').textContent = `Incidencias registradas en recepción, por sitio de origen y sitio que reporta · ${label}`;
+    $('page-sub').textContent = `Incidencias por sitio que las causa (origen) y sitio que las detecta (reporta) · ${label}`;
     renderKpis(cur, prev, days);
     renderTrend(cur, range);
     renderTypes(inRange(applyDims(S.records, 'type'), range));
@@ -727,8 +727,8 @@ html:fullscreen { overflow-y: auto; background: var(--canvas); }
       { label: 'Promedio diario', value: (n / days).toFixed(n / days >= 10 ? 0 : 1), foot: `${deltaChip(n / days, p / days, true)} incidencias por día` },
       { label: 'HUs afectados', value: fmt.format(hus), foot: `${deltaChip(hus, uniq(prev, 'hus'), true)} unidades únicas` },
       { label: 'Envíos afectados', value: fmt.format(ships), foot: `${deltaChip(ships, uniq(prev, 'ships'), true)} shipment IDs únicos` },
-      { label: 'Sitio origen crítico', text: true, value: topO ? esc(siteName(topO.id)) : '—', foot: topO ? `${inc(topO.n)} · ${pct(topO.n, n)} del total · ${origins.length} sitios origen` : 'Sin incidencias en el periodo' },
-      { label: 'Ruta más afectada', text: true, value: routeNames ? `${esc(routeNames[0])} <span style="color:var(--faint)">→</span> ${esc(routeNames[1])}` : '—', foot: topR ? `${inc(topR.n)} · ${pct(topR.n, n)} · ${reporters} sitios reportan` : '' }
+      { label: 'Sitio que más causa', text: true, value: topO ? esc(siteName(topO.id)) : '—', foot: topO ? `${inc(topO.n)} · ${pct(topO.n, n)} del total · ${origins.length} sitios origen` : 'Sin incidencias en el periodo' },
+      { label: 'Ruta más afectada (causa → detecta)', text: true, value: routeNames ? `${esc(routeNames[0])} <span style="color:var(--faint)">→</span> ${esc(routeNames[1])}` : '—', foot: topR ? `${inc(topR.n)} · ${pct(topR.n, n)} · ${reporters} sitios reportan` : '' }
     ];
     $('kpis').innerHTML = tiles.map(t => `<article class="kpi${t.hero ? ' is-hero' : ''}"><p class="kpi-label">${t.label}</p><p class="kpi-value${t.text ? ' is-text' : ''}">${t.value}</p><p class="kpi-foot">${t.foot}</p></article>`).join('');
   }
@@ -807,7 +807,7 @@ html:fullscreen { overflow-y: auto; background: var(--canvas); }
     let max = 0; rows.forEach(o => cols.forEach(c => { max = Math.max(max, cell.get(`${o}\u0000${c}`) || 0); }));
     const hidden = rowsAll.length > LIMIT || colsAll.length > LIMIT;
     $('matrix-sub').textContent = `Cada celda es una ruta entre sitios. Clic en una celda para ver su evidencia.${hidden ? ` Se muestran los ${Math.min(LIMIT, rowsAll.length)} orígenes y ${Math.min(LIMIT, colsAll.length)} receptores con más volumen.` : ''}`;
-    let html = `<table class="matrix"><thead><tr><th><span class="matrix-axis" style="writing-mode:horizontal-tb;transform:none">Origen ↓ / Reporta →</span></th>`;
+    let html = `<table class="matrix"><thead><tr><th><span class="matrix-axis" style="writing-mode:horizontal-tb;transform:none">Causa ↓ / Detecta →</span></th>`;
     cols.forEach(c => { html += `<th scope="col" title="${esc(siteName(c))}"><span>${esc(siteName(c))}</span></th>`; });
     html += '<th scope="col"><span>Total</span></th></tr></thead><tbody>';
     rows.forEach(o => {
