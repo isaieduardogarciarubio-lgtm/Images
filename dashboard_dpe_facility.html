@@ -99,7 +99,7 @@ main{max-width:1480px;margin:0 auto;padding:22px 24px 48px}
 .filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-bottom:18px;padding:14px 16px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
 .filter{display:flex;flex-direction:column;gap:6px;min-width:0}
 .filter label,.filter .filter-label{color:var(--muted);font-size:11px;font-weight:650;letter-spacing:.02em}
-.filter input#cost{width:120px;text-align:right;font-variant-numeric:tabular-nums}
+.filter input#cost{width:150px;text-align:right;font-variant-numeric:tabular-nums}
 .filter input{width:150px;min-height:40px;padding:8px 12px;border:1px solid #bcc7d6;border-radius:12px;background:var(--surface);color:var(--ink);font-size:13px;text-transform:uppercase}
 .filter input:hover{border-color:#8999af}
 .filter input:focus{border-color:var(--primary-ink);box-shadow:0 0 0 3px #80680014;outline:none}
@@ -309,7 +309,7 @@ body.is-busy .card::after,body.is-busy .kpi::after{content:"";position:absolute;
   <section class="filters" aria-label="Consulta">
     <div class="filter"><label for="facility">Facility ID</label><input id="facility" value="STR1" maxlength="20" autocomplete="off" spellcheck="false"></div>
     <div class="filter"><label for="cycle">Ciclo</label><input id="cycle" value="AM1" maxlength="20" autocomplete="off" spellcheck="false"></div>
-    <div class="filter"><label for="cost">Costo mayor a</label><input id="cost" value="1999" maxlength="9" inputmode="numeric" pattern="[0-9]*" autocomplete="off" spellcheck="false"></div>
+    <div class="filter"><label for="cost">Costo mayor o igual a</label><input id="cost" value="2000" maxlength="9" inputmode="numeric" pattern="[0-9]*" autocomplete="off" spellcheck="false"></div>
     <button type="button" class="primary-button" id="run-btn"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Consultar</button>
     <button type="button" class="secondary-button" id="cancel-btn" hidden>Cancelar</button>
     <div class="filter">
@@ -390,6 +390,7 @@ body.is-busy .card::after,body.is-busy .kpi::after{content:"";position:absolute;
 var CFG = {
   DATA_PROJECT: 'meli-bi-data',                      // proyecto dueno de las tablas (va en la URL)
   BILLING_PROJECT: 'reporting--cmh0jfik673-furyid',  // proyecto de reporting (ID, no el numero); para pruebas personales sirve 'meli-bi-data'
+  COST_COL: 'B.ORD_SHIPPING.COST',   // columna de BT_ORD_ORDERS sobre la que filtra "Costo mayor o igual a"
   TZ: 'America/Mexico_City', SITE: 'MLM', LIMIT: 5000, CACHE_TTL: 300, PAGE: 50
 };
 var ID_RE = /^[A-Z0-9_]{1,20}$/;
@@ -607,9 +608,8 @@ function buildSql(facility, cycle, minCost){
 "FROM LogisticsData log",
 "LEFT JOIN `meli-bi-data.WHOWNER.LK_SHP_LG_VEHICLES_TYPES` vt ON vt.SHP_LG_VEHICLE_TYPE_ID = log.SHP_LG_VEHICLE_TYPE_ID",
 "LEFT JOIN `meli-bi-data.WHOWNER.BT_FBM_OUTBOUND` out ON out.SHP_SHIPMENT_ID = log.SHP_ID_INT AND out.OUT_LAST_UPDATED >= " + D3,
-"JOIN `meli-bi-data.WHOWNER.BT_ORD_ORDERS` B ON B.ORD_SHIPPING.ID = log.SHP_ID_INT AND B.ORD_CLOSED_DT >= " + WIN,
+"JOIN `meli-bi-data.WHOWNER.BT_ORD_ORDERS` B ON B.ORD_SHIPPING.ID = log.SHP_ID_INT AND B.ORD_CLOSED_DT >= " + WIN + " AND " + CFG.COST_COL + " >= " + minCost,
 "LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_SHIPMENTS` lg_s ON lg_s.SHP_SHIPMENT_ID = log.SHP_ID_INT AND lg_s.SHP_LG_DATE_CREATED >= " + D3,
-"WHERE B.ORD_SHIPPING.COST > " + minCost,
 "ORDER BY B.ORD_SHIPPING.COST DESC"
   ].join('\n');
 }
@@ -729,7 +729,7 @@ function renderBrief(rows){
   var eg = group(rows, 'embalaje').sort(function(a, b){ return b.n - a.n; })[0];
   var inv = rows.filter(function(r){ return r.en_inventario === 'Si'; }).length, cost = rows.reduce(function(s, r){ return s + r.costo; }, 0);
   var ids = {}; rows.forEach(function(r){ ids[r.id] = 1; });
-  box.innerHTML = '<p class="brief-text">En <strong>' + esc(lastRun.facility) + ' / ' + esc(lastRun.cycle) + '</strong> hay <strong>' + num(Object.keys(ids).length) + ' envíos</strong> planeados con costo mayor a <strong>' + money(lastRun.cost) + '</strong>' + (SRC === 'demo' ? ' (datos de ejemplo)' : '') + '.</p>' +
+  box.innerHTML = '<p class="brief-text">En <strong>' + esc(lastRun.facility) + ' / ' + esc(lastRun.cycle) + '</strong> hay <strong>' + num(Object.keys(ids).length) + ' envíos</strong> planeados con costo mayor o igual a <strong>' + money(lastRun.cost) + '</strong>' + (SRC === 'demo' ? ' (datos de ejemplo)' : '') + '.</p>' +
     '<ul class="brief-list"><li><strong>' + Math.round(inv * 100 / rows.length) + '%</strong> ya está en inventario; faltan <strong>' + num(rows.length - inv) + '</strong>.</li>' +
     '<li>Costo total de envío: <strong>' + money(cost) + '</strong>.</li>' +
     '<li>La ruta con más envíos es <strong>' + esc(rg.name) + '</strong> (' + num(rg.n) + ').</li>' +
@@ -794,10 +794,10 @@ async function run(){
   var inp = readInputs(); if (!inp) return;
   if (!beginBusy(SRC === 'demo' ? 'Generando datos de ejemplo' : 'Consultando DPE para ' + inp.facility + ' / ' + inp.cycle, {btn:'run-btn', text:'Consultando', cancel:SRC !== 'demo', timeout:60000})) return;
   clearBanner();
-  logApp('Consulta: facility=' + inp.facility + ' ciclo=' + inp.cycle + ' costo>' + inp.cost + ' origen=' + (SRC === 'demo' ? 'ejemplo' : 'DPE'));
+  logApp('Consulta: facility=' + inp.facility + ' ciclo=' + inp.cycle + ' costo>=' + inp.cost + ' origen=' + (SRC === 'demo' ? 'ejemplo' : 'DPE'));
   try {
     var rows, rid = '';
-    if (SRC === 'demo'){ await sleep(250); rows = demoRows(inp.facility, inp.cycle).map(function(r){ r.costo = r.costo * 4; return r; }).filter(function(r){ return r.costo > inp.cost; }); logApp('Datos de ejemplo generados (sin llamadas de red)'); }
+    if (SRC === 'demo'){ await sleep(250); rows = demoRows(inp.facility, inp.cycle).map(function(r){ r.costo = r.costo * 4; return r; }).filter(function(r){ return r.costo >= inp.cost; }); logApp('Datos de ejemplo generados (sin llamadas de red)'); }
     else {
       var json = await dpeQuery(buildSql(inp.facility, inp.cycle, inp.cost));
       rows = normalize(json); rid = json._rid;
@@ -806,7 +806,7 @@ async function run(){
     ROWS = rows; page = 0; RANK_MORE = {};
     F.route = F.embalaje = F.estado = F.dominio = null;
     lastRun = {facility:inp.facility, cycle:inp.cycle, cost:inp.cost, at:new Date(), demo:SRC === 'demo'};
-    $('freshness').innerHTML = 'Actualizado <strong>' + lastRun.at.toLocaleTimeString('es-MX') + '</strong> · ' + esc(inp.facility) + ' / ' + esc(inp.cycle) + ' · costo > ' + inp.cost + (lastRun.demo ? ' · ejemplo' : '') + (rid ? ' · ' + esc(rid) : '');
+    $('freshness').innerHTML = 'Actualizado <strong>' + lastRun.at.toLocaleTimeString('es-MX') + '</strong> · ' + esc(inp.facility) + ' / ' + esc(inp.cycle) + ' · costo ≥ ' + inp.cost + (lastRun.demo ? ' · ejemplo' : '') + (rid ? ' · ' + esc(rid) : '');
     renderAll();
   } catch(e){
     if (e && e.name === 'AbortError') e = new Error(BUSY && BUSY.timedOut ? 'Tiempo de espera agotado (60 s). DPE no respondió a tiempo.' : 'Consulta cancelada.');
