@@ -480,7 +480,7 @@ function summarizeRequest(body){
     var url = typeof input === 'string' ? input : (input && input.url) || String(input);
     var method = ((init.method) || (input && input.method) || 'GET').toUpperCase();
     var rq = summarizeRequest(init.body);
-    var l = {id: ++LOGSEQ, kind:'net', t:new Date(), method:method, url:url, reqSummary:rq.summary, sql:rq.sql, status:null};
+    var l = {id: ++LOGSEQ, kind:'net', t:new Date(), method:method, url:url.replace(/\?.*$/, '?[query oculta]'), reqSummary:rq.summary, sql:rq.sql, status:null};
     LOGS.push(l); cAppend(l); cUpdateCount();
     var t0 = performance.now();
     try {
@@ -817,19 +817,51 @@ async function push(){
   var name = lastRun.facility;   // un dataset por facility; reemplaza el snapshot completo con el ciclo consultado
   var stamp = lastRun.at.toISOString();
   var payload = ROWS.map(function(r){ var o = {facility_id:lastRun.facility, actualizado:stamp}; Object.keys(r).forEach(function(k){ o[k] = r[k]; }); return o; });
-  logApp('Publicando Dataset "' + name + '"', 'doc_id: ' + id + '\nfilas: ' + payload.length);
-  if (!beginBusy('Publicando Dataset "' + name + '"', {btn:'push-btn', text:'Publicando', cancel:true, timeout:60000})) return;
+  var body = JSON.stringify(payload), base = '/api/v1/documents/' + encodeURIComponent(id) + '/datasets/' + encodeURIComponent(name);
+  logApp('Publicando Dataset "' + name + '"', 'doc_id: ' + id + '\nfilas: ' + payload.length + '\ncuerpo: ' + (body.length / 1048576).toFixed(2) + ' MB');
+  if (!beginBusy('Publicando Dataset "' + name + '"', {btn:'push-btn', text:'Publicando', cancel:true, timeout:120000})) return;
   try {
-    var res = await fetch('/api/v1/documents/' + encodeURIComponent(id) + '/datasets/' + encodeURIComponent(name) + '/data',
-      {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload), signal: BUSY.ctl.signal});
-    var txt = await res.text();
-    if (!res.ok) throw new Error('HTTP ' + res.status + ' - ' + redact(txt).slice(0, 300) + (res.status === 403 ? '\nSolo el dueño o un editor del documento puede publicar.' : ''));
+    try { await pushDirect(base, body); }
+    catch(e){
+      if (e && e.name === 'AbortError') throw e;
+      if (!(e instanceof TypeError) && e.status !== 413) throw e;
+      logApp('La subida directa falló (' + (e.status ? 'HTTP ' + e.status : 'error de red') + '); pruebo el flujo de 3 pasos', '', 'warn');
+      if (BUSY) BUSY.phase = 'Flujo de 3 pasos: definición, subida y publicación';
+      await pushThreeStep(base, body);
+    }
     snack('Dataset "' + name + '" actualizado con ' + payload.length + ' filas (' + lastRun.cycle + ')');
     logApp('Dataset publicado', name + ' · ' + payload.length + ' filas');
   } catch(e){
-    if (e && e.name === 'AbortError') e = new Error(BUSY && BUSY.timedOut ? 'Tiempo de espera agotado (60 s).' : 'Publicación cancelada.');
+    if (e && e.name === 'AbortError') e = new Error(BUSY && BUSY.timedOut ? 'Tiempo de espera agotado (120 s).' : 'Publicación cancelada.');
     banner('error', 'No se pudo publicar el Dataset', e.message); logApp('Publicación fallida', e.message, 'err'); setConsole(true);
   } finally { endBusy(); }
+}
+function httpError(prefix, status, txt){
+  var e = new Error(prefix + ': HTTP ' + status + ' - ' + redact(txt).slice(0, 300) + (status === 403 ? '\nSolo el dueño o un editor del documento puede publicar.' : '')); e.status = status; return e;
+}
+async function pushDirect(base, body){
+  var res = await fetch(base + '/data', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: body, signal: BUSY.ctl.signal});
+  var txt = await res.text();
+  if (!res.ok) throw httpError('Subida directa', res.status, txt);
+}
+async function gridApi(method, url, obj){
+  var res = await fetch(url, {method:method, credentials:'include', headers:{'Content-Type':'application/json'}, body: obj ? JSON.stringify(obj) : undefined, signal: BUSY.ctl.signal});
+  var txt = await res.text(), j = null; try { j = JSON.parse(txt); } catch(_){}
+  return {res:res, txt:txt, json:j};
+}
+async function pushThreeStep(base, body){
+  // 1. definicion external_push (si ya existe, 409/422 se tolera)
+  var d = await gridApi('POST', base, {source_type:'external_push', refresh_mode:'external', format:'json_rows'});
+  if (!d.res.ok && d.res.status !== 409 && d.res.status !== 422) throw httpError('Definición del Dataset', d.res.status, d.txt);
+  // 2. URL de subida firmada
+  var u = await gridApi('POST', base + '/upload-url', {format:'json_rows'});
+  if (!u.res.ok || !u.json || !u.json.upload_url) throw httpError('upload-url', u.res.status, u.txt);
+  // 3. PUT al almacenamiento: sin credenciales ni Authorization (la URL ya va firmada)
+  var put = await fetch(u.json.upload_url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: body, signal: BUSY.ctl.signal});
+  if (!put.ok) throw httpError('Subida al almacenamiento', put.status, await put.text());
+  // 4. publicar la revision
+  var p = await gridApi('POST', base + '/publish', {revision: u.json.revision});
+  if (!p.res.ok) throw httpError('Publicación', p.res.status, p.txt);
 }
 function exportCsv(){
   if (!VIEW.length) return;
