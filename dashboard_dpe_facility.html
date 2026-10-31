@@ -794,9 +794,9 @@ async function push(){
 function httpError(prefix, status, txt){
   var e = new Error(prefix + ': HTTP ' + status + ' - ' + redact(txt).slice(0, 300) + (status === 403 ? '\nSolo el dueño o un editor del documento puede publicar.' : '')); e.status = status; return e;
 }
-// El 422 del endpoint directo pidio un objeto (DatasetDirectUploadRequest), no un arreglo.
-// El nombre del campo no esta documentado: se prueban variantes; un 422 no publica nada.
-var DIRECT_FIELDS = ['rows', 'data'];
+// El endpoint directo exige un objeto (DatasetDirectUploadRequest), no un arreglo; el campo es "rows" (confirmado en runtime).
+// Si el servidor lo rechaza con 422 no publica nada y se pasa al flujo de 3 pasos.
+var DIRECT_FIELDS = ['rows'];
 async function pushDirect(base, payload){
   var notes = [];
   for (var i = 0; i < DIRECT_FIELDS.length; i++){
