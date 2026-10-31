@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rutas planeadas por facility</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#1b5fb4;--on-primary:#fff;--primary-container:#d8e2ff;--on-primary-container:#001a41;
+  --secondary-container:#dbe2f9;--on-secondary-container:#131c2c;
+  --surface:#faf9fd;--surface-container:#eeedf1;--surface-container-high:#e8e7eb;--surface-container-lowest:#fff;
+  --on-surface:#1a1b1f;--on-surface-variant:#44474f;--outline:#74777f;--outline-variant:#c4c6d0;
+  --error:#ba1a1a;--error-container:#ffdad6;--on-error-container:#410002;
+  --tertiary-container:#ffd8ee;--on-tertiary-container:#31111d;
+  --font:'Roboto',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --primary:#adc6ff;--on-primary:#002e69;--primary-container:#00458f;--on-primary-container:#d8e2ff;
+  --secondary-container:#3f4759;--on-secondary-container:#dbe2f9;
+  --surface:#121316;--surface-container:#1e1f23;--surface-container-high:#292a2d;--surface-container-lowest:#0d0e11;
+  --on-surface:#e3e2e6;--on-surface-variant:#c4c6d0;--outline:#8e9099;--outline-variant:#44474f;
+  --error:#ffb4ab;--error-container:#93000a;--on-error-container:#ffdad6;
+  --tertiary-container:#5b2c43;--on-tertiary-container:#ffd8ee;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--on-surface);font:400 14px/20px var(--font)}
+svg.i{width:24px;height:24px;fill:currentColor;flex:none}
+button{font:500 14px/20px var(--font);cursor:pointer;border:0;background:none;color:inherit}
+
+/* Top app bar */
+.appbar{display:flex;align-items:center;gap:16px;height:64px;padding:0 24px;background:var(--surface-container);position:sticky;top:0;z-index:5}
+.appbar h1{font:400 22px/28px var(--font);margin:0;flex:1}
+.appbar .meta{color:var(--on-surface-variant);font-size:12px}
+
+main{max-width:1280px;margin:0 auto;padding:24px;display:grid;gap:24px}
+
+/* Filter card */
+.card{background:var(--surface-container-lowest);border:1px solid var(--outline-variant);border-radius:12px;padding:16px}
+.filters{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.field{position:relative;width:180px}
+.field input{width:100%;height:56px;padding:20px 16px 4px;border:1px solid var(--outline);border-radius:4px;background:transparent;color:var(--on-surface);font:400 16px var(--font);text-transform:uppercase;outline:none}
+.field label{position:absolute;left:16px;top:8px;font-size:12px;color:var(--on-surface-variant);pointer-events:none}
+.field input:focus{border:2px solid var(--primary);padding:19px 15px 3px}
+.field input:focus + label{color:var(--primary)}
+.field.bad input{border:2px solid var(--error);padding:19px 15px 3px}
+.field.bad label{color:var(--error)}
+.spacer{flex:1}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 24px 0 16px;border-radius:20px}
+.btn-filled{background:var(--primary);color:var(--on-primary)}
+.btn-tonal{background:var(--secondary-container);color:var(--on-secondary-container)}
+.btn-text{padding:0 12px;color:var(--primary)}
+.btn:disabled{opacity:.38;cursor:default}
+.btn:not(:disabled):hover{filter:brightness(1.08)}
+.btn svg.i{width:18px;height:18px}
+
+/* Switch (demo) */
+.sw{display:inline-flex;align-items:center;gap:12px;color:var(--on-surface-variant)}
+.sw input{appearance:none;width:52px;height:32px;border-radius:16px;border:2px solid var(--outline);background:var(--surface-container-high);position:relative;cursor:pointer;margin:0}
+.sw input::after{content:"";position:absolute;top:6px;left:6px;width:16px;height:16px;border-radius:50%;background:var(--outline);transition:.15s}
+.sw input:checked{background:var(--primary);border-color:var(--primary)}
+.sw input:checked::after{left:24px;top:4px;width:24px;height:24px;transform:translate(-4px,0);background:var(--on-primary);width:24px;height:24px}
+
+/* Banner */
+.banner{display:none;gap:12px;align-items:flex-start;padding:12px 16px;border-radius:12px;background:var(--error-container);color:var(--on-error-container)}
+.banner.show{display:flex}
+.banner.info{background:var(--tertiary-container);color:var(--on-tertiary-container)}
+.banner pre{margin:4px 0 0;white-space:pre-wrap;font:400 12px/16px var(--font)}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.kpi{background:var(--primary-container);color:var(--on-primary-container);border-radius:16px;padding:16px 20px}
+.kpi .l{font-size:12px;letter-spacing:.5px;opacity:.85}
+.kpi .v{font:400 32px/40px var(--font);margin-top:4px}
+
+.grid2{display:grid;grid-template-columns:minmax(260px,1fr) 3fr;gap:24px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+h2{font:500 16px/24px var(--font);margin:0 0 12px}
+
+/* Bars */
+.bars{display:grid;gap:12px}
+.bar .t{display:flex;justify-content:space-between;color:var(--on-surface-variant);margin-bottom:4px}
+.bar .tr{height:8px;border-radius:4px;background:var(--surface-container-high);overflow:hidden}
+.bar .fl{height:100%;background:var(--primary);border-radius:4px}
+
+/* Toolbar / chips */
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:12px}
+.search{display:flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:20px;background:var(--surface-container-high);flex:1;min-width:200px}
+.search input{flex:1;border:0;background:none;outline:none;color:var(--on-surface);font:400 14px var(--font)}
+.chip{height:32px;padding:0 16px;border-radius:8px;border:1px solid var(--outline)}
+.chip[aria-pressed=true]{background:var(--secondary-container);color:var(--on-secondary-container);border-color:transparent}
+
+/* Table */
+.tw{overflow:auto;max-height:560px;border-radius:12px;border:1px solid var(--outline-variant)}
+table{border-collapse:collapse;width:100%}
+th,td{padding:10px 16px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--outline-variant)}
+th{position:sticky;top:0;background:var(--surface-container);font-weight:500;cursor:pointer;user-select:none}
+th .ar{display:inline-block;width:16px;opacity:0}
+th[data-dir] .ar{opacity:1}
+th[data-dir=desc] .ar{transform:rotate(180deg)}
+th .ar svg{width:16px;height:16px;vertical-align:middle;fill:currentColor}
+td.n,th.n{text-align:right}
+td.desc{max-width:340px;overflow:hidden;text-overflow:ellipsis}
+tbody tr:hover{background:var(--surface-container)}
+.tag{display:inline-block;padding:2px 10px;border-radius:8px;font-size:12px;background:var(--secondary-container);color:var(--on-secondary-container)}
+.tag.no{background:var(--error-container);color:var(--on-error-container)}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;color:var(--on-surface-variant)}
+.empty{padding:48px;text-align:center;color:var(--on-surface-variant)}
+
+/* Progress + snackbar */
+.progress{height:4px;background:var(--primary-container);overflow:hidden;display:none}
+.progress.on{display:block}
+.progress i{display:block;height:100%;width:30%;background:var(--primary);animation:ind 1.1s infinite linear}
+@keyframes ind{from{margin-left:-30%}to{margin-left:100%}}
+.snack{position:fixed;left:50%;bottom:24px;transform:translate(-50%,80px);opacity:0;transition:.2s;background:#2f3033;color:#f1f0f4;padding:14px 16px;border-radius:4px;max-width:90vw;z-index:10}
+.snack.show{transform:translate(-50%,0);opacity:1}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <svg class="i" viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+  <h1>Rutas planeadas por facility</h1>
+  <span class="meta" id="meta">Sin consultar</span>
+</header>
+<div class="progress" id="prog"><i></i></div>
+
+<main>
+  <section class="card">
+    <div class="filters">
+      <div class="field" id="fF"><input id="facility" value="STR1" maxlength="20" autocomplete="off" spellcheck="false"><label for="facility">Facility ID</label></div>
+      <div class="field" id="fC"><input id="cycle" value="AM1" maxlength="20" autocomplete="off" spellcheck="false"><label for="cycle">Ciclo</label></div>
+      <button class="btn btn-filled" id="run">
+        <svg class="i" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Consultar
+      </button>
+      <span class="spacer"></span>
+      <label class="sw"><input type="checkbox" id="demo">Datos de ejemplo</label>
+      <button class="btn btn-tonal" id="push" disabled>
+        <svg class="i" viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>Publicar en Dataset
+      </button>
+    </div>
+  </section>
+
+  <div class="banner" id="banner"><div><strong id="bt"></strong><pre id="bm"></pre></div></div>
+
+  <section class="kpis">
+    <div class="kpi"><div class="l">Envios</div><div class="v" id="k1">-</div></div>
+    <div class="kpi"><div class="l">En inventario</div><div class="v" id="k2">-</div></div>
+    <div class="kpi"><div class="l">Costo total</div><div class="v" id="k3">-</div></div>
+    <div class="kpi"><div class="l">Rutas</div><div class="v" id="k4">-</div></div>
+  </section>
+
+  <div class="grid2">
+    <section class="card"><h2>Embalaje utilizado</h2><div class="bars" id="bars"></div></section>
+    <section class="card">
+      <h2>Detalle</h2>
+      <div class="toolbar">
+        <div class="search">
+          <svg class="i" style="width:20px;height:20px" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input id="q" placeholder="Buscar por ruta, ID, descripcion o dominio">
+        </div>
+        <button class="chip" data-inv="all" aria-pressed="true">Todos</button>
+        <button class="chip" data-inv="Si" aria-pressed="false">En inventario</button>
+        <button class="chip" data-inv="No" aria-pressed="false">Sin inventario</button>
+      </div>
+      <div class="tw"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table><div class="empty" id="empty">Ejecuta una consulta para ver resultados.</div></div>
+      <div class="foot"><span id="count"></span><button class="btn btn-text" id="more" style="display:none">Mostrar mas</button></div>
+    </section>
+  </div>
+</main>
+
+<div class="snack" id="snack"></div>
+
+<script>
+/* ---------- Configuracion ---------- */
+var CFG = {
+  DATA_PROJECT: 'meli-bi-data',     // proyecto dueno de las tablas (va en la URL)
+  BILLING_PROJECT: 'meli-bi-data',  // ID del proyecto de facturacion (texto, no el numero)
+  TZ: 'America/Mexico_City',
+  SITE: 'MLM',
+  LIMIT: 5000,
+  CACHE_TTL: 300,
+  PAGE: 200
+};
+var ID_RE = /^[A-Z0-9_]{1,20}$/;
+
+/* ---------- Estado ---------- */
+var ROWS = [], VIEW = [], sortKey = 'costo', sortDir = 'desc', invFilter = 'all', shown = CFG.PAGE;
+var lastRun = null;
+var COLS = [
+  {k:'route_name', t:'Ruta'}, {k:'parada', t:'Parada', n:1}, {k:'id', t:'ID'},
+  {k:'estado', t:'Estado'}, {k:'en_inventario', t:'Inventario'}, {k:'embalaje', t:'Embalaje'},
+  {k:'costo', t:'Costo', n:1}, {k:'descripcion', t:'Descripcion', c:'desc'}, {k:'dominio', t:'Dominio'}
+];
+var $ = function(id){ return document.getElementById(id); };
+var ARROW = '<span class="ar"><svg viewBox="0 0 24 24"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg></span>';
+
+/* ---------- SQL (una sola sentencia WITH: DPE rechaza DECLARE) ---------- */
+function buildSql(facility, cycle){
+  var OPE = "CURRENT_DATE('" + CFG.TZ + "')";
+  var WIN = "DATE_SUB(" + OPE + ", INTERVAL 1 MONTH)";
+  var D3  = "DATE_SUB(" + OPE + ", INTERVAL 3 DAY)";
+  return [
+"WITH LogisticsData AS (",
+"  SELECT r.SHP_CYCLE.name AS CICLO, r.RTG_ROUTE_NAME, r.SHP_LG_VEHICLE_TYPE_ID,",
+"    s.RTG_STOP_SEQUENCE AS stop_sequence,",
+"    SAFE_CAST(sau.RTG_UNIT_EXTERNAL_ID AS INT64) AS SHP_ID_INT,",
+"    sau.RTG_UNIT_EXTERNAL_ID, sa.RTG_ACTION_LAST_UPDATED_DTTM",
+"  FROM `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_ROUTE` r",
+"  LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_STOP` s",
+"    ON s.RTG_ROUTE_UUID = r.RTG_ROUTE_UUID AND s.RTG_STOP_LAST_UPDATED_DTTM >= " + OPE,
+"  LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_STOP_ACTION` sa",
+"    ON sa.RTG_STOP_UUID = s.RTG_STOP_UUID AND sa.RTG_ACTION_LAST_UPDATED_DTTM >= " + OPE,
+"  LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_STOP_ACTION_UNIT` sau",
+"    ON sau.RTG_ACTION_UUID = sa.RTG_ACTION_UUID AND sau.RTG_ACTION_LAST_UPDATED_DTTM >= " + OPE,
+"  WHERE r.SIT_SITE_ID = '" + CFG.SITE + "'",
+"    AND r.SHP_FACILITY_ID = '" + facility + "'",
+"    AND r.RTG_ROUTE_DEPARTURE_DTTM >= " + OPE,
+"    AND r.SHP_CYCLE.name = '" + cycle + "'",
+"    AND r.RTG_ROUTE_STATUS = 'planned'",
+")",
+"SELECT log.CICLO AS Ciclo, log.RTG_ROUTE_NAME AS Route_name, log.stop_sequence AS Parada,",
+"  log.RTG_UNIT_EXTERNAL_ID AS ID, lg_s.SHP_LG_SUB_STATUS AS Estado,",
+"  IF(EXISTS(SELECT 1 FROM `meli-bi-data.WHOWNER.BT_SHP_INVENTORIED_INVENTORY_UNIT` inv",
+"            WHERE inv.SHP_INVENTORY_UNIT_EXTERNAL_ID = SAFE_CAST(log.RTG_UNIT_EXTERNAL_ID AS NUMERIC)),",
+"     'Si', 'No') AS En_Inventario,",
+"  CASE",
+"    WHEN SUBSTR(out.out_used_packing,1,2) IN ('B1','B2','B3','B4','B5','FI') THEN 'Bolsa'",
+"    WHEN SUBSTR(out.out_used_packing,1,2) IN ('AU','SI') THEN 'Auto Despachable'",
+"    WHEN SUBSTR(out.out_used_packing,1,1) IN ('D','C') THEN 'Caja'",
+"    WHEN SUBSTR(out.out_used_packing,1,2) = 'BS' THEN 'BOLSA DE SEGURIDAD'",
+"    ELSE ''",
+"  END AS Embalaje,",
+"  B.ORD_SHIPPING.COST AS Costo, B.ORD_ITEM.TITLE AS Descripcion, B.DOM_DOMAIN_ID AS Dominio",
+"FROM LogisticsData log",
+"LEFT JOIN `meli-bi-data.WHOWNER.LK_SHP_LG_VEHICLES_TYPES` vt ON vt.SHP_LG_VEHICLE_TYPE_ID = log.SHP_LG_VEHICLE_TYPE_ID",
+"LEFT JOIN `meli-bi-data.WHOWNER.BT_FBM_OUTBOUND` out ON out.SHP_SHIPMENT_ID = log.SHP_ID_INT AND out.OUT_LAST_UPDATED >= " + D3,
+"JOIN `meli-bi-data.WHOWNER.BT_ORD_ORDERS` B ON B.ORD_SHIPPING.ID = log.SHP_ID_INT AND B.ORD_CLOSED_DT >= " + WIN,
+"LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_SHIPMENTS` lg_s ON lg_s.SHP_SHIPMENT_ID = log.SHP_ID_INT AND lg_s.SHP_LG_DATE_CREATED >= " + D3,
+"ORDER BY B.ORD_SHIPPING.COST DESC"
+  ].join('\n');
+}
+
+/* ---------- Utilidades ---------- */
+function redact(s){
+  return String(s == null ? '' : s)
+    .replace(/https?:\/\/[^\s"')]+/gi, '[host]')
+    .replace(/\b[\w.-]+\.(melisystems|melioffice|adminml)\.com\b/gi, '[host]')
+    .replace(/\b[\w.]+[-_][0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}\b/gi, '[exec-id]');
+}
+function snack(m){ var s=$('snack'); s.textContent=m; s.classList.add('show'); clearTimeout(snack.t); snack.t=setTimeout(function(){s.classList.remove('show');},4200); }
+function banner(kind, title, msg){ var b=$('banner'); b.className='banner show'+(kind==='info'?' info':''); $('bt').textContent=title; $('bm').textContent=msg||''; }
+function hideBanner(){ $('banner').className='banner'; }
+function busy(on){ $('prog').classList.toggle('on',on); $('run').disabled=on; }
+function money(n){ return n.toLocaleString('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0}); }
+function sleep(ms){ return new Promise(function(r){setTimeout(r,ms);}); }
+
+function docId(){
+  var m = location.pathname.match(/\/d\/([^\/]+)/);       // en mini-apps el id sale de la URL
+  if (m) return m[1];
+  return (window.GRID && window.GRID.docId) || null;
+}
+
+/* ---------- DPE ---------- */
+async function dpeQuery(sql){
+  var url = '/api/v1/dpe/sources/bigquery/' + encodeURIComponent(CFG.DATA_PROJECT) + '/query';
+  var body = JSON.stringify({sql:sql, limit:CFG.LIMIT, cache_ttl:CFG.CACHE_TTL, billing_project:CFG.BILLING_PROJECT});
+  for (var attempt=0; attempt<2; attempt++){
+    var res = await fetch(url, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:body});
+    var rid = res.headers.get('x-request-id') || '';
+    if ([502,503,504].indexOf(res.status) >= 0 && attempt === 0){ await sleep(3000); continue; }
+    var json = null; try { json = await res.json(); } catch(e){}
+    if (!res.ok || !json || json.error){
+      var detail = json ? (json.error_code ? json.error_code + ': ' : '') + (json.error || json.detail || '') : 'Respuesta no valida';
+      var err = new Error('HTTP ' + res.status + ' - ' + redact(detail));
+      err.rid = rid; throw err;
+    }
+    json._rid = rid;
+    return json;
+  }
+}
+function norm(k){ return String(k).replace(/^\d+_/, '').toLowerCase(); }
+function normalize(json){
+  var fields = (json.fields || []).map(function(f){ return norm(typeof f === 'string' ? f : (f.name || f.field || '')); });
+  return (json.data || []).map(function(r){
+    var o = {};
+    if (Array.isArray(r)) r.forEach(function(v,i){ o[fields[i]] = v; });
+    else Object.keys(r).forEach(function(k){ o[norm(k)] = r[k]; });
+    o.costo = Number(o.costo) || 0;
+    o.parada = o.parada == null || o.parada === '' ? null : Number(o.parada);
+    return o;
+  });
+}
+
+/* ---------- Datos de ejemplo ---------- */
+function demoRows(facility, cycle){
+  var emb=['Bolsa','Caja','Auto Despachable','BOLSA DE SEGURIDAD',''], st=['ready_to_ship','dropped_off','at_hub','picked_up'];
+  var dom=['MLM-CELLPHONES','MLM-HEADPHONES','MLM-SNEAKERS','MLM-TELEVISIONS','MLM-WATCHES'];
+  var out=[], seed=7;
+  function rnd(){ seed=(seed*9301+49297)%233280; return seed/233280; }
+  for (var r=1;r<=18;r++) for (var p=1;p<=1+Math.floor(rnd()*5);p++){
+    out.push({ciclo:cycle, route_name:facility+'_'+cycle+'_R'+String(r).padStart(2,'0'), parada:p,
+      id:String(46000000000+Math.floor(rnd()*9e9)), estado:st[Math.floor(rnd()*st.length)],
+      en_inventario: rnd()>.25?'Si':'No', embalaje:emb[Math.floor(rnd()*emb.length)],
+      costo:Math.round(rnd()*900)+50, descripcion:'Articulo de ejemplo '+(r*10+p), dominio:dom[Math.floor(rnd()*dom.length)]});
+  }
+  return out.sort(function(a,b){return b.costo-a.costo;});
+}
+
+/* ---------- Render ---------- */
+function renderHead(){
+  $('thead').innerHTML = '<tr>' + COLS.map(function(c){
+    return '<th data-k="'+c.k+'" class="'+(c.n?'n':'')+'"'+(c.k===sortKey?' data-dir="'+sortDir+'"':'')+'>'+c.t+ARROW+'</th>';
+  }).join('') + '</tr>';
+}
+function applyView(){
+  var q = $('q').value.trim().toLowerCase();
+  VIEW = ROWS.filter(function(r){
+    if (invFilter !== 'all' && r.en_inventario !== invFilter) return false;
+    if (!q) return true;
+    return [r.route_name,r.id,r.descripcion,r.dominio,r.estado].join(' ').toLowerCase().indexOf(q) >= 0;
+  });
+  var d = sortDir === 'asc' ? 1 : -1;
+  VIEW.sort(function(a,b){
+    var x=a[sortKey], y=b[sortKey];
+    if (x == null) return 1; if (y == null) return -1;
+    if (typeof x === 'number' && typeof y === 'number') return (x-y)*d;
+    return String(x).localeCompare(String(y),'es',{numeric:true})*d;
+  });
+  renderTable();
+}
+function renderTable(){
+  var tb = $('tbody'); tb.textContent = '';
+  var frag = document.createDocumentFragment();
+  VIEW.slice(0, shown).forEach(function(r){
+    var tr = document.createElement('tr');
+    COLS.forEach(function(c){
+      var td = document.createElement('td'); if (c.n) td.className='n'; if (c.c) td.className += ' '+c.c;
+      var v = r[c.k];
+      if (c.k === 'costo') td.textContent = money(v);
+      else if (c.k === 'en_inventario'){ var s=document.createElement('span'); s.className='tag'+(v==='Si'?'':' no'); s.textContent=v==='Si'?'Si':'No'; td.appendChild(s); }
+      else { td.textContent = v == null ? '' : v; if (c.k==='descripcion') td.title = td.textContent; }
+      tr.appendChild(td);
+    });
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+  $('empty').style.display = VIEW.length ? 'none' : 'block';
+  if (!VIEW.length && ROWS.length) $('empty').textContent = 'Sin resultados para el filtro actual.';
+  $('count').textContent = VIEW.length ? 'Mostrando ' + Math.min(shown, VIEW.length) + ' de ' + VIEW.length : '';
+  $('more').style.display = VIEW.length > shown ? '' : 'none';
+}
+function renderKpis(){
+  var ids = {}, routes = {}, inv = 0, cost = 0;
+  ROWS.forEach(function(r){ ids[r.id]=1; routes[r.route_name]=1; if (r.en_inventario==='Si') inv++; cost += r.costo; });
+  $('k1').textContent = Object.keys(ids).length.toLocaleString('es-MX');
+  $('k2').textContent = ROWS.length ? Math.round(inv*100/ROWS.length) + '%' : '-';
+  $('k3').textContent = money(cost);
+  $('k4').textContent = Object.keys(routes).length.toLocaleString('es-MX');
+  var by = {}; ROWS.forEach(function(r){ var k=r.embalaje||'Sin dato'; by[k]=(by[k]||0)+1; });
+  var keys = Object.keys(by).sort(function(a,b){return by[b]-by[a];}), max = keys.length ? by[keys[0]] : 1;
+  var bars = $('bars'); bars.textContent = '';
+  keys.forEach(function(k){
+    var d=document.createElement('div'); d.className='bar';
+    d.innerHTML='<div class="t"><span></span><span></span></div><div class="tr"><div class="fl"></div></div>';
+    d.querySelectorAll('.t span')[0].textContent=k; d.querySelectorAll('.t span')[1].textContent=by[k];
+    d.querySelector('.fl').style.width=(by[k]*100/max)+'%'; bars.appendChild(d);
+  });
+}
+
+/* ---------- Acciones ---------- */
+function readInputs(){
+  var f = $('facility').value.trim().toUpperCase(), c = $('cycle').value.trim().toUpperCase();
+  var okF = ID_RE.test(f), okC = ID_RE.test(c);
+  $('fF').classList.toggle('bad', !okF); $('fC').classList.toggle('bad', !okC);
+  if (!okF || !okC){ banner('error','Valores no validos','Facility y Ciclo aceptan solo letras mayusculas, numeros y guion bajo (hasta 20 caracteres).'); return null; }
+  return {facility:f, cycle:c};
+}
+async function run(){
+  var inp = readInputs(); if (!inp) return;
+  hideBanner(); busy(true); $('push').disabled = true;
+  try {
+    var rows, rid = '';
+    if ($('demo').checked){ await sleep(300); rows = demoRows(inp.facility, inp.cycle); }
+    else {
+      var json = await dpeQuery(buildSql(inp.facility, inp.cycle));
+      rows = normalize(json); rid = json._rid;
+      if (json.data && json.data.length >= CFG.LIMIT) banner('info','Resultado truncado','Se alcanzo el limite de '+CFG.LIMIT+' filas.');
+    }
+    ROWS = rows; shown = CFG.PAGE;
+    lastRun = {facility:inp.facility, cycle:inp.cycle, at:new Date(), demo:$('demo').checked};
+    renderHead(); renderKpis(); applyView();
+    $('meta').textContent = inp.facility + ' / ' + inp.cycle + ' - ' + lastRun.at.toLocaleTimeString('es-MX') + (lastRun.demo?' - ejemplo':'') + (rid?' - '+rid:'');
+    $('push').disabled = !ROWS.length || lastRun.demo;
+    if (!ROWS.length) { $('empty').style.display='block'; $('empty').textContent='La consulta no devolvio filas.'; }
+  } catch(e){
+    banner('error','No se pudo consultar DPE', e.message + (e.rid ? '\nx-request-id: ' + e.rid : ''));
+  } finally { busy(false); }
+}
+async function push(){
+  if (!lastRun || lastRun.demo || !ROWS.length) return;
+  var id = docId();
+  if (!id){ banner('error','Sin id de documento','No se pudo determinar el documento de Grid donde publicar.'); return; }
+  // Un dataset por facility; se reemplaza por completo con el ciclo consultado.
+  var name = lastRun.facility;
+  var stamp = lastRun.at.toISOString();
+  var payload = ROWS.map(function(r){ var o={facility_id:lastRun.facility, actualizado:stamp}; Object.keys(r).forEach(function(k){o[k]=r[k];}); return o; });
+  $('push').disabled = true; busy(true);
+  try {
+    var res = await fetch('/api/v1/documents/' + encodeURIComponent(id) + '/datasets/' + encodeURIComponent(name) + '/data',
+      {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    var txt = await res.text();
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' - ' + redact(txt).slice(0,300) + (res.status===403 ? '\nSolo el dueno o un editor del documento puede publicar.' : ''));
+    snack('Dataset "' + name + '" actualizado con ' + payload.length + ' filas (' + lastRun.cycle + ')');
+  } catch(e){ banner('error','No se pudo publicar el Dataset', e.message); }
+  finally { busy(false); $('push').disabled = false; }
+}
+
+/* ---------- Eventos ---------- */
+$('run').onclick = run;
+$('push').onclick = push;
+$('more').onclick = function(){ shown += CFG.PAGE; renderTable(); };
+$('q').oninput = function(){ shown = CFG.PAGE; applyView(); };
+['facility','cycle'].forEach(function(i){ $(i).addEventListener('keydown', function(e){ if (e.key==='Enter') run(); }); });
+$('thead').onclick = function(e){
+  var th = e.target.closest('th'); if (!th) return;
+  var k = th.dataset.k; sortDir = (sortKey===k && sortDir==='desc') ? 'asc' : 'desc'; sortKey = k;
+  renderHead(); applyView();
+};
+document.querySelectorAll('.chip').forEach(function(c){
+  c.onclick = function(){
+    invFilter = c.dataset.inv;
+    document.querySelectorAll('.chip').forEach(function(x){ x.setAttribute('aria-pressed', x===c); });
+    shown = CFG.PAGE; applyView();
+  };
+});
+renderHead();
+</script>
+</body>
+</html>
