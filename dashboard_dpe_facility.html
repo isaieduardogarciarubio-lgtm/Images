@@ -390,7 +390,7 @@ body.is-busy .card::after,body.is-busy .kpi::after{content:"";position:absolute;
 var CFG = {
   DATA_PROJECT: 'meli-bi-data',                      // proyecto dueno de las tablas (va en la URL)
   BILLING_PROJECT: 'reporting--cmh0jfik673-furyid',  // proyecto de reporting (ID, no el numero); para pruebas personales sirve 'meli-bi-data'
-  COST_COL: 'B.ORD_SHIPPING.COST',   // columna de BT_ORD_ORDERS sobre la que filtra "Costo mayor o igual a"
+  COST_COL: 'C.SHP_ORDER_COST',   // columna de BT_SHP_SHIPMENTS sobre la que filtra "Costo mayor o igual a"
   TZ: 'America/Mexico_City', SITE: 'MLM', LIMIT: 5000, CACHE_TTL: 300, PAGE: 50
 };
 var ID_RE = /^[A-Z0-9_]{1,20}$/;
@@ -592,8 +592,8 @@ function buildSql(facility, cycle, minCost){
 "    AND r.SHP_CYCLE.name = '" + cycle + "'",
 "    AND r.RTG_ROUTE_STATUS = 'planned'",
 ")",
-"SELECT log.CICLO AS Ciclo, log.RTG_ROUTE_NAME AS Route_name, log.stop_sequence AS Parada,",
-"  log.RTG_UNIT_EXTERNAL_ID AS ID, lg_s.SHP_LG_SUB_STATUS AS Estado,",
+"SELECT log.CICLO, log.RTG_ROUTE_NAME AS Route_name, log.stop_sequence AS Parada,",
+"  log.RTG_UNIT_EXTERNAL_ID AS ID, lg_s.SHP_LG_SUB_STATUS,",
 "  IF(EXISTS(SELECT 1 FROM `meli-bi-data.WHOWNER.BT_SHP_INVENTORIED_INVENTORY_UNIT` inv",
 "            WHERE inv.SHP_INVENTORY_UNIT_EXTERNAL_ID = SAFE_CAST(log.RTG_UNIT_EXTERNAL_ID AS NUMERIC)),",
 "     'Si', 'No') AS En_Inventario,",
@@ -603,14 +603,14 @@ function buildSql(facility, cycle, minCost){
 "    WHEN SUBSTR(out.out_used_packing,1,1) IN ('D','C') THEN 'Caja'",
 "    WHEN SUBSTR(out.out_used_packing,1,2) = 'BS' THEN 'BOLSA DE SEGURIDAD'",
 "    ELSE ''",
-"  END AS Embalaje,",
-"  B.ORD_SHIPPING.COST AS Costo, B.ORD_ITEM.TITLE AS Descripcion, B.DOM_DOMAIN_ID AS Dominio",
+"  END AS Embalaje_Utilizado,",
+"  C.SHP_ORDER_COST AS Costo_MXN, B.ORD_ITEM.TITLE AS Descripcion, B.DOM_DOMAIN_ID AS Dominio",
 "FROM LogisticsData log",
-"LEFT JOIN `meli-bi-data.WHOWNER.LK_SHP_LG_VEHICLES_TYPES` vt ON vt.SHP_LG_VEHICLE_TYPE_ID = log.SHP_LG_VEHICLE_TYPE_ID",
 "LEFT JOIN `meli-bi-data.WHOWNER.BT_FBM_OUTBOUND` out ON out.SHP_SHIPMENT_ID = log.SHP_ID_INT AND out.OUT_LAST_UPDATED >= " + D3,
-"JOIN `meli-bi-data.WHOWNER.BT_ORD_ORDERS` B ON B.ORD_SHIPPING.ID = log.SHP_ID_INT AND B.ORD_CLOSED_DT >= " + WIN + " AND " + CFG.COST_COL + " >= " + minCost,
 "LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_SHIPMENTS` lg_s ON lg_s.SHP_SHIPMENT_ID = log.SHP_ID_INT AND lg_s.SHP_LG_DATE_CREATED >= " + D3,
-"ORDER BY B.ORD_SHIPPING.COST DESC"
+"JOIN `meli-bi-data.WHOWNER.BT_ORD_ORDERS` B ON B.ORD_SHIPPING.ID = log.SHP_ID_INT AND B.ORD_CLOSED_DT >= " + WIN,
+"JOIN `meli-bi-data.WHOWNER.BT_SHP_SHIPMENTS` C ON C.SHP_SHIPMENT_ID = log.SHP_ID_INT AND C.SHP_DATETIME_HANDLING_ID >= " + WIN + " AND " + CFG.COST_COL + " >= " + minCost,
+"ORDER BY " + CFG.COST_COL + " DESC"
   ].join('\n');
 }
 
@@ -636,7 +636,8 @@ async function dpeQuery(sql){
     json._rid = rid; return json;
   }
 }
-function norm(k){ return String(k).replace(/^\d+_/, '').toLowerCase(); }
+var ALIAS = {shp_lg_sub_status:'estado', embalaje_utilizado:'embalaje', costo_mxn:'costo'};   // columnas del SQL -> claves internas
+function norm(k){ k = String(k).replace(/^\d+_/, '').toLowerCase(); return ALIAS[k] || k; }
 function normalize(json){
   var fields = (json.fields || []).map(function(f){ return norm(typeof f === 'string' ? f : (f.name || f.field || '')); });
   var first = (json.data || [])[0];
@@ -672,7 +673,7 @@ var F = {route:null, embalaje:null, estado:null, dominio:null, inv:'all', q:''};
 var sortKey = 'costo', sortDir = 'desc', page = 0;
 var COLS = [
   {k:'route_name', t:'Ruta'}, {k:'parada', t:'Parada', n:1}, {k:'id', t:'ID'}, {k:'estado', t:'Estado'},
-  {k:'en_inventario', t:'Inventario'}, {k:'embalaje', t:'Embalaje'}, {k:'costo', t:'Costo', n:1},
+  {k:'en_inventario', t:'Inventario'}, {k:'embalaje', t:'Embalaje'}, {k:'costo', t:'Costo MXN', n:1},
   {k:'descripcion', t:'Descripción', c:'desc'}, {k:'dominio', t:'Dominio'}
 ];
 var DIMS = {route:'route_name', embalaje:'embalaje', estado:'estado', dominio:'dominio'};
