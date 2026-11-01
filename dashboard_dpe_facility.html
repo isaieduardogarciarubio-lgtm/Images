@@ -263,6 +263,7 @@ body.is-busy .card::after,body.is-busy .kpi::after{content:"";position:absolute;
 .steps li.run{color:var(--ink)}.steps li.run i{background:var(--primary);animation:pulse 1s ease-in-out infinite}
 .steps li.ok{color:var(--ink)}.steps li.ok i{background:var(--success)}
 .steps li.err{color:var(--error)}.steps li.err i{background:var(--error)}
+.steps li.skip{color:var(--faint)}.steps li.skip i{background:#bcc7d6}
 .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .result{margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--surface-soft)}
 .result strong{font-weight:700}
@@ -388,7 +389,7 @@ dialog::backdrop{background:#12203d99}
   <!-- 1. CARGAR -->
   <section class="panel" id="p-cargar">
     <div class="card">
-      <div class="card-head"><div><h2 class="card-title">Consulta de envíos</h2><p class="card-sub">Trae de BigQuery los envíos planeados con costo alto y guárdalos en el Dataset de tu sitio y ciclo.</p></div><div id="perm-chip"></div></div>
+      <div class="card-head"><div><h2 class="card-title">Consulta de envíos</h2><p class="card-sub">Trae de BigQuery los envíos planeados con costo alto y guárdalos para tu equipo. No necesitas ser editor del documento.</p></div><div id="perm-chip"></div></div>
       <div class="row">
         <div class="field"><label for="facility">Sitio (facility)</label><input id="facility" value="STR1" maxlength="20" list="sitios-dl" autocomplete="off" spellcheck="false" style="text-transform:uppercase;width:160px"><datalist id="sitios-dl"></datalist></div>
         <div class="field"><label for="cycle">Ciclo</label><input id="cycle" value="AM1" maxlength="20" autocomplete="off" spellcheck="false" style="text-transform:uppercase;width:130px"></div>
@@ -397,7 +398,7 @@ dialog::backdrop{background:#12203d99}
           <div class="segmented" role="group" aria-labelledby="src-label" id="src-group"><button type="button" data-src="real" aria-pressed="true">BigQuery</button><button type="button" data-src="demo" aria-pressed="false">Ejemplo</button></div></div>
       </div>
       <div class="actions" style="margin-top:14px">
-        <button type="button" class="primary-button" id="go-btn"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>Consultar y guardar en Dataset</button>
+        <button type="button" class="primary-button" id="go-btn"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>Consultar y guardar</button>
         <button type="button" class="secondary-button" id="only-btn">Solo consultar</button>
         <button type="button" class="secondary-button" id="cancel-btn" data-nolock hidden>Cancelar</button>
         <span class="hint" id="ds-name-hint"></span>
@@ -410,7 +411,7 @@ dialog::backdrop{background:#12203d99}
   <section class="panel" id="p-trabajar" hidden>
     <div class="card" style="margin-bottom:14px">
       <div class="row">
-        <div class="field"><label for="ds-name">Dataset (sitio_ciclo)</label><input id="ds-name" list="ds-dl" placeholder="STR1_AM1" style="width:200px;text-transform:uppercase" autocomplete="off" spellcheck="false"><datalist id="ds-dl"></datalist></div>
+        <div class="field"><label for="ds-name">Carga (sitio_ciclo)</label><input id="ds-name" list="ds-dl" placeholder="STR1_AM1" style="width:200px;text-transform:uppercase" autocomplete="off" spellcheck="false"><datalist id="ds-dl"></datalist></div>
         <button type="button" class="primary-button" id="open-btn">Abrir</button>
         <span class="hint" id="ds-info"></span>
       </div>
@@ -433,7 +434,7 @@ dialog::backdrop{background:#12203d99}
           <button type="button" class="secondary-button" id="sel-top" disabled title="Disponible en el siguiente paso: consulta de contenedor">Seleccionar los 10 más caros en contenedor</button>
           <button type="button" class="primary-button" id="assign-btn" disabled>Asignar a lote</button>
         </div>
-        <div class="table-wrap"><table class="data"><thead id="thead"></thead><tbody id="tbody"></tbody></table><div class="empty" id="empty">Abre un Dataset para ver sus envíos.</div></div>
+        <div class="table-wrap"><table class="data"><thead id="thead"></thead><tbody id="tbody"></tbody></table><div class="empty" id="empty">Abre una carga para ver sus envíos.</div></div>
         <div class="pager"><span id="count"></span></div>
       </section>
       <aside class="side">
@@ -508,7 +509,8 @@ var TABS = {   // esquema del libro de control: una pestaña por entidad; membre
   MIEMBROS:    ['ts','equipo_id','ldap','nombre','email','accion','por_ldap'],
   LOTES:       ['lote_id','ts','sitio','ciclo','equipo_id','asignado_ldap','nombre','creado_por'],
   LOTE_ENVIOS: ['ts','lote_id','envio_id','accion','por_ldap'],
-  HISTORIAL:   ['datetime','sitio','ldap','envio_id','foto_ref']   // lo escribe la app de captura; aquí solo se lee
+  HISTORIAL:   ['datetime','sitio','ldap','envio_id','foto_ref'],  // lo escribe la app de captura (opcionales: lote_id, doc_id); aquí solo se lee
+  CARGAS:      ['ts','sitio','ciclo','ldap','filas','costo_min','doc_id','ref']   // bitácora: quién cargó qué y en qué documento de Grid quedó
 };
 var LS_KEY = 'rutas_control_sheet_id';
 function lsGet(){ try { return localStorage.getItem(LS_KEY) || ''; } catch(e){ return ''; } }
@@ -801,50 +803,13 @@ function demoRows(facility, cycle){
 
 
 function httpError(prefix, status, txt){
-  var e = new Error(prefix + ': HTTP ' + status + ' - ' + redact(txt).slice(0, 300) + (status === 403 ? '\nSolo el dueño o un editor del documento puede publicar.' : '')); e.status = status; return e;
+  var e = new Error(prefix + ': HTTP ' + status + ' - ' + redact(txt).slice(0, 300) + (status === 403 ? '\nNo tienes acceso a este recurso del documento.' : '')); e.status = status; return e;
 }
-// El endpoint directo exige un objeto (DatasetDirectUploadRequest), no un arreglo; el campo es "rows" (confirmado en runtime).
-// Si el servidor lo rechaza con 422 no publica nada y se pasa al flujo de 3 pasos.
-var DIRECT_FIELDS = ['rows'];
-async function pushDirect(base, payload){
-  var notes = [];
-  for (var i = 0; i < DIRECT_FIELDS.length; i++){
-    var f = DIRECT_FIELDS[i], obj = {}; obj[f] = payload;
-    var res = await fetch(base + '/data', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify(obj), signal: BUSY.ctl.signal});
-    var txt = await res.text();
-    if (res.ok) return;
-    if (res.status !== 422) throw httpError('Subida directa', res.status, txt);
-    notes.push('{' + f + ': [...]} -> ' + redact(txt).slice(0, 220));
-    logApp('Subida directa con campo "' + f + '" rechazada (422)', redact(txt).slice(0, 400), 'warn');
-  }
-  var e = new Error('Subida directa: HTTP 422\n' + notes.join('\n')); e.status = 422; throw e;
-}
-async function gridApi(method, url, obj){
-  var res = await fetch(url, {method:method, credentials:'include', headers:{'Content-Type':'application/json'}, body: obj ? JSON.stringify(obj) : undefined, signal: BUSY.ctl.signal});
-  var txt = await res.text(), j = null; try { j = JSON.parse(txt); } catch(_){}
-  return {res:res, txt:txt, json:j};
-}
-async function pushThreeStep(base, body){
-  // 1. definicion external_push (si ya existe, 409/422 se tolera)
-  var d = await gridApi('POST', base, {source_type:'external_push', refresh_mode:'external', format:'json_rows'});
-  if (!d.res.ok && d.res.status !== 409 && d.res.status !== 422) throw httpError('Definición del Dataset', d.res.status, d.txt);
-  // 2. URL de subida firmada
-  var u = await gridApi('POST', base + '/upload-url', {format:'json_rows'});
-  if (!u.res.ok || !u.json || !u.json.upload_url) throw httpError('upload-url', u.res.status, u.txt);
-  // 3. PUT al almacenamiento: sin credenciales ni Authorization (la URL ya va firmada)
-  var put = await fetch(u.json.upload_url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: body, signal: BUSY.ctl.signal});
-  if (!put.ok) throw httpError('Subida al almacenamiento', put.status, await put.text());
-  // 4. publicar la revision
-  var p = await gridApi('POST', base + '/publish', {revision: u.json.revision});
-  if (!p.res.ok) throw httpError('Publicación', p.res.status, p.txt);
-}
-
-
 /* ====================== Sheets (proxy de Grid) o modo local ====================== */
 var MEM = {}, DBTS = {}, DBC = {};   // MEM = libro local; DBC = caché por pestaña; DBTS = momento de lectura
 function seedLocal(){
   MEM.SITIOS = [{sitio:'STR1',nombre:'Sitio STR1 (ejemplo)',activo:'1'},{sitio:'XMT1',nombre:'Sitio XMT1 (ejemplo)',activo:'1'}];
-  MEM.EQUIPOS = []; MEM.MIEMBROS = []; MEM.LOTES = []; MEM.LOTE_ENVIOS = []; MEM.HISTORIAL = [];
+  MEM.EQUIPOS = []; MEM.MIEMBROS = []; MEM.LOTES = []; MEM.LOTE_ENVIOS = []; MEM.HISTORIAL = []; MEM.CARGAS = [];
 }
 var sheetQ = Promise.resolve(), sheetLast = 0;
 function sheetsSerial(fn){
@@ -935,7 +900,7 @@ function renderPerm(){
 
 /* =============================== Datos de la app =============================== */
 var DS = null;            // {name, rows, facility, cycle, saved, demo}
-var MEMDS = {};           // datasets del modo ejemplo (solo memoria)
+var MEMDS = {};           // cargas del modo ejemplo (solo memoria)
 var SRC = 'real';
 var SITIOS = [], EQUIPOS = [], MIEMBROS = [], LOTES = [], LENV = [], HIST = [];
 function activeFlag(v){ return !/^(0|no|false|inactivo)$/i.test(String(v || '1').trim()); }
@@ -970,49 +935,39 @@ async function loadWorkData(force){
   try { HIST = await tabRead('HISTORIAL', force); } catch(e){ HIST = []; logApp('Historial no disponible todavía', e.message, 'warn'); }
 }
 
-/* ============================== Dataset (guardar / leer) ============================== */
-function dsBase(name){ return '/api/v1/documents/' + encodeURIComponent(docId()) + '/datasets/' + encodeURIComponent(name); }
-async function publishDataset(name, rows, meta){
-  if (meta.demo){ MEMDS[name] = rows; logApp('Dataset de ejemplo guardado solo en memoria', name); return; }
-  var stamp = new Date().toISOString();
-  var payload = rows.map(function(r){ var o = {facility_id:meta.facility, actualizado:stamp}; Object.keys(r).forEach(function(k){ o[k] = r[k]; }); return o; });
-  var body = JSON.stringify(payload), base = dsBase(name);
-  logApp('Publicando Dataset "' + name + '"', 'filas: ' + payload.length + '\ncuerpo: ' + (body.length / 1048576).toFixed(2) + ' MB');
-  try { await pushDirect(base, payload); }
-  catch(e){
-    if (e && e.name === 'AbortError') throw e;
-    if (!(e instanceof TypeError) && e.status !== 413 && e.status !== 422) throw e;
-    logApp('La subida directa falló (' + (e.status ? 'HTTP ' + e.status : 'error de red') + '); pruebo el flujo de 3 pasos', '', 'warn');
-    await pushThreeStep(base, body);
-  }
-}
+/* ============================ Cargas (guardar / leer) ============================ */
 function cleanRows(arr){
   return arr.map(function(r){ var o = {}; Object.keys(r).forEach(function(k){ o[lc(k)] = r[k]; });
     o.costo = Number(o.costo) || 0; o.parada = o.parada == null || o.parada === '' ? null : Number(o.parada); o.id = String(o.id == null ? '' : o.id); return o; });
 }
+function snapName(f, c){ return 'snap_' + lc(f) + '_' + lc(c); }
+function stUrl(n){ return '/api/v1/documents/' + encodeURIComponent(docId()) + '/states/' + encodeURIComponent(n); }
+/* Guardado que puede hacer cualquier persona con acceso al documento (no exige ser editor): estado con nombre. */
+async function saveSnapshot(f, c, rows, cost){
+  var n = snapName(f, c), body = JSON.stringify({state:{meta:{facility:f, cycle:c, cost_min:cost, ldap:ME.ldap, at:new Date().toISOString(), count:rows.length}, rows:rows}, if_updated_at:''});
+  logApp('Guardando la carga en el estado compartido "' + n + '"', 'filas: ' + rows.length + '\ncuerpo: ' + (body.length / 1048576).toFixed(2) + ' MB');
+  if (body.length > 8 * 1048576) logApp('La carga pesa más de 8 MB; el estado compartido rinde mejor por debajo de 5-10 MB', '', 'warn');
+  var res = await fetch(stUrl(n), {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body: body, signal: BUSY && BUSY.ctl.signal});
+  var txt = await res.text();
+  if (!res.ok){ var e = httpError('Guardar la carga', res.status, txt); e.stage = 'save'; throw e; }
+  return n;
+}
 async function dsRead(name){
   if (MEMDS[name]) return MEMDS[name];
-  var base = '/api/v1/documents/' + encodeURIComponent(docId()) + '/data/' + encodeURIComponent(name), res, tried = [];
-  for (var i = 0, urls = [base + '/content', base]; i < urls.length; i++){
-    res = await fetch(urls[i], {credentials:'include', headers:{'Accept':'application/json'}, signal: BUSY && BUSY.ctl.signal});
-    if (res.ok) break; tried.push(res.status);
-  }
-  if (!res.ok) throw httpError('Leer Dataset', res.status, await res.text());
-  var j = await res.json();
-  var arr = Array.isArray(j) ? j : (j && (j.rows || j.data || j.content)) || null;
-  if (!Array.isArray(arr)) throw new Error('El Dataset respondió en un formato que no reconozco (ver consola).');
-  return cleanRows(arr);
+  var i = name.indexOf('_'), f = name.slice(0, i), c = name.slice(i + 1);
+  var res = await fetch(stUrl(snapName(f, c)), {credentials:'include', headers:{'Accept':'application/json'}, signal: BUSY && BUSY.ctl.signal});
+  if (res.ok){
+    var b = await res.json(), st = b && b.state;
+    if (st && Array.isArray(st.rows) && st.rows.length){ logApp('Carga leída del estado compartido', snapName(f, c) + ' · ' + st.rows.length + ' filas' + (st.meta ? ' · cargada por ' + st.meta.ldap + ' el ' + st.meta.at : '')); return cleanRows(st.rows); }
+  } else if (res.status !== 404) throw httpError('Leer la carga', res.status, await res.text());
+  throw new Error('No encontré una carga guardada con el nombre ' + name + '. Revisa el sitio y el ciclo, o haz una carga nueva en el paso 1.');
 }
 async function dsList(){
   try {
-    var res = await fetch('/api/v1/documents/' + encodeURIComponent(docId()) + '/datasets', {credentials:'include'});
-    if (!res.ok) return [];
-    var j = await res.json(), names = [];
-    if (Array.isArray(j)) names = j.map(function(x){ return typeof x === 'string' ? x : x && x.name; });
-    else if (j && Array.isArray(j.datasets)) names = j.datasets.map(function(x){ return typeof x === 'string' ? x : x && x.name; });
-    else if (j && typeof j === 'object') names = Object.keys(j.datasets || j);
-    return names.filter(function(n){ return typeof n === 'string' && /^[A-Za-z0-9_]+$/.test(n); });
-  } catch(e){ return []; }
+    var seen = {}, out = [];
+    (await tabRead('CARGAS', false)).slice().reverse().forEach(function(r){ var n = (String(r.sitio) + '_' + String(r.ciclo)).toUpperCase(); if (r.sitio && r.ciclo && !seen[n]){ seen[n] = 1; out.push(n); } });
+    return out;
+  } catch(e){ logApp('No se pudo leer la bitácora CARGAS (¿falta la pestaña?)', e.message, 'warn'); return []; }
 }
 
 /* ================================= 1. CARGAR ================================= */
@@ -1034,10 +989,10 @@ async function cargar(save){
   if (!demo && BQ.state === 'denied'){ banner('error', 'No cuentas con permisos para correr BigQuery', 'Pide el rol de ejecución del proyecto de reporting (se tramita en Shield) y vuelve a intentar.'); return; }
   var name = inp.facility + '_' + inp.cycle;
   var steps = [{t:(demo ? 'Generar datos de ejemplo' : 'Consultar BigQuery (DPE)'), s:'run'}];
-  if (save) steps.push({t:'Guardar en el Dataset ' + name, s:'wait'});
+  if (save){ steps.push({t:'Guardar la carga para tu equipo', s:'wait'}); steps.push({t:'Anotar la carga en el historial', s:'wait'}); }
   if (!beginBusy('Cargando ' + inp.facility + ' / ' + inp.cycle, {btn: save ? 'go-btn' : 'only-btn', text: save ? 'Cargando' : 'Consultando', cancel:true, timeout:120000, steps:steps})) return;
   clearBanner(); $('load-result').innerHTML = '';
-  var rows = null, saveErr = null;
+  var rows = null, out = {logged:false};
   try {
     if (demo){ await sleep(250); rows = demoRows(inp.facility, inp.cycle).map(function(r){ r.costo = r.costo * 4; return r; }).filter(function(r){ return r.costo >= inp.cost; }); }
     else { rows = normalize(await dpeQuery(buildSql(inp.facility, inp.cycle, inp.cost))); }
@@ -1046,31 +1001,28 @@ async function cargar(save){
     if (rows.length >= CFG.LIMIT) banner('warning', 'Resultado truncado', 'Se alcanzó el límite de ' + CFG.LIMIT + ' filas.');
     if (save){
       steps[1].s = 'run';
-      try { await publishDataset(name, rows, {facility:inp.facility, demo:demo}); steps[1].s = 'ok'; DS.saved = true; }
-      catch(e){ steps[1].s = 'err'; saveErr = abortMsg(e, 'Publicación'); }
+      try { if (demo) MEMDS[name] = rows; else await saveSnapshot(inp.facility, inp.cycle, rows, inp.cost); DS.saved = true; steps[1].s = 'ok'; }
+      catch(e){ steps[1].s = 'err'; e = abortMsg(e, 'Guardado'); if (!e.stage) e.stage = 'save'; throw e; }
+      steps[2].s = 'run';
+      try { await tabAppend('CARGAS', [{ts:new Date().toISOString(), sitio:inp.facility, ciclo:inp.cycle, ldap:ME.ldap, filas:rows.length, costo_min:inp.cost, doc_id:docId() || '', ref:demo ? '' : snapName(inp.facility, inp.cycle)}]); out.logged = true; steps[2].s = 'ok'; }
+      catch(e){ steps[2].s = 'skip'; out.logErr = e.message; logApp('No se anotó la carga en CARGAS (se puede trabajar igual)', e.message, 'warn'); }
     }
-    logApp('Carga lista: ' + rows.length + ' envíos', name + (DS.saved ? ' · guardado' : ' · sin guardar'));
+    logApp('Carga lista: ' + rows.length + ' envíos', name + (DS.saved ? ' · guardada' : ' · sin guardar'));
     $('freshness').innerHTML = 'Cargado <strong>' + new Date().toLocaleTimeString('es-MX') + '</strong> · ' + esc(name);
     $('ds-name').value = name;
   } catch(e){
-    e = abortMsg(e, 'Consulta'); steps[0].s = 'err';
-    banner('error', 'No se pudo consultar', e.message + (e.rid ? '\nx-request-id: ' + e.rid : '')); logApp('Consulta fallida', e.message, 'err'); setConsole(true);
-    rows = null;
+    e = abortMsg(e, 'Consulta'); var onSave = e.stage === 'save'; steps[onSave ? 1 : 0].s = 'err';
+    banner('error', onSave ? 'No se pudo guardar la carga' : 'No se pudo consultar', e.message + (e.rid ? '\nx-request-id: ' + e.rid : '')); logApp(onSave ? 'Guardado fallido' : 'Consulta fallida', e.message, 'err'); setConsole(true);
+    if (!onSave) rows = null;
   } finally { endBusy(); }
-  if (rows){ renderLoadResult(saveErr, save); }
+  if (rows){ renderLoadResult(out, save); }
 }
-function renderLoadResult(saveErr, save){
+function renderLoadResult(out, save){
   var cost = DS.rows.reduce(function(s, r){ return s + r.costo; }, 0), ids = {}; DS.rows.forEach(function(r){ ids[r.id] = 1; });
-  var h = '<div class="result"><strong>' + num(Object.keys(ids).length) + ' envíos</strong> con costo total de <strong>' + money(cost) + '</strong> · Dataset <strong>' + esc(DS.name) + '</strong>: ';
-  h += DS.saved ? '<span class="chip-ok">guardado</span>' : (save ? '<span class="chip-bad">no se guardó</span>' : '<span class="chip-info">solo consultado</span>');
-  h += '</div>';
-  if (saveErr){
-    var denied = saveErr.status === 403;
-    h += '<div class="status-banner ' + (denied ? 'warning' : 'error') + '" style="margin-top:12px"><div><strong>' + (denied ? 'Puedes consultar, pero tu usuario no puede guardar en el Dataset' : 'No se pudo guardar en el Dataset') + '</strong><br>' +
-      (denied ? 'Guardar en el Dataset requiere ser editor del documento. Pídele al dueño que te agregue como editor. Mientras tanto puedes trabajar con estos datos en el paso 2, pero nadie más los verá.' : esc(saveErr.message)) + '</div></div>';
-    logApp('Guardado en Dataset fallido', saveErr.message, 'err');
-  }
-  h += '<div class="actions" style="margin-top:12px"><button type="button" class="primary-button" id="to-work">Ir a Trabajar</button></div>';
+  var h = '<div class="result"><strong>' + num(Object.keys(ids).length) + ' envíos</strong> con costo total de <strong>' + money(cost) + '</strong> · Carga <strong>' + esc(DS.name) + '</strong><div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px">';
+  h += DS.saved ? '<span class="chip-ok">Guardada para tu equipo</span>' : (save ? '<span class="chip-bad">No se guardó</span>' : '<span class="chip-info">Solo consultada</span>');
+  if (save && !out.logged) h += '<span class="chip-warn">Sin anotar en el historial</span>';
+  h += '</div></div><div class="actions" style="margin-top:12px"><button type="button" class="primary-button" id="to-work">Ir a Trabajar</button></div>';
   $('load-result').innerHTML = h; $('to-work').onclick = function(){ switchTab('trabajar'); };
   guide();
 }
@@ -1078,7 +1030,7 @@ function renderCargarState(){
   var denied = BQ.state === 'denied' && SRC !== 'demo';
   $('go-btn').disabled = denied; $('only-btn').disabled = denied;
   var f = $('facility').value.trim().toUpperCase(), c = $('cycle').value.trim().toUpperCase();
-  $('ds-name-hint').textContent = f && c ? 'Se guardará en el Dataset ' + f + '_' + c : '';
+  $('ds-name-hint').textContent = f && c ? 'Se guardará como la carga ' + f + '_' + c : '';
 }
 
 /* ================================ 2. TRABAJAR ================================ */
@@ -1107,7 +1059,7 @@ function filteredRows(){
 function renderWork(){
   var has = DS && DS.rows.length;
   $('empty').style.display = has ? 'none' : 'block';
-  $('empty').textContent = DS ? 'El Dataset no tiene envíos.' : 'Abre un Dataset para ver sus envíos.';
+  $('empty').textContent = DS ? 'La carga no tiene envíos.' : 'Abre una carga para ver sus envíos.';
   if (!DS){ $('tbody').textContent = ''; $('thead').textContent = ''; $('stats').innerHTML = ''; $('bars-dom').innerHTML = ''; $('hist').innerHTML = ''; $('count').textContent = ''; updateSelUi(); return; }
   var doms = {}; DS.rows.forEach(function(r){ if (r.dominio) doms[r.dominio] = 1; });
   var cur = W.dom; $('f-dom').innerHTML = '<option value="">Todos</option>' + Object.keys(doms).sort().map(function(d){ return '<option value="' + esc(d) + '"' + (d === cur ? ' selected' : '') + '>' + esc(d) + '</option>'; }).join('');
@@ -1156,11 +1108,11 @@ function updateSelUi(){
   $('sel-cnt').textContent = ids.length + (ids.length === 1 ? ' seleccionado' : ' seleccionados');
   $('assign-btn').disabled = !ids.length || !!BUSY;
 }
-async function abrirDataset(name){
+async function abrirCarga(name){
   if (BUSY) return busyNotice();
   name = String(name || '').trim().toUpperCase();
-  if (!/^[A-Z0-9_]{3,41}$/.test(name)){ banner('error', 'Escribe el Dataset como SITIO_CICLO', 'Por ejemplo: STR1_AM1.'); return; }
-  if (!beginBusy('Abriendo el Dataset ' + name, {btn:'open-btn', text:'Abriendo', cancel:true, timeout:60000})) return;
+  if (!/^[A-Z0-9_]{3,41}$/.test(name)){ banner('error', 'Escribe la carga como SITIO_CICLO', 'Por ejemplo: STR1_AM1.'); return; }
+  if (!beginBusy('Abriendo la carga ' + name, {btn:'open-btn', text:'Abriendo', cancel:true, timeout:60000})) return;
   clearBanner();
   try {
     var rows = (DS && DS.name === name && DS.rows.length) ? DS.rows : await dsRead(name);
@@ -1168,8 +1120,8 @@ async function abrirDataset(name){
     if (!(DS && DS.name === name)) DS = {name:name, rows:rows, facility:parts[0], cycle:parts.slice(1).join('_'), saved:true, demo:!!MEMDS[name]};
     BUSY.phase = 'Leyendo lotes asignados'; await loadWorkData(true); ASG = assignedMap();
     SEL = {}; W = {dom:'', min:'', max:'', like:''}; ['f-min', 'f-max', 'f-like'].forEach(function(i){ $(i).value = ''; });
-    logApp('Dataset abierto: ' + name, rows.length + ' envíos');
-  } catch(e){ e = abortMsg(e, 'Lectura'); banner('error', 'No se pudo abrir el Dataset ' + name, e.message); logApp('Lectura de Dataset fallida', e.message, 'err'); setConsole(true); }
+    logApp('Carga abierta: ' + name, rows.length + ' envíos');
+  } catch(e){ e = abortMsg(e, 'Lectura'); banner('error', 'No se pudo abrir la carga ' + name, e.message); logApp('Lectura de la carga fallida', e.message, 'err'); setConsole(true); }
   finally { endBusy(); }
 }
 
@@ -1358,9 +1310,9 @@ function guide(){
   var b = $('brief'), h = '';
   if (TAB === 'cargar'){
     if (BQ.state === 'denied') h = '<p class="brief-text"><strong>No cuentas con permisos para correr BigQuery.</strong> Sin ese permiso no puedo traer los envíos.</p><ul class="brief-list"><li>Pide el rol de ejecución del proyecto de reporting en Shield.</li><li>Mientras tanto puedes usar <strong>Ejemplo</strong> para conocer la herramienta.</li></ul>';
-    else h = '<p class="brief-text">Hola' + (ME.nombre ? ', <strong>' + esc(ME.nombre.split(' ')[0]) + '</strong>' : '') + '. Así empezamos:</p><ol class="brief-list"><li>Escribe tu <strong>sitio</strong> y el <strong>ciclo</strong>.</li><li>Pon desde qué <strong>costo</strong> quieres ver los envíos.</li><li>Presiona <strong>Consultar y guardar en Dataset</strong>. Yo hago los dos pasos.</li></ol>' + (BQ.state === 'unknown' ? '<p class="hint" style="margin-top:6px">No pude verificar tus permisos de BigQuery; si algo falla, lo verás aquí.</p>' : '');
+    else h = '<p class="brief-text">Hola' + (ME.nombre ? ', <strong>' + esc(ME.nombre.split(' ')[0]) + '</strong>' : '') + '. Así empezamos:</p><ol class="brief-list"><li>Escribe tu <strong>sitio</strong> y el <strong>ciclo</strong>.</li><li>Pon desde qué <strong>costo</strong> quieres ver los envíos.</li><li>Presiona <strong>Consultar y guardar</strong>. Yo hago todos los pasos.</li></ol>' + (BQ.state === 'unknown' ? '<p class="hint" style="margin-top:6px">No pude verificar tus permisos de BigQuery; si algo falla, lo verás aquí.</p>' : '');
   } else if (TAB === 'trabajar'){
-    h = !DS ? '<p class="brief-text">Escribe el Dataset de tu sitio y ciclo (por ejemplo <strong>STR1_AM1</strong>) y presiona <strong>Abrir</strong>.</p>' :
+    h = !DS ? '<p class="brief-text">Elige la carga de tu sitio y ciclo (por ejemplo <strong>STR1_AM1</strong>) y presiona <strong>Abrir</strong>.</p>' :
       '<p class="brief-text">Tienes <strong>' + num(DS.rows.length) + ' envíos</strong> de <strong>' + esc(DS.name) + '</strong>' + (DS.saved ? '' : ' <span class="chip-warn">sin guardar</span>') + '.</p><ol class="brief-list"><li>Filtra por dominio, costo o descripción.</li><li>Marca los envíos que quieras (o <strong>Seleccionar visibles</strong>).</li><li>Presiona <strong>Asignar a lote</strong> y elige a quién se los das.</li></ol>';
   } else {
     h = '<p class="brief-text">Aquí ves cómo va tu equipo: cada lote con su avance de fotos. Abre un lote para <strong>agregar o quitar envíos</strong>.</p><ul class="brief-list"><li>Para crear equipos y agregar gente, toca mi cara arriba a la derecha.</li></ul>';
@@ -1378,8 +1330,8 @@ $('cost').addEventListener('input', function(){ var c = this.value.replace(/[^0-
 ['facility', 'cycle', 'cost'].forEach(function(i){ $(i).addEventListener('keydown', function(e){ if (e.key === 'Enter') cargar(true); }); });
 [].forEach.call(document.querySelectorAll('.tab'), function(b){ b.onclick = function(){ switchTab(b.dataset.tab); }; });
 $('avatar-btn').onclick = function(){ if (BUSY) return busyNotice(); openConfig(); };
-$('open-btn').onclick = function(){ abrirDataset($('ds-name').value); };
-$('ds-name').addEventListener('keydown', function(e){ if (e.key === 'Enter') abrirDataset(this.value); });
+$('open-btn').onclick = function(){ abrirCarga($('ds-name').value); };
+$('ds-name').addEventListener('keydown', function(e){ if (e.key === 'Enter') abrirCarga(this.value); });
 ['f-min', 'f-max'].forEach(function(i){ $(i).addEventListener('input', function(){ var c = this.value.replace(/[^0-9]/g, ''); if (c !== this.value) this.value = c; W[i === 'f-min' ? 'min' : 'max'] = c; renderWork(); }); });
 $('f-like').addEventListener('input', function(){ W.like = this.value; renderWork(); });
 $('f-dom').onchange = function(){ W.dom = this.value; renderWork(); };
