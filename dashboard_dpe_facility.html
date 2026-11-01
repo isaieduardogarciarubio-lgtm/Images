@@ -512,6 +512,10 @@ var TABS = {   // esquema del libro de control: una pestaña por entidad; membre
   LOTE_ENVIOS: ['ts','lote_id','envio_id','accion','por_ldap'],
   HISTORIAL:   ['datetime','sitio','ldap','envio_id','foto_ref']   // lo escribe la app de captura; aquí solo se lee
 };
+var LS_KEY = 'rutas_control_sheet_id';
+function lsGet(){ try { return localStorage.getItem(LS_KEY) || ''; } catch(e){ return ''; } }
+function lsSet(v){ try { if (v) localStorage.setItem(LS_KEY, v); else localStorage.removeItem(LS_KEY); } catch(e){} }
+if (!CFG.SHEET_ID) CFG.SHEET_ID = lsGet();   // conexión hecha desde Configuración en este navegador
 var LOCAL = !CFG.SHEET_ID;
 
 /* ============================== Utilidades ============================== */
@@ -1292,8 +1296,9 @@ function renderConfig(){
         '<div class="people" id="cfg-results">' + CFGUI.results.map(function(p, i){ var inT = ppl.some(function(x){ return x.ldap === p.ldap; }); return '<div class="person"><div class="who"><b>' + esc(p.nombre || p.ldap) + '</b><span>' + esc(p.ldap) + (p.email ? ' · ' + esc(p.email) : '') + '</span></div>' + (inT ? '<span class="chip-info">Ya está</span>' : '<button type="button" class="primary-button" data-add-p="' + i + '">Agregar</button>') + '</div>'; }).join('') + '</div>';
     }
   }
-  h += '</div><div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Pestañas</dt><dd>' +
+  h += '</div><div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Libro</dt><dd>' + (LOCAL ? 'sin conectar' : esc(CFG.SHEET_ID.slice(0, 6) + '…' + CFG.SHEET_ID.slice(-4))) + '</dd><dt>Pestañas</dt><dd>' +
     Object.keys(TABS).map(function(t){ var s = CFGUI.schema && CFGUI.schema[t]; return '<div><strong>' + t + '</strong> <span class="' + (s == null ? 'chip-info' : s === true ? 'chip-ok' : 'chip-bad') + '">' + (s == null ? TABS[t].join(', ') : s === true ? 'correcta' : esc(s)) + '</span></div>'; }).join('') + '</dd></dl>' +
+    '<div class="row" style="margin-top:12px"><div class="field" style="flex:1;min-width:240px"><label for="cfg-sheet">Pega el enlace o el ID del libro de Google Sheets</label><input id="cfg-sheet" placeholder="https://docs.google.com/spreadsheets/d/…" autocomplete="off" spellcheck="false"></div><button type="button" class="primary-button" id="cfg-connect">Conectar libro</button>' + (LOCAL ? '' : '<button type="button" class="secondary-button" id="cfg-disc">Desconectar</button>') + '</div>' +
     '<div class="actions" style="margin-top:10px"><button type="button" class="secondary-button" id="cfg-schema">Verificar pestañas</button><button type="button" class="secondary-button" id="cfg-link"' + (LOCAL ? ' disabled' : '') + '>Vincular libro (solo dueño)</button></div></div>';
   $('cfg-body').innerHTML = h;
 }
@@ -1302,6 +1307,34 @@ async function peopleSearch(q){
   if (!res.ok) throw new Error('Directorio de personas: HTTP ' + res.status);
   var b = await res.json(), list = Array.isArray(b) ? b : (b.people || b.results || []);
   return list.map(function(p){ return {ldap:lc(p.username || p.ldap), email:String(p.email || ''), nombre:String(p.full_name || p.name || '')}; }).filter(function(p){ return p.ldap; });
+}
+async function connectSheet(id){
+  if (BUSY) return busyNotice();
+  if (!docId()){ banner('error', 'No encuentro el documento de Grid', 'La conexión con Sheets necesita el id del documento donde corre esta app.'); return; }
+  if (!beginBusy('Conectando el libro', {timeout:120000})) return;
+  var prev = {id:CFG.SHEET_ID, local:LOCAL};
+  try {
+    CFG.SHEET_ID = id; LOCAL = false; DBC = {}; DBTS = {};
+    BUSY.phase = 'Vinculando el libro a este documento';
+    try { await sheetFetch('/api/v1/sheets/' + encodeURIComponent(id) + '/link?doc_id=' + encodeURIComponent(docId()), {method:'PUT', body: JSON.stringify({capability:'read_write'}), signal: BUSY.ctl.signal}); logApp('Libro vinculado a este documento'); }
+    catch(e){ logApp('No se registró el vínculo (¿no eres el dueño, o ya existía?)', e.message, 'warn'); }
+    BUSY.phase = 'Verificando las pestañas del libro';
+    var out = {}, readable = 0;
+    for (var tab in TABS){
+      try { var hs = await tabHeaders(tab), miss = TABS[tab].filter(function(h){ return hs.indexOf(h) < 0; }); out[tab] = miss.length ? 'faltan: ' + miss.join(', ') : true; readable++; }
+      catch(err){ out[tab] = 'no se pudo leer (' + (err.status || 'error') + ')'; }
+    }
+    CFGUI.schema = out;
+    if (!readable) throw new Error('No pude leer ninguna pestaña del libro. Revisa que el enlace sea correcto, que el libro exista en la cuenta de Google del dueño y que el dueño lo haya vinculado a este documento (botón "Vincular libro (solo dueño)").');
+    lsSet(id); $('mode-badge').hidden = true; snack('Libro conectado');
+    logApp('Libro conectado', 'pestañas legibles: ' + readable + ' de ' + Object.keys(TABS).length);
+  } catch(e){
+    CFG.SHEET_ID = prev.id; LOCAL = prev.local; banner('error', 'No se pudo conectar el libro', e.message); logApp('Conexión con Sheets fallida', e.message, 'err'); setConsole(true);
+  } finally { endBusy(); try { await loadConfigData(true); } catch(_){} if ($('cfg-dlg').open) renderConfig(); }
+}
+function disconnectSheet(){
+  lsSet(''); CFG.SHEET_ID = ''; LOCAL = true; DBC = {}; DBTS = {}; if (!MEM.SITIOS) seedLocal();
+  $('mode-badge').hidden = false; CFGUI.schema = null; logApp('Libro desconectado: vuelvo al modo local', '', 'warn'); renderConfig();
 }
 async function cfgAction(fn, label){
   if (BUSY) return busyNotice();
@@ -1396,6 +1429,12 @@ $('cfg-body').addEventListener('keydown', function(e){ if (e.key === 'Enter' && 
 $('cfg-body').addEventListener('click', function(e){
   var t = e.target.closest('button'); if (!t || BUSY) return;
   if (t.id === 'cfg-bq'){ checkBq().then(renderConfig); return; }
+  if (t.id === 'cfg-connect'){
+    var raw = $('cfg-sheet').value.trim(), m = raw.match(/\/d\/([A-Za-z0-9_-]{20,})/) || raw.match(/^([A-Za-z0-9_-]{20,})$/);
+    if (!m){ snack('Pega el enlace completo del libro o su ID'); return; }
+    connectSheet(m[1]); return;
+  }
+  if (t.id === 'cfg-disc'){ disconnectSheet(); return; }
   if (t.id === 'cfg-create'){
     var nm = $('cfg-newname').value.trim(); if (!nm){ snack('Escribe el nombre del equipo'); return; }
     cfgAction(async function(){ await tabAppend('EQUIPOS', [{equipo_id:uid('E'), sitio:CFGUI.sitio, nombre:nm, lider_ldap:ME.ldap, activo:'1', creado_por:ME.ldap, fecha:new Date().toISOString()}]); snack('Equipo creado'); }, 'Creando equipo'); return;
