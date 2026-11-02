@@ -504,7 +504,7 @@ var CFG = {
   SHEETS_TTL_MS: 30000     // cuánto se reutiliza una lectura de pestaña
 };
 var ID_RE = /^[A-Z0-9_]{1,20}$/;
-var TABS = {   // esquema del libro de control: una pestaña por entidad; membresías y lotes son bitácoras de solo agregar
+var TABS = {   // esquema del libro de control: una pestaña por entidad; las membresías son una bitácora de solo agregar (los lotes viven en estado temporal)
   SITIOS:      ['sitio','nombre','activo'],
   EQUIPOS:     ['equipo_id','sitio','nombre','lider_ldap','activo','creado_por','fecha'],
   MIEMBROS:    ['ts','equipo_id','ldap','nombre','email','accion','por_ldap'],
@@ -1067,7 +1067,8 @@ async function cargar(save){
       try { if (demo) MEMDS[name] = rows; else await saveSnapshot(inp.facility, inp.cycle, rows, inp.cost); DS.saved = true; steps[1].s = 'ok'; }
       catch(e){ steps[1].s = 'err'; e = abortMsg(e, 'Guardado'); if (!e.stage) e.stage = 'save'; throw e; }
       steps[2].s = 'run';
-      try { await tabAppend('CARGAS', [{ts:new Date().toISOString(), sitio:inp.facility, ciclo:inp.cycle, ldap:ME.ldap, filas:rows.length, costo_min:inp.cost, doc_id:docId() || '', ref:demo ? '' : snapName(inp.facility, inp.cycle)}]); out.logged = true; steps[2].s = 'ok'; }
+      if (demo){ steps[2].s = 'skip'; out.logged = true; }   // el modo ejemplo no deja rastro en el libro
+      else try { await tabAppend('CARGAS', [{ts:new Date().toISOString(), sitio:inp.facility, ciclo:inp.cycle, ldap:ME.ldap, filas:rows.length, costo_min:inp.cost, doc_id:docId() || '', ref:demo ? '' : snapName(inp.facility, inp.cycle)}]); out.logged = true; steps[2].s = 'ok'; }
       catch(e){ steps[2].s = 'skip'; out.logErr = e.message; logApp('No se anotó la carga en CARGAS (se puede trabajar igual)', e.message, 'warn'); }
     }
     logApp('Carga lista: ' + rows.length + ' envíos', name + (DS.saved ? ' · guardada' : ' · sin guardar'));
@@ -1087,7 +1088,7 @@ async function cargar(save){
 function renderLoadResult(out, save){
   var cost = DS.rows.reduce(function(s, r){ return s + r.costo; }, 0), ids = {}; DS.rows.forEach(function(r){ ids[r.id] = 1; });
   var h = '<div class="result"><strong>' + num(Object.keys(ids).length) + ' envíos</strong> con costo total de <strong>' + money(cost) + '</strong> · Carga <strong>' + esc(DS.name) + '</strong><div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px">';
-  h += DS.saved ? '<span class="chip-ok">Guardada para tu equipo</span>' : (save ? '<span class="chip-bad">No se guardó</span>' : '<span class="chip-info">Solo consultada</span>');
+  h += DS.saved ? (DS.demo ? '<span class="chip-info">Ejemplo: solo en esta pantalla</span>' : '<span class="chip-ok">Guardada para tu equipo</span>') : (save ? '<span class="chip-bad">No se guardó</span>' : '<span class="chip-info">Solo consultada</span>');
   if (save && !out.logged) h += '<span class="chip-warn">Sin anotar en el historial</span>';
   h += '</div></div><div class="actions" style="margin-top:12px"><button type="button" class="primary-button" id="to-work">Ir a Trabajar</button></div>';
   $('load-result').innerHTML = h; $('to-work').onclick = function(){ switchTab('trabajar'); };
@@ -1194,6 +1195,7 @@ async function abrirCarga(name){
 async function openAssign(){
   var ids = Object.keys(SEL).filter(function(k){ return SEL[k]; });
   if (!ids.length || !DS) return;
+  if (DS.demo){ banner('warning', 'Estos son datos de ejemplo', 'Para asignar envíos a un lote usa una carga real (en el paso 1 elige BigQuery).'); return; }
   try { await loadConfigData(false); } catch(e){ banner('error', 'No se pudieron leer los equipos', e.message); return; }
   var teams = myTeams().filter(function(t){ return t.sitio === DS.facility; });
   var b = $('as-body');
