@@ -165,7 +165,7 @@ DPE responde `403 client_permission` («upstream responded with status 401»). L
 - **Tú:** nombre, LDAP y correo (de `/api/v1/me`) y el estado de BigQuery.
 - **Mis equipos:** elegir sitio y equipo; **crear equipo** (un líder puede tener varios, cada uno de un sitio); ver miembros y **quitarlos**; **agregar personas** buscando por LDAP o correo.
   - La búsqueda usa `/api/v1/people/search` (mínimo 2 caracteres; devuelve `username`, `email`, `full_name`). **Siempre se guarda el LDAP**, nunca el prefijo del correo.
-- **Libro de control (solo el dueño del documento):** conectar un libro pegando su enlace, verificar pestañas, vincular el libro al documento, desconectar. Se detecta al dueño comparando `owner_id` del documento con el usuario de `/me`.
+- **Libro de control (solo el dueño del documento):** muestra el libro que usa la app (fijo en `CFG.SHEET_ID`, con enlace para abrirlo), permite **verificar las pestañas** y **vincular el libro al documento**. No hay campo para cambiar de libro: cambiarlo exige editar `CFG.SHEET_ID` en el código. Se detecta al dueño comparando `owner_id` del documento con el usuario de `/me`.
   - **Es solo interfaz [DECISIÓN]:** ocultar la sección no es seguridad; quien impone el permiso (por ejemplo registrar el vínculo) es Grid. Con `?admin=1` en la URL se muestra la sección aunque no se pueda determinar al dueño.
 
 ### El vínculo documento-libro

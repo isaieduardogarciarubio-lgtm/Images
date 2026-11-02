@@ -513,13 +513,8 @@ var TABS = {   // esquema del libro de control: una pestaña por entidad; las me
   HISTORIAL:   ['datetime','sitio','ldap','envio_id','foto_ref'],  // lo escribe la app de captura (opcionales: resultado ENCONTRADO|NO_ENCONTRADO, lote_id, doc_id); aquí solo se lee
   CARGAS:      ['ts','sitio','ciclo','ldap','filas','costo_min','doc_id','ref']   // bitácora: quién cargó qué y en qué documento de Grid quedó
 };
-var HARD_SHEET_ID = CFG.SHEET_ID;   // el que quedó escrito en el código
 var TABS_OPT = {HISTORIAL:['resultado','lote_id','doc_id']};   // columnas opcionales (la app no las exige)
-var LS_KEY = 'rutas_control_sheet_id';
-function lsGet(){ try { return localStorage.getItem(LS_KEY) || ''; } catch(e){ return ''; } }
-function lsSet(v){ try { if (v) localStorage.setItem(LS_KEY, v); else localStorage.removeItem(LS_KEY); } catch(e){} }
-if (!CFG.SHEET_ID) CFG.SHEET_ID = lsGet();   // conexión hecha desde Configuración en este navegador
-var LOCAL = !CFG.SHEET_ID;
+var LOCAL = !CFG.SHEET_ID;   // el libro es el fijo de CFG.SHEET_ID; si queda vacío, la app corre en modo local de pruebas
 
 /* ============================== Utilidades ============================== */
 var $ = function(id){ return document.getElementById(id); };
@@ -1323,9 +1318,8 @@ function renderConfig(){
     }
   }
   h += '</div>';
-  if (OWNER) h += '<div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Libro</dt><dd>' + (LOCAL ? 'sin conectar' : (CFG.SHEET_ID === HARD_SHEET_ID ? '<span class="chip-ok">Fijo en el código</span>' : '<span class="chip-warn">Distinto del fijo; solo en esta sesión</span>') + ' <a href="https://docs.google.com/spreadsheets/d/' + encodeURIComponent(CFG.SHEET_ID) + '/edit" target="_blank" rel="noopener noreferrer">Abrir libro</a><span class="mono-id">' + esc(CFG.SHEET_ID) + '</span>') + '</dd><dt>Pestañas</dt><dd>' +
+  if (OWNER) h += '<div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Libro</dt><dd>' + (LOCAL ? 'sin conectar' : '<span class="chip-ok">Fijo en el código</span> <a href="https://docs.google.com/spreadsheets/d/' + encodeURIComponent(CFG.SHEET_ID) + '/edit" target="_blank" rel="noopener noreferrer">Abrir libro</a><span class="mono-id">' + esc(CFG.SHEET_ID) + '</span>') + '</dd><dt>Pestañas</dt><dd>' +
     Object.keys(TABS).map(function(t){ var s = CFGUI.schema && CFGUI.schema[t]; return '<div><strong>' + t + '</strong> <span class="' + (s == null ? 'chip-info' : s === true ? 'chip-ok' : 'chip-bad') + '">' + (s == null ? TABS[t].join(', ') + (TABS_OPT[t] ? ' (opcionales: ' + TABS_OPT[t].join(', ') + ')' : '') : s === true ? 'correcta' : esc(s)) + '</span></div>'; }).join('') + '</dd></dl>' +
-    '<div class="row" style="margin-top:12px"><div class="field" style="flex:1;min-width:240px"><label for="cfg-sheet">Pega el enlace o el ID del libro de Google Sheets</label><input id="cfg-sheet" placeholder="https://docs.google.com/spreadsheets/d/…" autocomplete="off" spellcheck="false"></div><button type="button" class="primary-button" id="cfg-connect">Conectar libro</button>' + (LOCAL ? '' : '<button type="button" class="secondary-button" id="cfg-disc">Desconectar</button>') + '</div>' +
     '<div class="actions" style="margin-top:10px"><button type="button" class="secondary-button" id="cfg-schema">Verificar pestañas</button><button type="button" class="secondary-button" id="cfg-link"' + (LOCAL ? ' disabled' : '') + '>Vincular libro (solo dueño)</button></div></div>';
   $('cfg-body').innerHTML = h;
 }
@@ -1334,34 +1328,6 @@ async function peopleSearch(q){
   if (!res.ok) throw new Error('Directorio de personas: HTTP ' + res.status);
   var b = await res.json(), list = Array.isArray(b) ? b : (b.people || b.results || []);
   return list.map(function(p){ return {ldap:lc(p.username || p.ldap), email:String(p.email || ''), nombre:String(p.full_name || p.name || '')}; }).filter(function(p){ return p.ldap; });
-}
-async function connectSheet(id){
-  if (BUSY) return busyNotice();
-  if (!docId()){ banner('error', 'No encuentro el documento de Grid', 'La conexión con Sheets necesita el id del documento donde corre esta app.'); return; }
-  if (!beginBusy('Conectando el libro', {timeout:120000})) return;
-  var prev = {id:CFG.SHEET_ID, local:LOCAL};
-  try {
-    CFG.SHEET_ID = id; LOCAL = false; DBC = {}; DBTS = {};
-    BUSY.phase = 'Vinculando el libro a este documento';
-    try { await sheetFetch('/api/v1/sheets/' + encodeURIComponent(id) + '/link?doc_id=' + encodeURIComponent(docId()), {method:'PUT', body: JSON.stringify({capability:'read_write'}), signal: BUSY.ctl.signal}); logApp('Libro vinculado a este documento'); }
-    catch(e){ logApp('No se registró el vínculo (¿no eres el dueño, o ya existía?)', e.message, 'warn'); }
-    BUSY.phase = 'Verificando las pestañas del libro';
-    var out = {}, readable = 0;
-    for (var tab in TABS){
-      try { var hs = await tabHeaders(tab), miss = TABS[tab].filter(function(h){ return hs.indexOf(h) < 0; }); out[tab] = miss.length ? 'faltan: ' + miss.join(', ') : true; readable++; }
-      catch(err){ out[tab] = 'no se pudo leer (' + (err.status || 'error') + ')'; }
-    }
-    CFGUI.schema = out;
-    if (!readable) throw new Error('No pude leer ninguna pestaña del libro. Revisa que el enlace sea correcto, que el libro exista en la cuenta de Google del dueño y que el dueño lo haya vinculado a este documento (botón "Vincular libro (solo dueño)").');
-    lsSet(id); $('mode-badge').hidden = true; snack(id === HARD_SHEET_ID ? 'Libro conectado' : 'Libro conectado solo en esta sesión; para dejarlo fijo hay que cambiar CFG.SHEET_ID en el código');
-    logApp('Libro conectado', 'pestañas legibles: ' + readable + ' de ' + Object.keys(TABS).length);
-  } catch(e){
-    CFG.SHEET_ID = prev.id; LOCAL = prev.local; banner('error', 'No se pudo conectar el libro', e.message); logApp('Conexión con Sheets fallida', e.message, 'err'); setConsole(true);
-  } finally { endBusy(); try { await loadConfigData(true); } catch(_){} if ($('cfg-dlg').open) renderConfig(); }
-}
-function disconnectSheet(){
-  lsSet(''); CFG.SHEET_ID = ''; LOCAL = true; DBC = {}; DBTS = {}; if (!MEM.SITIOS) seedLocal();
-  $('mode-badge').hidden = false; CFGUI.schema = null; logApp('Libro desconectado: vuelvo al modo local', '', 'warn'); renderConfig();
 }
 async function cfgAction(fn, label){
   if (BUSY) return busyNotice();
@@ -1456,29 +1422,6 @@ $('cfg-body').addEventListener('keydown', function(e){ if (e.key === 'Enter' && 
 $('cfg-body').addEventListener('click', function(e){
   var t = e.target.closest('button'); if (!t || BUSY) return;
   if (t.id === 'cfg-bq'){ checkBq().then(renderConfig); return; }
-  if (t.id === 'cfg-connect'){
-    var raw = $('cfg-sheet').value.trim(), m = raw.match(/\/d\/([A-Za-z0-9_-]{20,})/) || raw.match(/^([A-Za-z0-9_-]{20,})$/);
-    if (!m){ snack('Pega el enlace completo del libro o su ID'); return; }
-    connectSheet(m[1]); return;
-  }
-  if (t.id === 'cfg-disc'){ disconnectSheet(); return; }
-  if (t.id === 'cfg-create'){
-    var nm = $('cfg-newname').value.trim(); if (!nm){ snack('Escribe el nombre del equipo'); return; }
-    cfgAction(async function(){ await tabAppend('EQUIPOS', [{equipo_id:uid('E'), sitio:CFGUI.sitio, nombre:nm, lider_ldap:ME.ldap, activo:'1', creado_por:ME.ldap, fecha:new Date().toISOString()}]); snack('Equipo creado'); }, 'Creando equipo'); return;
-  }
-  if (t.id === 'cfg-search'){
-    var q = $('cfg-q').value.trim(); if (q.length < 2){ snack('Escribe al menos 2 caracteres'); return; }
-    if (!beginBusy('Buscando personas', {timeout:30000})) return;
-    peopleSearch(q).then(function(r){ CFGUI.results = r; if (!r.length) snack('No encontré a nadie con ese LDAP o correo'); }).catch(function(err){ banner('error', 'No se pudo buscar', err.message); }).finally(function(){ endBusy(); renderConfig(); }); return;
-  }
-  if (t.dataset.addP !== undefined){
-    var p = CFGUI.results[Number(t.dataset.addP)];
-    cfgAction(async function(){ await tabAppend('MIEMBROS', [{ts:new Date().toISOString(), equipo_id:CFGUI.team, ldap:p.ldap, nombre:p.nombre, email:p.email, accion:'ADD', por_ldap:ME.ldap}]); snack(p.ldap + ' agregado'); }, 'Agregando a ' + p.ldap); return;
-  }
-  if (t.dataset.rmMember){
-    var l = t.dataset.rmMember;
-    cfgAction(async function(){ await tabAppend('MIEMBROS', [{ts:new Date().toISOString(), equipo_id:CFGUI.team, ldap:l, nombre:'', email:'', accion:'REMOVE', por_ldap:ME.ldap}]); snack(l + ' quitado'); }, 'Quitando a ' + l); return;
-  }
   if (t.id === 'cfg-schema'){
     cfgAction(async function(){
       var out = {};
