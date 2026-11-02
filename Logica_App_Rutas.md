@@ -256,3 +256,51 @@ Todo está en `dashboard_dpe_facility.html`; las constantes están arriba del bl
 | Tiempo máximo de una operación | `beginBusy(..., {timeout})` en cada acción |
 
 Archivos relacionados: `libro_control_rutas.xlsx` (plantilla del libro, 5 pestañas) y `Biblia_Grid_V24_16_Canonica.md` (evidencia y reglas de Grid detrás de estas decisiones, §16.31 y reglas 110-119).
+
+---
+
+## Apéndice A. La consulta que se envía a DPE
+
+Generada por `buildSql(sitio, ciclo, costoMinimo)`; el ejemplo usa `STR1`, `AM1` y `2000`. Lo único que cambia entre consultas son esos tres valores (ya validados). Se envía con `limit` 5.000, `cache_ttl` 300 s y `billing_project` del proyecto de reporting.
+
+```sql
+WITH LogisticsData AS (
+  SELECT r.SHP_CYCLE.name AS CICLO, r.RTG_ROUTE_NAME, r.SHP_LG_VEHICLE_TYPE_ID,
+    s.RTG_STOP_SEQUENCE AS stop_sequence,
+    SAFE_CAST(sau.RTG_UNIT_EXTERNAL_ID AS INT64) AS SHP_ID_INT,
+    sau.RTG_UNIT_EXTERNAL_ID, sa.RTG_ACTION_LAST_UPDATED_DTTM
+  FROM `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_ROUTE` r
+  LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_STOP` s
+    ON s.RTG_ROUTE_UUID = r.RTG_ROUTE_UUID AND s.RTG_STOP_LAST_UPDATED_DTTM >= CURRENT_DATE('America/Mexico_City')
+  LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_STOP_ACTION` sa
+    ON sa.RTG_STOP_UUID = s.RTG_STOP_UUID AND sa.RTG_ACTION_LAST_UPDATED_DTTM >= CURRENT_DATE('America/Mexico_City')
+  LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_STOP_ACTION_UNIT` sau
+    ON sau.RTG_ACTION_UUID = sa.RTG_ACTION_UUID AND sau.RTG_ACTION_LAST_UPDATED_DTTM >= CURRENT_DATE('America/Mexico_City')
+  WHERE r.SIT_SITE_ID = 'MLM'
+    AND r.SHP_FACILITY_ID = 'STR1'
+    AND r.RTG_ROUTE_DEPARTURE_DTTM >= CURRENT_DATE('America/Mexico_City')
+    AND r.SHP_CYCLE.name = 'AM1'
+    AND r.RTG_ROUTE_STATUS = 'planned'
+)
+SELECT log.CICLO, log.RTG_ROUTE_NAME AS Route_name, log.stop_sequence AS Parada,
+  log.RTG_UNIT_EXTERNAL_ID AS ID, lg_s.SHP_LG_SUB_STATUS,
+  IF(EXISTS(SELECT 1 FROM `meli-bi-data.WHOWNER.BT_SHP_INVENTORIED_INVENTORY_UNIT` inv
+            WHERE inv.SHP_INVENTORY_UNIT_EXTERNAL_ID = SAFE_CAST(log.RTG_UNIT_EXTERNAL_ID AS NUMERIC)),
+     'Si', 'No') AS En_Inventario,
+  CASE
+    WHEN SUBSTR(out.out_used_packing,1,2) IN ('B1','B2','B3','B4','B5','FI') THEN 'Bolsa'
+    WHEN SUBSTR(out.out_used_packing,1,2) IN ('AU','SI') THEN 'Auto Despachable'
+    WHEN SUBSTR(out.out_used_packing,1,1) IN ('D','C') THEN 'Caja'
+    WHEN SUBSTR(out.out_used_packing,1,2) = 'BS' THEN 'BOLSA DE SEGURIDAD'
+    ELSE ''
+  END AS Embalaje_Utilizado,
+  C.SHP_ORDER_COST AS Costo_MXN, B.ORD_ITEM.TITLE AS Descripcion, B.DOM_DOMAIN_ID AS Dominio
+FROM LogisticsData log
+LEFT JOIN `meli-bi-data.WHOWNER.BT_FBM_OUTBOUND` out ON out.SHP_SHIPMENT_ID = log.SHP_ID_INT AND out.OUT_LAST_UPDATED >= DATE_SUB(CURRENT_DATE('America/Mexico_City'), INTERVAL 3 DAY)
+LEFT JOIN `meli-bi-data.WHOWNER.BT_SHP_LG_SHIPMENTS` lg_s ON lg_s.SHP_SHIPMENT_ID = log.SHP_ID_INT AND lg_s.SHP_LG_DATE_CREATED >= DATE_SUB(CURRENT_DATE('America/Mexico_City'), INTERVAL 3 DAY)
+JOIN `meli-bi-data.WHOWNER.BT_ORD_ORDERS` B ON B.ORD_SHIPPING.ID = log.SHP_ID_INT AND B.ORD_CLOSED_DT >= DATE_SUB(CURRENT_DATE('America/Mexico_City'), INTERVAL 1 MONTH)
+JOIN `meli-bi-data.WHOWNER.BT_SHP_SHIPMENTS` C ON C.SHP_SHIPMENT_ID = log.SHP_ID_INT AND C.SHP_DATETIME_HANDLING_ID >= DATE_SUB(CURRENT_DATE('America/Mexico_City'), INTERVAL 1 MONTH) AND C.SHP_ORDER_COST >= 2000
+ORDER BY C.SHP_ORDER_COST DESC
+```
+
+**Respecto al SQL original:** sin `DECLARE` (DPE solo acepta una sentencia `SELECT`/`WITH`), variables sustituidas por literales, sin el `JOIN` de tipos de vehículo (no aportaba columnas) y con el costo tomado de `BT_SHP_SHIPMENTS` (`SHP_ORDER_COST`), filtrado dentro de su `JOIN`.
