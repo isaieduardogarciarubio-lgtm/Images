@@ -1108,6 +1108,10 @@ async function cargar(save){
     e = abortMsg(e, 'Consulta'); var onSave = e.stage === 'save'; steps[onSave ? 1 : 0].s = 'err';
     banner('error', onSave ? 'No se pudo guardar la carga' : (e.code === 'client_permission' ? 'Tu usuario no está autorizado para consultar con el proyecto de facturación actual' : e.status === 401 || e.status === 403 ? 'BigQuery o DPE rechazaron la consulta' : 'No se pudo consultar'), (e.code === 'client_permission' ? 'El servicio de consultas rechazó tu identidad. Abre Configuración (la cara de Damashito) y presiona "Diagnosticar BigQuery" para ver qué proyecto sí te funciona.\n\n' : '') + e.message + (e.rid ? '\nx-request-id: ' + e.rid : '')); logApp(onSave ? 'Guardado fallido' : 'Consulta fallida', e.message, 'err'); setConsole(true);
     if (!onSave) rows = null;
+    if (!onSave && e.code === 'client_permission'){
+      $('load-result').innerHTML = '<div class="result"><strong>Puedes trabajar sin consultar.</strong> Si alguien de tu equipo con acceso a BigQuery ya hizo la carga de tu sitio y ciclo, ábrela en el paso 2.<div class="actions" style="margin-top:10px"><button type="button" class="primary-button" id="to-work-alt">Abrir una carga que ya existe</button></div></div>';
+      $('to-work-alt').onclick = function(){ switchTab('trabajar'); };
+    }
   } finally { endBusy(); }
   if (rows){ renderLoadResult(out, save); }
 }
