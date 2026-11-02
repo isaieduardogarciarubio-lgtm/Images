@@ -302,6 +302,7 @@ table.data tr.asg td{color:var(--faint)}
 .mini{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .mini .it{display:inline-flex;align-items:center;gap:6px;padding:3px 4px 3px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px;background:var(--surface-soft)}
 .mini .it.done{background:var(--success-soft);border-color:#c1dfce;color:var(--success)}
+.mini .it.nf{background:var(--error-soft);border-color:#efc9ce;color:var(--error)}
 .mini .it button{width:20px;height:20px;border-radius:6px;background:transparent;color:inherit;font-size:14px;line-height:1}
 .mini .it button:hover{background:#00000014}
 dialog{width:min(100% - 24px,720px);max-height:92vh;padding:0;border:1px solid #d5dce7;border-radius:24px;color:var(--ink);background:var(--surface);box-shadow:0 18px 90px #12203d40;overflow:auto}
@@ -456,7 +457,7 @@ dialog::backdrop{background:#12203d99}
         <span class="hint" id="t-info"></span>
       </div>
     </div>
-    <div class="kpis" id="t-kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))"></div>
+    <div class="kpis" id="t-kpis" style="grid-template-columns:repeat(5,minmax(0,1fr))"></div>
     <div id="t-lotes"></div>
   </section>
 </main>
@@ -507,9 +508,7 @@ var TABS = {   // esquema del libro de control: una pestaña por entidad; membre
   SITIOS:      ['sitio','nombre','activo'],
   EQUIPOS:     ['equipo_id','sitio','nombre','lider_ldap','activo','creado_por','fecha'],
   MIEMBROS:    ['ts','equipo_id','ldap','nombre','email','accion','por_ldap'],
-  LOTES:       ['lote_id','ts','sitio','ciclo','equipo_id','asignado_ldap','nombre','creado_por'],
-  LOTE_ENVIOS: ['ts','lote_id','envio_id','accion','por_ldap'],
-  HISTORIAL:   ['datetime','sitio','ldap','envio_id','foto_ref'],  // lo escribe la app de captura (opcionales: lote_id, doc_id); aquí solo se lee
+  HISTORIAL:   ['datetime','sitio','ldap','envio_id','foto_ref'],  // lo escribe la app de captura (opcionales: resultado ENCONTRADO|NO_ENCONTRADO, lote_id, doc_id); aquí solo se lee
   CARGAS:      ['ts','sitio','ciclo','ldap','filas','costo_min','doc_id','ref']   // bitácora: quién cargó qué y en qué documento de Grid quedó
 };
 var LS_KEY = 'rutas_control_sheet_id';
@@ -809,7 +808,7 @@ function httpError(prefix, status, txt){
 var MEM = {}, DBTS = {}, DBC = {};   // MEM = libro local; DBC = caché por pestaña; DBTS = momento de lectura
 function seedLocal(){
   MEM.SITIOS = [{sitio:'STR1',nombre:'Sitio STR1 (ejemplo)',activo:'1'},{sitio:'XMT1',nombre:'Sitio XMT1 (ejemplo)',activo:'1'}];
-  MEM.EQUIPOS = []; MEM.MIEMBROS = []; MEM.LOTES = []; MEM.LOTE_ENVIOS = []; MEM.HISTORIAL = []; MEM.CARGAS = [];
+  MEM.EQUIPOS = []; MEM.MIEMBROS = []; MEM.HISTORIAL = []; MEM.CARGAS = [];
 }
 var sheetQ = Promise.resolve(), sheetLast = 0;
 function sheetsSerial(fn){
@@ -880,6 +879,18 @@ async function loadMe(){
     if (LOCAL) ME = {ldap:'tu.usuario', email:'tu.usuario@mercadolibre.com', nombre:'Tu Usuario (local)'};
   }
 }
+var OWNER = /[?&]admin=1/.test(location.search);   // "?admin=1" solo muestra la sección; el vínculo del libro lo exige Grid al dueño
+async function detectOwner(){
+  try {
+    var res = await fetch('/api/v1/documents/' + encodeURIComponent(docId()), {credentials:'include', headers:{'Accept':'application/json'}});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var j = await res.json(), vals = [];
+    ['owner_id', 'owner', 'owner_ldap', 'owner_username', 'owner_email'].forEach(function(k){ var v = j[k]; if (v && typeof v === 'object') v = v.username || v.ldap || v.email || v.id; if (v) vals.push(lc(v)); });
+    var me = vals.indexOf(ME.ldap) >= 0 || (ME.email && vals.indexOf(lc(ME.email)) >= 0);
+    OWNER = OWNER || !!me;
+    logApp('Propietario del documento: ' + (me ? 'eres tú' : vals.length ? 'otra persona' : 'no pude determinarlo'), vals.length ? '' : 'El documento no devolvió un campo de propietario reconocible. Usa ?admin=1 en la URL para ver la configuración del libro.', me || vals.length ? undefined : 'warn');
+  } catch(e){ logApp('No pude consultar quién es el propietario del documento', e.message, 'warn'); }
+}
 var BQ = {state:'checking', detail:''};
 async function checkBq(){
   BQ = {state:'checking', detail:''}; renderPerm();
@@ -902,7 +913,7 @@ function renderPerm(){
 var DS = null;            // {name, rows, facility, cycle, saved, demo}
 var MEMDS = {};           // cargas del modo ejemplo (solo memoria)
 var SRC = 'real';
-var SITIOS = [], EQUIPOS = [], MIEMBROS = [], LOTES = [], LENV = [], HIST = [];
+var SITIOS = [], EQUIPOS = [], MIEMBROS = [], LOTES = [], SHIPS = {}, HIST = [], LB = {};
 function activeFlag(v){ return !/^(0|no|false|inactivo)$/i.test(String(v || '1').trim()); }
 function teamMembers(eid){            // repetición de la bitácora: gana el último evento por persona
   var m = {};
@@ -912,26 +923,71 @@ function teamMembers(eid){            // repetición de la bitácora: gana el ú
 function myTeams(){
   return EQUIPOS.filter(function(t){ return activeFlag(t.activo) && (lc(t.lider_ldap) === ME.ldap || teamMembers(t.equipo_id).some(function(p){ return p.ldap === ME.ldap; })); });
 }
-function loteShipments(lid){
+/* Lotes y envíos asignados: estado temporal en Grid, un bucket por sitio ("lotes_<sitio>": como máximo uno por sitio, nunca crece).
+   Claves: "L:<lote_id>" = lote; "S:<envio_id>" = envío asignado. Cada valor lleva su "dia"; lo de más de KEEP_DAYS días se borra solo. */
+var KEEP_DAYS = 3;
+function lotesBucket(s){ return 'lotes_' + lc(s); }
+function dayStr(ms){ return new Intl.DateTimeFormat('en-CA', {timeZone: CFG.TZ}).format(new Date(ms)); }   // yyyy-mm-dd en hora de México
+function staleKeys(state){
+  var cutoff = dayStr(Date.now() - KEEP_DAYS * 86400000);
+  return Object.keys(state).filter(function(k){ var v = state[k]; return v && typeof v === 'object' && v.dia && v.dia < cutoff; });
+}
+async function stGet(bucket){
+  var res = await fetch(stUrl(bucket), {credentials:'include', headers:{'Accept':'application/json'}, signal: BUSY && BUSY.ctl.signal});
+  if (!res.ok) throw httpError('Leer ' + bucket, res.status, await res.text());
+  var b = await res.json(); return {state:(b && b.state) || {}, updated_at:(b && b.updated_at) || ''};
+}
+async function stPatch(bucket, patch){   // PATCH con if_updated_at, reintento ante 409 y verificación (patrón V20.2 de la Biblia)
+  var keys = Object.keys(patch);
+  for (var i = 0; i < 5; i++){
+    var cur = await stGet(bucket);
+    var res = await fetch(stUrl(bucket), {method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({patch:patch, if_updated_at:cur.updated_at}), signal: BUSY && BUSY.ctl.signal});
+    if (res.status === 409){ logApp('Conflicto (409) en ' + bucket + '; reintento ' + (i + 1), '', 'warn'); await sleep(150 + Math.random() * 400); continue; }
+    if (!res.ok) throw httpError('Guardar en ' + bucket, res.status, await res.text());
+    var chk = await stGet(bucket);
+    var ok = keys.every(function(k){ return patch[k] === null ? !(k in chk.state) : JSON.stringify(chk.state[k]) === JSON.stringify(patch[k]); });
+    if (ok) return chk;
+    logApp('Escritura no verificada en ' + bucket + '; reintento ' + (i + 1), '', 'warn');
+  }
+  throw new Error('No se pudo confirmar el guardado en ' + bucket + ' tras varios intentos. Vuelve a intentar.');
+}
+function rebuildLotes(){
+  LOTES = []; SHIPS = {};
+  Object.keys(LB).forEach(function(site){
+    var st = LB[site].state;
+    Object.keys(st).forEach(function(k){
+      var v = st[k]; if (!v || typeof v !== 'object') return;
+      if (k.indexOf('L:') === 0) LOTES.push(Object.assign({}, v, {lote_id:k.slice(2), sitio:site}));
+      else if (k.indexOf('S:') === 0) SHIPS[k.slice(2)] = v;
+    });
+  });
+  LOTES.sort(function(a, b){ return String(a.ts).localeCompare(String(b.ts)); });
+}
+function loteShipments(lid){ return Object.keys(SHIPS).filter(function(e){ return SHIPS[e].lote_id === lid; }); }
+function assignedMap(){ var m = {}; Object.keys(SHIPS).forEach(function(e){ m[e] = SHIPS[e].lote_id; }); return m; }
+function lotePayload(l, dia){ return {nombre:l.nombre, equipo_id:l.equipo_id, asignado_ldap:l.asignado_ldap, creado_por:l.creado_por, ts:l.ts, ciclo:l.ciclo, dia:dia}; }
+function resultMap(){   // último resultado por envío (lo escribe la app de captura): ENCONTRADO | NO_ENCONTRADO
   var m = {};
-  LENV.forEach(function(r){ if (r.lote_id === lid) m[String(r.envio_id)] = String(r.accion).toUpperCase(); });
-  return Object.keys(m).filter(function(k){ return m[k] === 'ADD'; });
+  HIST.forEach(function(r){ if (!r.envio_id) return; var x = String(r.resultado || '').trim().toUpperCase().replace(/\s+/g, '_'); if (!x && r.foto_ref) x = 'ENCONTRADO'; if (x) m[String(r.envio_id)] = x; });
+  return m;
 }
-function assignedMap(){
-  var st = {};
-  LENV.forEach(function(r){ st[r.lote_id + '|' + r.envio_id] = {lote:r.lote_id, envio:String(r.envio_id), add:String(r.accion).toUpperCase() === 'ADD'}; });
-  var map = {};
-  Object.keys(st).forEach(function(k){ if (st[k].add) map[st[k].envio] = st[k].lote; else if (map[st[k].envio] === st[k].lote) delete map[st[k].envio]; });
-  return map;
-}
-function photoSet(){ var s = {}; HIST.forEach(function(r){ if (r.envio_id) s[String(r.envio_id)] = r; }); return s; }
 async function loadConfigData(force){
   SITIOS = (await tabRead('SITIOS', force)).filter(function(r){ return r.sitio && activeFlag(r.activo); });
   EQUIPOS = await tabRead('EQUIPOS', force); MIEMBROS = await tabRead('MIEMBROS', force);
   $('sitios-dl').innerHTML = SITIOS.map(function(s){ return '<option value="' + esc(s.sitio) + '">' + esc(s.nombre) + '</option>'; }).join('');
 }
 async function loadWorkData(force){
-  LOTES = await tabRead('LOTES', force); LENV = await tabRead('LOTE_ENVIOS', force);
+  var set = {}; myTeams().forEach(function(t){ set[String(t.sitio).toUpperCase()] = 1; }); if (DS) set[String(DS.facility).toUpperCase()] = 1;
+  for (var site in set){
+    LB[site] = await stGet(lotesBucket(site));
+    var stale = staleKeys(LB[site].state);
+    if (stale.length){   // limpieza automática: quien abra primero borra lo vencido (idempotente)
+      var patch = {}; stale.forEach(function(k){ patch[k] = null; });
+      logApp('Limpiando ' + stale.length + ' claves vencidas de ' + lotesBucket(site));
+      stPatch(lotesBucket(site), patch).then(function(r){ LB[site] = r; rebuildLotes(); }).catch(function(e){ logApp('No se pudo limpiar ' + lotesBucket(site), e.message, 'warn'); });
+    }
+  }
+  rebuildLotes();
   try { HIST = await tabRead('HISTORIAL', force); } catch(e){ HIST = []; logApp('Historial no disponible todavía', e.message, 'warn'); }
 }
 
@@ -1163,13 +1219,13 @@ async function doAssign(ids){
   if (!lote && !nm){ snack('Escribe un nombre para el lote nuevo'); return; }
   if (!beginBusy('Asignando ' + ids.length + ' envíos', {btn:'as-ok', text:'Asignando', timeout:60000})) return;
   try {
-    var now = new Date().toISOString();
-    if (!lote){
-      lote = uid('L');
-      await tabAppend('LOTES', [{lote_id:lote, ts:now, sitio:DS.facility, ciclo:DS.cycle, equipo_id:tid, asignado_ldap:person, nombre:nm, creado_por:ME.ldap}]);
-    }
-    await tabAppend('LOTE_ENVIOS', ids.map(function(id){ return {ts:now, lote_id:lote, envio_id:id, accion:'ADD', por_ldap:ME.ldap}; }));
-    await loadWorkData(true); ASG = assignedMap(); SEL = {};
+    var now = new Date().toISOString(), dia = dayStr(Date.now()), site = String(DS.facility).toUpperCase(), patch = {};
+    if (!lote){ lote = uid('L'); patch['L:' + lote] = {nombre:nm, equipo_id:tid, asignado_ldap:person, creado_por:ME.ldap, ts:now, ciclo:DS.cycle, dia:dia}; }
+    else { var ex = LOTES.filter(function(l){ return l.lote_id === lote; })[0]; if (ex) patch['L:' + lote] = lotePayload(ex, dia); }
+    ids.forEach(function(id){ patch['S:' + id] = {lote_id:lote, ts:now, por:ME.ldap, dia:dia, ciclo:DS.cycle}; });
+    if (LB[site]) staleKeys(LB[site].state).forEach(function(k){ if (!(k in patch)) patch[k] = null; });
+    BUSY.phase = 'Guardando los lotes';
+    LB[site] = await stPatch(lotesBucket(site), patch); rebuildLotes(); ASG = assignedMap(); SEL = {};
     $('assign-dlg').close(); snack(ids.length + ' envíos asignados');
   } catch(e){ e = abortMsg(e, 'Asignación'); banner('error', 'No se pudo asignar', e.message); logApp('Asignación fallida', e.message, 'err'); setConsole(true); }
   finally { endBusy(); renderWork(); }
@@ -1178,7 +1234,7 @@ async function doAssign(ids){
 /* ================================== 3. MI EQUIPO ================================== */
 async function renderEquipo(force){
   var sel = $('t-team'), curTeam = sel.value;
-  try { await loadConfigData(!!force); await loadWorkData(!!force); } catch(e){ banner('error', 'No se pudieron leer los datos del equipo', e.message); return; }
+  try { await loadConfigData(false); await loadWorkData(!!force); } catch(e){ banner('error', 'No se pudieron leer los datos del equipo', e.message); return; }
   var teams = myTeams();
   sel.innerHTML = teams.length ? teams.map(function(t){ return '<option value="' + esc(t.equipo_id) + '"' + (t.equipo_id === curTeam ? ' selected' : '') + '>' + esc(t.sitio) + ' · ' + esc(t.nombre) + '</option>'; }).join('') : '<option value="">(sin equipos)</option>';
   if (!teams.length){
@@ -1189,30 +1245,35 @@ async function renderEquipo(force){
   var cyc = {}; lotes.forEach(function(l){ cyc[l.ciclo] = 1; }); var cv = $('t-cycle').value;
   $('t-cycle').innerHTML = '<option value="">Todos</option>' + Object.keys(cyc).sort().map(function(c){ return '<option' + (c === cv ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('');
   if ($('t-cycle').value) lotes = lotes.filter(function(l){ return l.ciclo === $('t-cycle').value; });
-  var photos = photoSet(), tot = 0, done = 0;
+  var res = resultMap(), tot = 0, found = 0, notf = 0;
   var cards = lotes.slice().reverse().map(function(l){
-    var ships = loteShipments(l.lote_id), d = ships.filter(function(s){ return photos[s]; }).length; tot += ships.length; done += d;
-    var pct = ships.length ? Math.round(d * 100 / ships.length) : 0, st = !ships.length ? 'Vacío' : pct === 100 ? 'Completo' : d ? 'En curso' : 'Pendiente';
-    var chip = pct === 100 ? 'chip-ok' : d ? 'chip-warn' : 'chip-info';
+    var ships = loteShipments(l.lote_id), f = ships.filter(function(x){ return res[x] === 'ENCONTRADO'; }).length, nf = ships.filter(function(x){ return res[x] === 'NO_ENCONTRADO'; }).length, rev = f + nf;
+    tot += ships.length; found += f; notf += nf;
+    var pct = ships.length ? Math.round(rev * 100 / ships.length) : 0, st = !ships.length ? 'Vacío' : pct === 100 ? 'Completo' : rev ? 'En curso' : 'Pendiente';
+    var chip = pct === 100 ? 'chip-ok' : rev ? 'chip-warn' : 'chip-info';
     return '<details class="lote" data-lote="' + esc(l.lote_id) + '"><summary><div><div class="nm">' + esc(l.nombre) + '</div><div class="sub">' + esc(l.sitio) + ' · ' + esc(l.ciclo) + '</div></div>' +
-      '<div class="sub">Asignado a <strong>' + esc(l.asignado_ldap) + '</strong></div><div><div class="prog"><i style="width:' + pct + '%"></i></div><div class="sub" style="margin-top:4px">' + d + ' de ' + ships.length + ' con foto</div></div><span class="' + chip + '">' + st + '</span></summary>' +
-      '<div class="body"><div class="mini">' + (ships.length ? ships.map(function(s){ return '<span class="it' + (photos[s] ? ' done' : '') + '">' + esc(s) + '<button type="button" data-rm="' + esc(s) + '" data-l="' + esc(l.lote_id) + '" title="Quitar del lote">×</button></span>'; }).join('') : '<span class="hint">Este lote no tiene envíos.</span>') + '</div>' +
+      '<div class="sub">Asignado a <strong>' + esc(l.asignado_ldap) + '</strong></div><div><div class="prog"><i style="width:' + pct + '%"></i></div><div class="sub" style="margin-top:4px">' + f + ' encontrados · ' + nf + ' no encontrados · ' + ships.length + ' envíos</div></div><span class="' + chip + '">' + st + '</span></summary>' +
+      '<div class="body"><div class="mini">' + (ships.length ? ships.map(function(x){ return '<span class="it' + (res[x] === 'ENCONTRADO' ? ' done' : res[x] === 'NO_ENCONTRADO' ? ' nf' : '') + '">' + esc(x) + '<button type="button" data-rm="' + esc(x) + '" data-l="' + esc(l.lote_id) + '" title="Quitar del lote">×</button></span>'; }).join('') : '<span class="hint">Este lote no tiene envíos.</span>') + '</div>' +
       '<div class="field" style="margin-top:12px"><label for="add-' + esc(l.lote_id) + '">Agregar envíos (IDs separados por coma, espacio o renglón)</label><textarea id="add-' + esc(l.lote_id) + '"></textarea></div>' +
       '<div class="actions" style="margin-top:8px"><button type="button" class="secondary-button" data-add="' + esc(l.lote_id) + '">Agregar al lote</button></div></div></details>';
   });
   var open = {}; [].forEach.call(document.querySelectorAll('#t-lotes details[open]'), function(d){ open[d.dataset.lote] = 1; });
   $('t-lotes').innerHTML = cards.length ? cards.join('') : '<div class="card empty-card">Este equipo todavía no tiene lotes. Ve al paso 2, selecciona envíos y asígnalos.</div>';
   [].forEach.call(document.querySelectorAll('#t-lotes details'), function(d){ if (open[d.dataset.lote]) d.open = true; });
-  $('t-kpis').innerHTML = [['Lotes', lotes.length], ['Envíos asignados', tot], ['Con foto', done], ['Avance', tot ? Math.round(done * 100 / tot) + '%' : '-']].map(function(x){ return '<div class="kpi"><div class="kpi-label">' + x[0] + '</div><div class="kpi-value">' + x[1] + '</div></div>'; }).join('');
-  $('t-info').textContent = LOCAL ? '' : 'Las fotos vienen del historial que llena la app de captura.';
+  $('t-kpis').innerHTML = [['Lotes', lotes.length], ['Envíos asignados', tot], ['Encontrados', found], ['No encontrados', notf], ['Avance', tot ? Math.round((found + notf) * 100 / tot) + '%' : '-']].map(function(x){ return '<div class="kpi"><div class="kpi-label">' + x[0] + '</div><div class="kpi-value">' + x[1] + '</div></div>'; }).join('');
+  $('t-info').textContent = LOCAL ? '' : 'Encontrados y no encontrados vienen del historial que llena la app de captura.';
 }
 async function mutateLote(lote, ids, accion){
   if (BUSY) return busyNotice();
   if (!ids.length) return;
+  var l = LOTES.filter(function(x){ return x.lote_id === lote; })[0];
+  if (!l){ snack('No encontré ese lote; actualiza la pantalla'); return; }
   if (!beginBusy((accion === 'ADD' ? 'Agregando ' : 'Quitando ') + ids.length + ' envío(s)', {timeout:60000})) return;
   try {
-    var now = new Date().toISOString();
-    await tabAppend('LOTE_ENVIOS', ids.map(function(id){ return {ts:now, lote_id:lote, envio_id:id, accion:accion, por_ldap:ME.ldap}; }));
+    var now = new Date().toISOString(), dia = dayStr(Date.now()), site = String(l.sitio).toUpperCase(), patch = {};
+    ids.forEach(function(id){ patch['S:' + id] = accion === 'ADD' ? {lote_id:lote, ts:now, por:ME.ldap, dia:dia, ciclo:l.ciclo} : null; });
+    if (accion === 'ADD') patch['L:' + lote] = lotePayload(l, dia);   // el lote se mantiene vivo mientras se usa
+    LB[site] = await stPatch(lotesBucket(site), patch); rebuildLotes();
     snack(accion === 'ADD' ? 'Envíos agregados' : 'Envío quitado');
   } catch(e){ banner('error', 'No se pudo guardar el cambio', e.message); logApp('Cambio de lote fallido', e.message, 'err'); setConsole(true); }
   finally { endBusy(); }
@@ -1246,7 +1307,8 @@ function renderConfig(){
         '<div class="people" id="cfg-results">' + CFGUI.results.map(function(p, i){ var inT = ppl.some(function(x){ return x.ldap === p.ldap; }); return '<div class="person"><div class="who"><b>' + esc(p.nombre || p.ldap) + '</b><span>' + esc(p.ldap) + (p.email ? ' · ' + esc(p.email) : '') + '</span></div>' + (inT ? '<span class="chip-info">Ya está</span>' : '<button type="button" class="primary-button" data-add-p="' + i + '">Agregar</button>') + '</div>'; }).join('') + '</div>';
     }
   }
-  h += '</div><div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Libro</dt><dd>' + (LOCAL ? 'sin conectar' : esc(CFG.SHEET_ID.slice(0, 6) + '…' + CFG.SHEET_ID.slice(-4))) + '</dd><dt>Pestañas</dt><dd>' +
+  h += '</div>';
+  if (OWNER) h += '<div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Libro</dt><dd>' + (LOCAL ? 'sin conectar' : esc(CFG.SHEET_ID.slice(0, 6) + '…' + CFG.SHEET_ID.slice(-4))) + '</dd><dt>Pestañas</dt><dd>' +
     Object.keys(TABS).map(function(t){ var s = CFGUI.schema && CFGUI.schema[t]; return '<div><strong>' + t + '</strong> <span class="' + (s == null ? 'chip-info' : s === true ? 'chip-ok' : 'chip-bad') + '">' + (s == null ? TABS[t].join(', ') : s === true ? 'correcta' : esc(s)) + '</span></div>'; }).join('') + '</dd></dl>' +
     '<div class="row" style="margin-top:12px"><div class="field" style="flex:1;min-width:240px"><label for="cfg-sheet">Pega el enlace o el ID del libro de Google Sheets</label><input id="cfg-sheet" placeholder="https://docs.google.com/spreadsheets/d/…" autocomplete="off" spellcheck="false"></div><button type="button" class="primary-button" id="cfg-connect">Conectar libro</button>' + (LOCAL ? '' : '<button type="button" class="secondary-button" id="cfg-disc">Desconectar</button>') + '</div>' +
     '<div class="actions" style="margin-top:10px"><button type="button" class="secondary-button" id="cfg-schema">Verificar pestañas</button><button type="button" class="secondary-button" id="cfg-link"' + (LOCAL ? ' disabled' : '') + '>Vincular libro (solo dueño)</button></div></div>';
@@ -1302,7 +1364,7 @@ function switchTab(t){
   ['cargar', 'trabajar', 'equipo'].forEach(function(x){ $('p-' + x).hidden = x !== t; });
   clearBanner();
   if (t === 'trabajar'){ dsList().then(function(ns){ $('ds-dl').innerHTML = ns.map(function(n){ return '<option value="' + esc(n) + '">'; }).join(''); }); if (DS && !$('ds-name').value) $('ds-name').value = DS.name; if (DS && !Object.keys(ASG).length) loadWorkData(false).then(function(){ ASG = assignedMap(); renderWork(); }).catch(function(){}); renderWork(); }
-  if (t === 'equipo') renderEquipo(false);
+  if (t === 'equipo') renderEquipo(true);
   guide();
 }
 function guide(){
@@ -1425,7 +1487,7 @@ async function boot(){
   if (LOCAL){ seedLocal(); $('mode-badge').hidden = false; logApp('Modo local de pruebas', 'CFG.SHEET_ID está vacío: equipos y lotes viven en memoria y se pierden al recargar.', 'warn'); }
   guide(); renderPerm(); renderCargarState(); renderWork();
   logApp('Consola lista', 'DPE: /api/v1/dpe/sources/bigquery/' + CFG.DATA_PROJECT + '/query\nbilling_project: ' + CFG.BILLING_PROJECT + '\ndoc_id detectado: ' + (docId() || '(ninguno)') + '\nlibro de control: ' + (LOCAL ? '(local)' : 'configurado'));
-  await loadMe();
+  await loadMe(); detectOwner();
   try { await loadConfigData(false); } catch(e){ logApp('No se pudo leer la configuración', e.message, 'warn'); }
   guide();
   if (SRC === 'real') checkBq();
