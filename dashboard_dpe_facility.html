@@ -511,6 +511,7 @@ var TABS = {   // esquema del libro de control: una pestaña por entidad; las me
   HISTORIAL:   ['datetime','sitio','ldap','envio_id','foto_ref'],  // lo escribe la app de captura (opcionales: resultado ENCONTRADO|NO_ENCONTRADO, lote_id, doc_id); aquí solo se lee
   CARGAS:      ['ts','sitio','ciclo','ldap','filas','costo_min','doc_id','ref']   // bitácora: quién cargó qué y en qué documento de Grid quedó
 };
+var HARD_SHEET_ID = CFG.SHEET_ID;   // el que quedó escrito en el código
 var LS_KEY = 'rutas_control_sheet_id';
 function lsGet(){ try { return localStorage.getItem(LS_KEY) || ''; } catch(e){ return ''; } }
 function lsSet(v){ try { if (v) localStorage.setItem(LS_KEY, v); else localStorage.removeItem(LS_KEY); } catch(e){} }
@@ -1319,7 +1320,7 @@ function renderConfig(){
     }
   }
   h += '</div>';
-  if (OWNER) h += '<div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Libro</dt><dd>' + (LOCAL ? 'sin conectar' : esc(CFG.SHEET_ID.slice(0, 6) + '…' + CFG.SHEET_ID.slice(-4))) + '</dd><dt>Pestañas</dt><dd>' +
+  if (OWNER) h += '<div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Libro</dt><dd>' + (LOCAL ? 'sin conectar' : '<a href="https://docs.google.com/spreadsheets/d/' + encodeURIComponent(CFG.SHEET_ID) + '/edit" target="_blank" rel="noopener noreferrer">Abrir libro</a> <span class="hint" style="user-select:all;overflow-wrap:anywhere">' + esc(CFG.SHEET_ID) + '</span>' + (CFG.SHEET_ID === HARD_SHEET_ID ? ' <span class="chip-ok">fijo en el código</span>' : ' <span class="chip-warn">distinto del fijo; solo en esta sesión</span>')) + '</dd><dt>Pestañas</dt><dd>' +
     Object.keys(TABS).map(function(t){ var s = CFGUI.schema && CFGUI.schema[t]; return '<div><strong>' + t + '</strong> <span class="' + (s == null ? 'chip-info' : s === true ? 'chip-ok' : 'chip-bad') + '">' + (s == null ? TABS[t].join(', ') : s === true ? 'correcta' : esc(s)) + '</span></div>'; }).join('') + '</dd></dl>' +
     '<div class="row" style="margin-top:12px"><div class="field" style="flex:1;min-width:240px"><label for="cfg-sheet">Pega el enlace o el ID del libro de Google Sheets</label><input id="cfg-sheet" placeholder="https://docs.google.com/spreadsheets/d/…" autocomplete="off" spellcheck="false"></div><button type="button" class="primary-button" id="cfg-connect">Conectar libro</button>' + (LOCAL ? '' : '<button type="button" class="secondary-button" id="cfg-disc">Desconectar</button>') + '</div>' +
     '<div class="actions" style="margin-top:10px"><button type="button" class="secondary-button" id="cfg-schema">Verificar pestañas</button><button type="button" class="secondary-button" id="cfg-link"' + (LOCAL ? ' disabled' : '') + '>Vincular libro (solo dueño)</button></div></div>';
@@ -1349,7 +1350,7 @@ async function connectSheet(id){
     }
     CFGUI.schema = out;
     if (!readable) throw new Error('No pude leer ninguna pestaña del libro. Revisa que el enlace sea correcto, que el libro exista en la cuenta de Google del dueño y que el dueño lo haya vinculado a este documento (botón "Vincular libro (solo dueño)").');
-    lsSet(id); $('mode-badge').hidden = true; snack('Libro conectado');
+    lsSet(id); $('mode-badge').hidden = true; snack(id === HARD_SHEET_ID ? 'Libro conectado' : 'Libro conectado solo en esta sesión; para dejarlo fijo hay que cambiar CFG.SHEET_ID en el código');
     logApp('Libro conectado', 'pestañas legibles: ' + readable + ' de ' + Object.keys(TABS).length);
   } catch(e){
     CFG.SHEET_ID = prev.id; LOCAL = prev.local; banner('error', 'No se pudo conectar el libro', e.message); logApp('Conexión con Sheets fallida', e.message, 'err'); setConsole(true);
