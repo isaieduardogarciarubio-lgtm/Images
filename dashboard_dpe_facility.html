@@ -234,6 +234,8 @@ body.is-busy .card::after,body.is-busy .kpi::after{content:"";position:absolute;
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}}
 
 /* ---------- v2: pestañas, formularios, diálogos, lotes ---------- */
+.dlg-body a,.status-banner a,.brief-bubble a:not(.primary-button){color:var(--primary-ink);font-weight:650;text-underline-offset:3px}
+.mono-id{display:block;margin-top:4px;font:500 12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted);user-select:all;overflow-wrap:anywhere}
 .demo-badge{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid #e8d6a8;border-radius:7px;color:#75540d;background:#fff7e6;font-size:10px;font-weight:750;letter-spacing:.04em;white-space:nowrap}
 .avatar-btn{display:inline-grid;place-items:center;width:48px;height:48px;padding:0;border-radius:50%;background:transparent}
 .avatar-btn:hover img{filter:brightness(1.04)}
@@ -512,6 +514,7 @@ var TABS = {   // esquema del libro de control: una pestaña por entidad; las me
   CARGAS:      ['ts','sitio','ciclo','ldap','filas','costo_min','doc_id','ref']   // bitácora: quién cargó qué y en qué documento de Grid quedó
 };
 var HARD_SHEET_ID = CFG.SHEET_ID;   // el que quedó escrito en el código
+var TABS_OPT = {HISTORIAL:['resultado','lote_id','doc_id']};   // columnas opcionales (la app no las exige)
 var LS_KEY = 'rutas_control_sheet_id';
 function lsGet(){ try { return localStorage.getItem(LS_KEY) || ''; } catch(e){ return ''; } }
 function lsSet(v){ try { if (v) localStorage.setItem(LS_KEY, v); else localStorage.removeItem(LS_KEY); } catch(e){} }
@@ -1320,8 +1323,8 @@ function renderConfig(){
     }
   }
   h += '</div>';
-  if (OWNER) h += '<div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Libro</dt><dd>' + (LOCAL ? 'sin conectar' : '<a href="https://docs.google.com/spreadsheets/d/' + encodeURIComponent(CFG.SHEET_ID) + '/edit" target="_blank" rel="noopener noreferrer">Abrir libro</a> <span class="hint" style="user-select:all;overflow-wrap:anywhere">' + esc(CFG.SHEET_ID) + '</span>' + (CFG.SHEET_ID === HARD_SHEET_ID ? ' <span class="chip-ok">fijo en el código</span>' : ' <span class="chip-warn">distinto del fijo; solo en esta sesión</span>')) + '</dd><dt>Pestañas</dt><dd>' +
-    Object.keys(TABS).map(function(t){ var s = CFGUI.schema && CFGUI.schema[t]; return '<div><strong>' + t + '</strong> <span class="' + (s == null ? 'chip-info' : s === true ? 'chip-ok' : 'chip-bad') + '">' + (s == null ? TABS[t].join(', ') : s === true ? 'correcta' : esc(s)) + '</span></div>'; }).join('') + '</dd></dl>' +
+  if (OWNER) h += '<div class="sec"><h3>Libro de control</h3><dl class="kv"><dt>Modo</dt><dd>' + (LOCAL ? '<span class="chip-warn">Local de pruebas (sin Google Sheets)</span>' : '<span class="chip-ok">Google Sheets</span>') + '</dd><dt>Libro</dt><dd>' + (LOCAL ? 'sin conectar' : (CFG.SHEET_ID === HARD_SHEET_ID ? '<span class="chip-ok">Fijo en el código</span>' : '<span class="chip-warn">Distinto del fijo; solo en esta sesión</span>') + ' <a href="https://docs.google.com/spreadsheets/d/' + encodeURIComponent(CFG.SHEET_ID) + '/edit" target="_blank" rel="noopener noreferrer">Abrir libro</a><span class="mono-id">' + esc(CFG.SHEET_ID) + '</span>') + '</dd><dt>Pestañas</dt><dd>' +
+    Object.keys(TABS).map(function(t){ var s = CFGUI.schema && CFGUI.schema[t]; return '<div><strong>' + t + '</strong> <span class="' + (s == null ? 'chip-info' : s === true ? 'chip-ok' : 'chip-bad') + '">' + (s == null ? TABS[t].join(', ') + (TABS_OPT[t] ? ' (opcionales: ' + TABS_OPT[t].join(', ') + ')' : '') : s === true ? 'correcta' : esc(s)) + '</span></div>'; }).join('') + '</dd></dl>' +
     '<div class="row" style="margin-top:12px"><div class="field" style="flex:1;min-width:240px"><label for="cfg-sheet">Pega el enlace o el ID del libro de Google Sheets</label><input id="cfg-sheet" placeholder="https://docs.google.com/spreadsheets/d/…" autocomplete="off" spellcheck="false"></div><button type="button" class="primary-button" id="cfg-connect">Conectar libro</button>' + (LOCAL ? '' : '<button type="button" class="secondary-button" id="cfg-disc">Desconectar</button>') + '</div>' +
     '<div class="actions" style="margin-top:10px"><button type="button" class="secondary-button" id="cfg-schema">Verificar pestañas</button><button type="button" class="secondary-button" id="cfg-link"' + (LOCAL ? ' disabled' : '') + '>Vincular libro (solo dueño)</button></div></div>';
   $('cfg-body').innerHTML = h;
