@@ -882,6 +882,7 @@ async function loadMe(){
     if (LOCAL) ME = {ldap:'tu.usuario', email:'tu.usuario@mercadolibre.com', nombre:'Tu Usuario (local)'};
   }
 }
+var OWNER_ID = '', SHEETS = {ok:true, status:0, msg:''};
 var OWNER = /[?&]admin=1/.test(location.search);   // "?admin=1" solo muestra la sección; el vínculo del libro lo exige Grid al dueño
 async function detectOwner(){
   try {
@@ -889,6 +890,7 @@ async function detectOwner(){
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var j = await res.json(), vals = [];
     ['owner_id', 'owner', 'owner_ldap', 'owner_username', 'owner_email'].forEach(function(k){ var v = j[k]; if (v && typeof v === 'object') v = v.username || v.ldap || v.email || v.id; if (v) vals.push(lc(v)); });
+    OWNER_ID = vals[0] || '';
     var me = vals.indexOf(ME.ldap) >= 0 || (ME.email && vals.indexOf(lc(ME.email)) >= 0);
     OWNER = OWNER || !!me;
     logApp('Propietario del documento: ' + (me ? 'eres tú' : vals.length ? 'otra persona' : 'no pude determinarlo'), vals.length ? '' : 'El documento no devolvió un campo de propietario reconocible. Usa ?admin=1 en la URL para ver la configuración del libro.', me || vals.length ? undefined : 'warn');
@@ -908,6 +910,18 @@ function diagHtml(){
   return h;
 }
 var BQ = {state:'checking', detail:'', rid:''};   // verificación INFORMATIVA: nunca bloquea los botones; la consulta real decide
+/* El dueño registra el vínculo documento-libro una sola vez (Grid lo exige desde el 14-oct); sin él, el resto de las personas recibe 403. */
+async function autoLink(){
+  var k = 'rutas_linked_' + CFG.SHEET_ID.slice(0, 12) + '_' + docId(), done = '';
+  try { done = localStorage.getItem(k) || ''; } catch(e){}
+  if (done) return;
+  try {
+    await sheetFetch('/api/v1/sheets/' + encodeURIComponent(CFG.SHEET_ID) + '/link?doc_id=' + encodeURIComponent(docId()), {method:'PUT', body: JSON.stringify({capability:'read_write'})});
+    logApp('Libro vinculado a este documento (automático, por ser el dueño)');
+    try { localStorage.setItem(k, '1'); } catch(e){}
+    snack('Libro de control vinculado a este documento');
+  } catch(e){ logApp('No se pudo vincular el libro automáticamente', e.message, 'warn'); }
+}
 async function checkBq(){
   BQ = {state:'checking', detail:'', rid:''}; renderPerm();
   try { await dpeQuery('SELECT 1 AS ok'); BQ = {state:'ok', detail:'', rid:''}; }
@@ -1382,7 +1396,7 @@ function guide(){
   if (BUSY) return;
   var b = $('brief'), h = '';
   if (TAB === 'cargar'){
-    h = '<p class="brief-text">Hola' + (ME.nombre ? ', <strong>' + esc(ME.nombre.split(' ')[0]) + '</strong>' : '') + '. Así empezamos:</p><ol class="brief-list"><li>Escribe tu <strong>sitio</strong> y el <strong>ciclo</strong>.</li><li>Pon desde qué <strong>costo</strong> quieres ver los envíos.</li><li>Presiona <strong>Consultar y guardar</strong>. Yo hago todos los pasos.</li></ol>' + (BQ.state === 'fail' ? '<p class="hint" style="margin-top:6px">La verificación inicial de BigQuery no salió bien (' + esc(BQ.status || 'error') + '), pero eso no te bloquea: intenta consultar y, si falla, te muestro el motivo exacto.</p>' : '');
+    h = (SHEETS.ok ? '' : '<div class="status-banner warning" style="margin-bottom:10px"><div><strong>No puedo leer el libro de control' + (SHEETS.status ? ' (' + SHEETS.status + ')' : '') + '.</strong> ' + (SHEETS.status === 403 ? (OWNER ? 'Presiona <strong>Vincular libro</strong> en Configuración.' : 'El dueño del documento' + (OWNER_ID ? ' (' + esc(OWNER_ID) + ')' : '') + ' debe abrir esta app una vez para vincular el libro.') : 'Revisa la consola para ver el motivo.') + ' Mientras tanto no verás sitios ni equipos.</div></div>') + '<p class="brief-text">Hola' + (ME.nombre ? ', <strong>' + esc(ME.nombre.split(' ')[0]) + '</strong>' : '') + '. Así empezamos:</p><ol class="brief-list"><li>Escribe tu <strong>sitio</strong> y el <strong>ciclo</strong>.</li><li>Pon desde qué <strong>costo</strong> quieres ver los envíos.</li><li>Presiona <strong>Consultar y guardar</strong>. Yo hago todos los pasos.</li></ol>' + (BQ.state === 'fail' ? '<p class="hint" style="margin-top:6px">La verificación inicial de BigQuery no salió bien (' + esc(BQ.status || 'error') + '), pero eso no te bloquea: intenta consultar y, si falla, te muestro el motivo exacto.</p>' : '');
   } else if (TAB === 'trabajar'){
     h = !DS ? '<p class="brief-text">Elige la carga de tu sitio y ciclo (por ejemplo <strong>STR1_AM1</strong>) y presiona <strong>Abrir</strong>.</p>' :
       '<p class="brief-text">Tienes <strong>' + num(DS.rows.length) + ' envíos</strong> de <strong>' + esc(DS.name) + '</strong>' + (DS.saved ? '' : ' <span class="chip-warn">sin guardar</span>') + '.</p><ol class="brief-list"><li>Filtra por dominio, costo o descripción.</li><li>Marca los envíos que quieras (o <strong>Seleccionar visibles</strong>).</li><li>Presiona <strong>Asignar a lote</strong> y elige a quién se los das.</li></ol>';
@@ -1510,8 +1524,10 @@ async function boot(){
   if (LOCAL){ seedLocal(); $('mode-badge').hidden = false; logApp('Modo local de pruebas', 'CFG.SHEET_ID está vacío: equipos y lotes viven en memoria y se pierden al recargar.', 'warn'); }
   guide(); renderPerm(); renderCargarState(); renderWork();
   logApp('Consola lista', 'DPE: /api/v1/dpe/sources/bigquery/' + CFG.DATA_PROJECT + '/query\nbilling_project: ' + CFG.BILLING_PROJECT + '\ndoc_id detectado: ' + (docId() || '(ninguno)') + '\nlibro de control: ' + (LOCAL ? '(local)' : 'configurado'));
-  await loadMe(); detectOwner();
-  try { await loadConfigData(false); } catch(e){ logApp('No se pudo leer la configuración', e.message, 'warn'); }
+  await loadMe(); await detectOwner();
+  if (OWNER && !LOCAL) await autoLink();
+  try { await loadConfigData(false); SHEETS = {ok:true, status:0, msg:''}; }
+  catch(e){ SHEETS = {ok:false, status:e.status || 0, msg:e.message}; logApp('No se pudo leer el libro de control', e.message, 'warn'); }
   guide();
   if (SRC === 'real') checkBq();
 }
