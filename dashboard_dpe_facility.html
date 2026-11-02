@@ -762,7 +762,7 @@ async function dpeQuery(sql){
     var json = null; try { json = await res.json(); } catch(e){}
     if (!res.ok || !json || json.error){
       var detail = json ? (json.error_code ? json.error_code + ': ' : '') + (json.error || json.detail || '') : 'Respuesta no valida';
-      var err = new Error('HTTP ' + res.status + ' - ' + redact(detail)); err.rid = rid; throw err;
+      var err = new Error('HTTP ' + res.status + ' - ' + redact(detail)); err.rid = rid; err.status = res.status; err.code = json && json.error_code; throw err;
     }
     json._rid = rid; return json;
   }
@@ -891,22 +891,20 @@ async function detectOwner(){
     logApp('Propietario del documento: ' + (me ? 'eres tú' : vals.length ? 'otra persona' : 'no pude determinarlo'), vals.length ? '' : 'El documento no devolvió un campo de propietario reconocible. Usa ?admin=1 en la URL para ver la configuración del libro.', me || vals.length ? undefined : 'warn');
   } catch(e){ logApp('No pude consultar quién es el propietario del documento', e.message, 'warn'); }
 }
-var BQ = {state:'checking', detail:''};
+var BQ = {state:'checking', detail:'', rid:''};   // verificación INFORMATIVA: nunca bloquea los botones; la consulta real decide
 async function checkBq(){
-  BQ = {state:'checking', detail:''}; renderPerm();
-  try { await dpeQuery('SELECT 1 AS ok'); BQ = {state:'ok', detail:''}; }
+  BQ = {state:'checking', detail:'', rid:''}; renderPerm();
+  try { await dpeQuery('SELECT 1 AS ok'); BQ = {state:'ok', detail:'', rid:''}; }
   catch(e){
-    var m = String(e.message || '');
-    BQ = {state: /HTTP (401|403)|permission|denied|forbidden|not authorized|unauthorized|jobs\.create|does not have/i.test(m) ? 'denied' : 'unknown', detail:m};
-    logApp('Verificación de BigQuery: ' + BQ.state, m, BQ.state === 'denied' ? 'err' : 'warn');
+    BQ = {state:'fail', detail:String(e.message || ''), rid:e.rid || '', status:e.status};
+    logApp('Verificación de BigQuery fallida (no bloquea la app)', BQ.detail + (BQ.rid ? '\nx-request-id: ' + BQ.rid : ''), 'warn');
   }
   renderPerm(); renderCargarState(); guide();
 }
 function renderPerm(){
   var el = $('perm-chip');
-  el.innerHTML = BQ.state === 'ok' ? '<span class="chip-ok">Tienes permiso para consultar BigQuery</span>' :
-    BQ.state === 'denied' ? '<span class="chip-bad">Sin permisos para BigQuery</span>' :
-    BQ.state === 'unknown' ? '<span class="chip-warn">No pude verificar tus permisos</span>' : '<span class="chip-info">Verificando permisos…</span>';
+  el.innerHTML = BQ.state === 'ok' ? '<span class="chip-ok">Verificación de BigQuery correcta</span>' :
+    BQ.state === 'fail' ? '<span class="chip-warn" title="' + esc(BQ.detail) + '">No pude confirmar BigQuery (' + esc(BQ.status || 'error') + '); puedes intentar igual</span>' : '<span class="chip-info">Verificando BigQuery…</span>';
 }
 
 /* =============================== Datos de la app =============================== */
@@ -1042,7 +1040,6 @@ async function cargar(save){
   if (BUSY) return busyNotice();
   var inp = readInputs(); if (!inp) return;
   var demo = SRC === 'demo';
-  if (!demo && BQ.state === 'denied'){ banner('error', 'No cuentas con permisos para correr BigQuery', 'Pide el rol de ejecución del proyecto de reporting (se tramita en Shield) y vuelve a intentar.'); return; }
   var name = inp.facility + '_' + inp.cycle;
   var steps = [{t:(demo ? 'Generar datos de ejemplo' : 'Consultar BigQuery (DPE)'), s:'run'}];
   if (save){ steps.push({t:'Guardar la carga para tu equipo', s:'wait'}); steps.push({t:'Anotar la carga en el historial', s:'wait'}); }
@@ -1068,7 +1065,7 @@ async function cargar(save){
     $('ds-name').value = name;
   } catch(e){
     e = abortMsg(e, 'Consulta'); var onSave = e.stage === 'save'; steps[onSave ? 1 : 0].s = 'err';
-    banner('error', onSave ? 'No se pudo guardar la carga' : 'No se pudo consultar', e.message + (e.rid ? '\nx-request-id: ' + e.rid : '')); logApp(onSave ? 'Guardado fallido' : 'Consulta fallida', e.message, 'err'); setConsole(true);
+    banner('error', onSave ? 'No se pudo guardar la carga' : (e.status === 401 || e.status === 403 ? 'BigQuery o DPE rechazaron la consulta' : 'No se pudo consultar'), e.message + (e.rid ? '\nx-request-id: ' + e.rid : '')); logApp(onSave ? 'Guardado fallido' : 'Consulta fallida', e.message, 'err'); setConsole(true);
     if (!onSave) rows = null;
   } finally { endBusy(); }
   if (rows){ renderLoadResult(out, save); }
@@ -1083,8 +1080,6 @@ function renderLoadResult(out, save){
   guide();
 }
 function renderCargarState(){
-  var denied = BQ.state === 'denied' && SRC !== 'demo';
-  $('go-btn').disabled = denied; $('only-btn').disabled = denied;
   var f = $('facility').value.trim().toUpperCase(), c = $('cycle').value.trim().toUpperCase();
   $('ds-name-hint').textContent = f && c ? 'Se guardará como la carga ' + f + '_' + c : '';
 }
@@ -1293,7 +1288,7 @@ function renderConfig(){
   if (!mine.some(function(t){ return t.equipo_id === CFGUI.team; })) CFGUI.team = mine[0] ? mine[0].equipo_id : '';
   var team = mine.filter(function(t){ return t.equipo_id === CFGUI.team; })[0];
   var h = '<div class="sec"><h3>Tú</h3><dl class="kv"><dt>Nombre</dt><dd>' + esc(ME.nombre || '-') + '</dd><dt>LDAP</dt><dd>' + esc(ME.ldap || '-') + '</dd><dt>Correo</dt><dd>' + esc(ME.email || '-') + '</dd>' +
-    '<dt>BigQuery</dt><dd>' + (BQ.state === 'ok' ? '<span class="chip-ok">Con permiso</span>' : BQ.state === 'denied' ? '<span class="chip-bad">Sin permisos</span>' : BQ.state === 'unknown' ? '<span class="chip-warn">No verificado</span>' : '<span class="chip-info">Verificando…</span>') + ' <button type="button" class="text-button" id="cfg-bq">Verificar de nuevo</button></dd></dl></div>';
+    '<dt>BigQuery</dt><dd>' + (BQ.state === 'ok' ? '<span class="chip-ok">Verificación correcta</span>' : BQ.state === 'fail' ? '<span class="chip-warn">No pude confirmar (' + esc(BQ.status || 'error') + ')</span>' : '<span class="chip-info">Verificando…</span>') + ' <button type="button" class="text-button" id="cfg-bq">Verificar de nuevo</button>' + (BQ.state === 'fail' ? '<div class="hint" style="margin-top:6px;white-space:pre-wrap">' + esc(BQ.detail) + (BQ.rid ? '\nx-request-id: ' + esc(BQ.rid) : '') + '</div>' : '') + '</dd></dl></div>';
   h += '<div class="sec"><h3>Mis equipos</h3>';
   if (!sitios.length) h += '<div class="status-banner warning"><div><strong>No hay sitios configurados</strong><br>Agrega los sitios en la pestaña SITIOS del libro de control (columnas: sitio, nombre, activo).</div></div>';
   else {
@@ -1371,8 +1366,7 @@ function guide(){
   if (BUSY) return;
   var b = $('brief'), h = '';
   if (TAB === 'cargar'){
-    if (BQ.state === 'denied') h = '<p class="brief-text"><strong>No cuentas con permisos para correr BigQuery.</strong> Sin ese permiso no puedo traer los envíos.</p><ul class="brief-list"><li>Pide el rol de ejecución del proyecto de reporting en Shield.</li><li>Mientras tanto puedes usar <strong>Ejemplo</strong> para conocer la herramienta.</li></ul>';
-    else h = '<p class="brief-text">Hola' + (ME.nombre ? ', <strong>' + esc(ME.nombre.split(' ')[0]) + '</strong>' : '') + '. Así empezamos:</p><ol class="brief-list"><li>Escribe tu <strong>sitio</strong> y el <strong>ciclo</strong>.</li><li>Pon desde qué <strong>costo</strong> quieres ver los envíos.</li><li>Presiona <strong>Consultar y guardar</strong>. Yo hago todos los pasos.</li></ol>' + (BQ.state === 'unknown' ? '<p class="hint" style="margin-top:6px">No pude verificar tus permisos de BigQuery; si algo falla, lo verás aquí.</p>' : '');
+    h = '<p class="brief-text">Hola' + (ME.nombre ? ', <strong>' + esc(ME.nombre.split(' ')[0]) + '</strong>' : '') + '. Así empezamos:</p><ol class="brief-list"><li>Escribe tu <strong>sitio</strong> y el <strong>ciclo</strong>.</li><li>Pon desde qué <strong>costo</strong> quieres ver los envíos.</li><li>Presiona <strong>Consultar y guardar</strong>. Yo hago todos los pasos.</li></ol>' + (BQ.state === 'fail' ? '<p class="hint" style="margin-top:6px">La verificación inicial de BigQuery no salió bien (' + esc(BQ.status || 'error') + '), pero eso no te bloquea: intenta consultar y, si falla, te muestro el motivo exacto.</p>' : '');
   } else if (TAB === 'trabajar'){
     h = !DS ? '<p class="brief-text">Elige la carga de tu sitio y ciclo (por ejemplo <strong>STR1_AM1</strong>) y presiona <strong>Abrir</strong>.</p>' :
       '<p class="brief-text">Tienes <strong>' + num(DS.rows.length) + ' envíos</strong> de <strong>' + esc(DS.name) + '</strong>' + (DS.saved ? '' : ' <span class="chip-warn">sin guardar</span>') + '.</p><ol class="brief-list"><li>Filtra por dominio, costo o descripción.</li><li>Marca los envíos que quieras (o <strong>Seleccionar visibles</strong>).</li><li>Presiona <strong>Asignar a lote</strong> y elige a quién se los das.</li></ol>';
