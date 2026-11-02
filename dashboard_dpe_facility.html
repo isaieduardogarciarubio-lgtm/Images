@@ -870,12 +870,12 @@ async function tabHeaders(tab){
 }
 
 /* ============================ Identidad y permisos ============================ */
-var ME = {ldap:'', email:'', nombre:''};
+var ME = {ldap:'', email:'', nombre:'', auth:'', caller:'', pub:null};
 async function loadMe(){
   try {
     var res = await fetch('/api/v1/me', {credentials:'include', cache:'no-store', headers:{'Accept':'application/json'}});
     var j = await res.json();
-    ME = {ldap: lc(j.username || j.ldap), email: String(j.email || ''), nombre: String(j.name || j.full_name || j.display_name || j.username || j.ldap || '')};
+    ME = {ldap: lc(j.username || j.ldap), email: String(j.email || ''), nombre: String(j.name || j.full_name || j.display_name || j.username || j.ldap || ''), auth: String(j.auth_path || ''), caller: String(j.caller_id || ''), pub: j.is_public};
     if (!ME.ldap) throw new Error('Grid no devolvió tu usuario.');
   } catch(e){
     logApp('No se pudo leer /api/v1/me', e.message, 'warn');
@@ -898,16 +898,27 @@ async function detectOwner(){
 }
 function diagHtml(){
   var cur = billingProject(), h = '<div class="hint" style="margin-top:8px">Proyecto de facturación actual: <strong>' + esc(cur) + '</strong>' + (cur !== CFG.BILLING_PROJECT ? ' (cambiado solo en este navegador)' : ' (el de reporting)') + '</div>' +
-    '<div class="actions" style="margin-top:6px"><button type="button" class="secondary-button" id="cfg-diag">Diagnosticar BigQuery</button>' + (cur !== CFG.BILLING_PROJECT ? '<button type="button" class="secondary-button" id="cfg-reset-billing">Volver al proyecto de reporting</button>' : '') + '</div>';
+    '<div class="actions" style="margin-top:6px"><button type="button" class="secondary-button" id="cfg-diag">Diagnosticar BigQuery</button><button type="button" class="secondary-button" id="cfg-copy-ident">Copiar mi identidad</button>' + (cur !== CFG.BILLING_PROJECT ? '<button type="button" class="secondary-button" id="cfg-reset-billing">Volver al proyecto de reporting</button>' : '') + '</div>';
   if (CFGUI.diag){
     h += '<div class="people" style="margin-top:8px">' + CFGUI.diag.map(function(d){
       return '<div class="person"><div class="who"><b>' + esc(d.proj) + '</b><span>' + (d.ok ? 'Respondió bien' : esc(d.msg)) + (d.rid ? ' · ' + esc(d.rid) : '') + '</span></div>' +
         (d.ok ? '<span class="chip-ok">Funciona</span>' + (d.proj !== cur ? '<button type="button" class="primary-button" data-use-billing="' + esc(d.proj) + '">Usar este</button>' : '') : '<span class="chip-bad">Falló</span>') + '</div>';
     }).join('') + '</div>';
     var rep = CFGUI.diag.filter(function(d){ return d.proj === CFG.BILLING_PROJECT; })[0], per = CFGUI.diag.filter(function(d){ return d.proj !== CFG.BILLING_PROJECT; })[0];
+    if (CFGUI.diag.every(function(d){ return !d.ok; })) h += '<div class="hint" style="margin-top:8px"><strong>Fallan los dos proyectos con el mismo error.</strong> Entonces no es el proyecto de facturación: el servicio de consultas no está aceptando tu sesión (un 401 del servicio, no un permiso de tablas). Pasos: 1) cierra sesión en Grid y vuelve a entrar; 2) prueba en otra ventana de incógnito; 3) si sigue igual, copia el reporte y envíalo al equipo de DPE junto con los x-request-id.</div><div class="actions" style="margin-top:6px"><button type="button" class="secondary-button" id="cfg-copy-diag">Copiar reporte para soporte</button></div>';
     if (rep && !rep.ok && per && per.ok) h += '<div class="hint" style="margin-top:8px">Tu usuario no tiene acceso de ejecución al proyecto de reporting, pero sí a <strong>' + esc(per.proj) + '</strong>. Pide el acceso del proyecto de reporting en Shield; mientras tanto puedes usar ese proyecto en este navegador (los costos y la cuota de cómputo serán de ese proyecto).</div>';
   }
   return h;
+}
+function identInfo(){
+  var cookies = []; try { cookies = document.cookie.split(';').map(function(c){ return c.split('=')[0].trim(); }).filter(Boolean); } catch(e){}
+  var framed = false; try { framed = window.top !== window; } catch(e){ framed = true; }
+  return {origin:location.origin, path:location.pathname.replace(/\/d\/[^\/]+/, '/d/<doc>'), framed:framed, cookies:cookies, auth:ME.auth, caller:ME.caller, ldap:ME.ldap, callerEqLdap:ME.caller ? lc(ME.caller) === ME.ldap : null, pub:ME.pub, owner:OWNER, ownerId:OWNER_ID, tz:(Intl.DateTimeFormat().resolvedOptions().timeZone || ''), online:navigator.onLine, ua:navigator.userAgent.slice(0, 90)};
+}
+function identText(){
+  var i = identInfo();
+  return ['Identidad vista por la app', 'origen: ' + i.origin + i.path, 'dentro de iframe: ' + (i.framed ? 'sí' : 'no'), 'auth_path (/me): ' + (i.auth || '(vacío)'), 'caller_id == ldap: ' + (i.callerEqLdap == null ? '(sin caller_id)' : i.callerEqLdap), 'is_public: ' + i.pub,
+    'es dueño del documento: ' + (i.owner ? 'sí' : 'no') + (i.ownerId ? ' (dueño: ' + i.ownerId + ')' : ''), 'usuario: ' + i.ldap, 'cookies visibles (solo nombres; las HttpOnly no se ven): ' + (i.cookies.join(', ') || '(ninguna)'), 'zona horaria: ' + i.tz, 'navegador: ' + i.ua].join('\n');
 }
 var BQ = {state:'checking', detail:'', rid:''};   // verificación INFORMATIVA: nunca bloquea los botones; la consulta real decide
 /* El dueño registra el vínculo documento-libro una sola vez (Grid lo exige desde el 14-oct); sin él, el resto de las personas recibe 403. */
@@ -1318,7 +1329,7 @@ function renderConfig(){
   if (!mine.some(function(t){ return t.equipo_id === CFGUI.team; })) CFGUI.team = mine[0] ? mine[0].equipo_id : '';
   var team = mine.filter(function(t){ return t.equipo_id === CFGUI.team; })[0];
   var h = '<div class="sec"><h3>Tú</h3><dl class="kv"><dt>Nombre</dt><dd>' + esc(ME.nombre || '-') + '</dd><dt>LDAP</dt><dd>' + esc(ME.ldap || '-') + '</dd><dt>Correo</dt><dd>' + esc(ME.email || '-') + '</dd>' +
-    '<dt>BigQuery</dt><dd>' + (BQ.state === 'ok' ? '<span class="chip-ok">Verificación correcta</span>' : BQ.state === 'fail' ? '<span class="chip-warn">No pude confirmar (' + esc(BQ.status || 'error') + ')</span>' : '<span class="chip-info">Verificando…</span>') + ' <button type="button" class="text-button" id="cfg-bq">Verificar de nuevo</button>' + (BQ.state === 'fail' ? '<div class="hint" style="margin-top:6px;white-space:pre-wrap">' + esc(BQ.detail) + (BQ.rid ? '\nx-request-id: ' + esc(BQ.rid) : '') + '</div>' : '') + diagHtml() + '</dd></dl></div>';
+    '<dt>Acceso</dt><dd>' + esc(ME.auth || '-') + ' · <span class="hint">' + esc(location.host) + (window.top !== window ? ' · en iframe' : '') + '</span></dd><dt>BigQuery</dt><dd>' + (BQ.state === 'ok' ? '<span class="chip-ok">Verificación correcta</span>' : BQ.state === 'fail' ? '<span class="chip-warn">No pude confirmar (' + esc(BQ.status || 'error') + ')</span>' : '<span class="chip-info">Verificando…</span>') + ' <button type="button" class="text-button" id="cfg-bq">Verificar de nuevo</button>' + (BQ.state === 'fail' ? '<div class="hint" style="margin-top:6px;white-space:pre-wrap">' + esc(BQ.detail) + (BQ.rid ? '\nx-request-id: ' + esc(BQ.rid) : '') + '</div>' : '') + diagHtml() + '</dd></dl></div>';
   h += '<div class="sec"><h3>Mis equipos</h3>';
   if (!sitios.length) h += '<div class="status-banner warning"><div><strong>No hay sitios configurados</strong><br>Agrega los sitios en la pestaña SITIOS del libro de control (columnas: sitio, nombre, activo).</div></div>';
   else {
@@ -1477,6 +1488,16 @@ $('cfg-body').addEventListener('click', function(e){
     }, 'Diagnosticando BigQuery'); return;
   }
   if (t.dataset.useBilling){ setBillingProject(t.dataset.useBilling); logApp('Proyecto de facturación en este navegador: ' + t.dataset.useBilling); checkBq().then(renderConfig); return; }
+  if (t.id === 'cfg-copy-ident'){
+    var it = identText(); logApp('Identidad para comparar cuentas', it);
+    (navigator.clipboard ? navigator.clipboard.writeText(it) : Promise.reject()).then(function(){ snack('Identidad copiada'); }, function(){ snack('No pude copiar; quedó en la consola'); }); return;
+  }
+  if (t.id === 'cfg-copy-diag'){
+    var txt = 'Reporte BigQuery/DPE desde Grid\nFecha: ' + new Date().toISOString() + '\n' + identText() + '\nDocumento: ' + docId() + '\nRuta: POST /api/v1/dpe/sources/bigquery/' + CFG.DATA_PROJECT + '/query  (SELECT 1)\n\n' +
+      (CFGUI.diag || []).map(function(d){ return 'billing_project=' + d.proj + ' -> ' + (d.ok ? 'OK' : d.msg) + (d.rid ? '\n  x-request-id: ' + d.rid : ''); }).join('\n');
+    logApp('Reporte para soporte', txt);
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function(){ snack('Reporte copiado'); }, function(){ snack('No pude copiar; el reporte quedó en la consola'); }); return;
+  }
   if (t.id === 'cfg-reset-billing'){ setBillingProject(''); logApp('Proyecto de facturación restablecido al de reporting'); checkBq().then(renderConfig); return; }
   if (t.id === 'cfg-connect'){
     var raw = $('cfg-sheet').value.trim(), m = raw.match(/\/d\/([A-Za-z0-9_-]{20,})/) || raw.match(/^([A-Za-z0-9_-]{20,})$/);
